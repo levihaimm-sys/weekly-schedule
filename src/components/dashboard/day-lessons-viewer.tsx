@@ -215,11 +215,13 @@ export function DayLessonsViewer({
                           )}
                         </p>
                         {lesson.signature && (
-                          <CheckCircle size={14} className="text-green-600" title={
+                          <span title={
                             lesson.signature.signer_role === "teacher"
                               ? `אושר ע"י גננת (${lesson.signature.signer_name})`
-                              : "אושר ע\"י המדריכה"
-                          } />
+                              : 'אושר ע"י המדריכה'
+                          }>
+                            <CheckCircle size={14} className="text-green-600" />
+                          </span>
                         )}
                       </div>
                       {isPendingRequest && (
