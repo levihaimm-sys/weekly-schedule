@@ -1,0 +1,102 @@
+{
+  "id": "89f46b39-2770-4d6a-a399-6142e2a86754",
+  "name": "גמישות תנועה 8",
+  "equipment": [
+    {
+      "name": "חישוקים",
+      "quantity": 37
+    },
+    {
+      "name": "קונוסים+2 תופסנים+חישוק",
+      "quantity": 2
+    },
+    {
+      "name": "חבל לסימון שער/ שער כדורגל/ כסאות",
+      "quantity": 1
+    },
+    {
+      "name": "כדורסל",
+      "quantity": 1
+    },
+    {
+      "name": "כדורגל",
+      "quantity": 3
+    },
+    {
+      "name": "מחבטי טניס+17 כדורי פינג פונג",
+      "quantity": 17
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - הכל אני יכול בחופש הגדול",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. חימום - שיר רקע - SHAKE IT OFF",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "💃\n          3. סרטון ריקוד",
+      "content": "<p class=\"text-gray-700 text-sm\">(יש לצפות בסרטון לפני השיעור) - נלמד את הילדים את הריקוד ונשים את השיר ברקע</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "נחקור את החישוק ביחד",
+      "content": "<p class=\"text-gray-700 text-sm\">ונבין את המשקל שלו, את הצבע, את המרקם, את התחושה שלו</p>"
+    },
+    {
+      "title": "נעמוד ונתרגל:",
+      "content": "<ol class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li><strong>1.</strong> נשים את החישוק על הצוואר, על הראש, על ברך אחת ועל השנייה. על יד אחת ועל השנייה</li>\n          <li><strong>2.</strong> נזרוק אותו ונתפוס</li>\n          <li><strong>3.</strong> ננסה לגלגל אותו על הרצפה</li>\n        </ol>"
+    },
+    {
+      "title": "חקירה חופשית 🔄",
+      "content": "<p class=\"text-gray-700 text-sm\">נתן לילדים לחקור איך לסובב אותו על הגוף (תוך כדי נשים את השיר של החימום ברקע)</p>"
+    },
+    {
+      "title": "משחק ים יבשה עצמאי 🌊",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">כל ילד שם את החישוק על הרצפה והם צריכים לקפוץ פנימה כשאת אומרת ים ויבשה צריכים לצאת.</p>\n<p class=\"text-blue-600 text-sm font-semibold\">אם רוצים לאתגר אפשר להגיד את המילה \"אי\" והם צריכים לעמוד רגל בפנים ורגל בחוץ</p>\n<p class=\"text-red-600 text-sm font-semibold mt-2\">* מחזירים את החישוקים למקום</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "נעשה 3 תחנות",
+      "content": "<p class=\"text-gray-700 text-sm\">(נחלק את הילדים ל-3 קבוצות)</p>"
+    },
+    {
+      "title": "⚽ תחנה 1: כדורגל",
+      "content": "<p class=\"text-gray-700 text-sm\">בעיטה לשער רק בעזרת הרגליים (3 כדורגל + 2 כסאות שמסמנים את השער)</p>"
+    },
+    {
+      "title": "🏀 תחנה 2: כדורסל",
+      "content": "<p class=\"text-gray-700 text-sm\">קליעה לסל (2 קונוסים + 2 תופסנים + חישוק)</p>"
+    },
+    {
+      "title": "🏓 תחנה 3: מחבטי טניס",
+      "content": "<p class=\"text-gray-700 text-sm\">מחבטי טניס + כדורי פינג פונג - צריכים להקפיץ עליהם 10 פעמים ברצף (תלוי בגיל המודרך, אפשר גם פחות)</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

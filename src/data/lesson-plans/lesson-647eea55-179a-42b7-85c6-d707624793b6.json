@@ -1,0 +1,94 @@
+{
+  "id": "647eea55-179a-42b7-85c6-d707624793b6",
+  "name": "גמישות תנועה 4",
+  "equipment": [
+    {
+      "name": "מקלות הקשה",
+      "quantity": 37
+    },
+    {
+      "name": "מזרון יוגה",
+      "quantity": 1
+    },
+    {
+      "name": "דליים",
+      "quantity": 2
+    },
+    {
+      "name": "כדורי ספוג",
+      "quantity": 2
+    },
+    {
+      "name": "קונוסים כתומים",
+      "quantity": 2
+    },
+    {
+      "name": "מנהרת קפיץ",
+      "quantity": 1
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - טריליליללה",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. ALL ABOUT THE BASE",
+      "content": "<p class=\"text-gray-700 text-sm\">מחלקים את הילדים לזוגות והם צריכים כל פעם לחקות את מי שמולם בתנועות שהוא עושה. ואז מתחלפים.</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">אנחנו רוצים שהילדים ילמדו לבטא את הגוף עם הגוף שלהם את המוזיקה</p>"
+    },
+    {
+      "title": "👏\n          3. משחק מחיאות כפיים",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נותנים לילדים מקצבים שונים עם הכפיים ומבקשים מהם לחקות את המקצב שאנחנו עשינו.</p>\n<p class=\"text-gray-700 text-sm\">2 מחיאות כפיים, 2 מחיאות כפיים וקריאת וואו. אפשר להמציא גם מקצבים מהפה ע\"י השמעת קולות (להגיד לילדים לחקות אותנו)</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. לומדים להכיר את האביזר",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">שואלים את הילדים:</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• מה הצבע של המקלות?</li>\n          <li>• קשים או רכים?</li>\n          <li>• גמישים או נוקשים?</li>\n          <li>• מחסופסים או חלקים?</li>\n          <li>• ממה הם עשויים? (עץ)</li>\n        </ul>"
+    },
+    {
+      "title": "2. משחק הקצב 🎵",
+      "content": "<p class=\"text-gray-700 text-sm\">מלמדים את הילדים להקיש במקלות ומשחקים איתם את המשחק של הקצב כמו שעשינו בחימום. נותנים להם מקצב והם צריכים לחקות אותנו.</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">לתת להם מקצבים שונים ומאתגרים, אם הם טעו לעשות שוב</p>\n<p class=\"text-red-600 text-sm font-semibold mt-2\">* מחזירים בחזרה את המקלות לשק</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. מזרון יוגה - גלגול עיפרון ✏️",
+      "content": "<p class=\"text-gray-700 text-sm\">נבקש מהילדים לעשות גלגול על הצד, כמו עיפרון. הראש והרגליים מחוץ למזרון</p>"
+    },
+    {
+      "title": "2. קונוסים - הליכת סרטן 🦀",
+      "content": "<p class=\"text-gray-700 text-sm\">2 קונוסים - נבקש מהילדים ללכת בהליכת סרטן מקונוס אחד לשני (המרחק תלוי בגיל המודרך)</p>"
+    },
+    {
+      "title": "3. מנהרת קפיץ 🏃",
+      "content": "<p class=\"text-gray-700 text-sm\">הילדים צריכים לזחול בתוך המנהרה</p>"
+    },
+    {
+      "title": "4. קליעה לדליים 🎯",
+      "content": "<p class=\"text-gray-700 text-sm\">2 דליים + 2 כדורי ספוג - לקלוע את הכדור לדלי (המרחק תלוי בגיל המודרך)</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

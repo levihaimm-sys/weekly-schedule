@@ -1,0 +1,130 @@
+{
+  "id": "b6ee420d-ed02-4588-9941-43974beb2e61",
+  "name": "מיומנות יסוד 9",
+  "equipment": [
+    {
+      "name": "כדורים חלקים צבעוניים",
+      "quantity": 37
+    },
+    {
+      "name": "חבל משיכה לבן",
+      "quantity": 1
+    },
+    {
+      "name": "קרוסלות עץ",
+      "quantity": 4
+    },
+    {
+      "name": "נקודות סימון אדום וכחול",
+      "quantity": 2
+    },
+    {
+      "name": "מזרנים כחולים",
+      "quantity": 2
+    },
+    {
+      "name": "מזרון יוגה",
+      "quantity": 1
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו כיוונים שונים - לצדדים, קדימה, אחורה, מעל, מתחת, ליד, בתוך ומחוץ</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>גלגול והכרות עם המושג סיבוב</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה בכיוונים שונים וברמות גובה שונות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה במסלולים שונים (ישר, זיג זג, עגול, מפותל, סיבוב) עם ובלי אביזר</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה במרחב הכללי באופני התקדמות שונים</span>\n      </li>\n    </ul>\n<div class=\"mt-4 bg-orange-100 rounded-lg p-3\">\n      <p class=\"text-sm text-orange-900 font-semibold\">\n        ⚠️ חשוב מאוד להתייחס למושגי היסוד במשך כל ההפעלה כדי שהילדים ילמדו את המושגים ברמה הגופנית וברמה המילולית\n      </p>\n    </div>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - כמו בריו - אגם בוחבוט",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n          מבקשים מהם ללכת מהר, ואז ממש לאט במהירויות שונות.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. שיר רקע - חיות פיל לפי מילות השיר",
+      "content": "<p class=\"text-gray-700 mb-2\">בהליכה בחדר לכיוון השעון:</p>\n<div class=\"grid grid-cols-2 gap-2 text-sm\">\n          <div class=\"flex items-center gap-2\">\n            <span>🐘</span>\n            <span class=\"text-gray-700\">פיל - חדק עם היד</span>\n          </div>\n          <div class=\"flex items-center gap-2\">\n            <span>🐱</span>\n            <span class=\"text-gray-700\">חתול - הליכה על שש</span>\n          </div>\n          <div class=\"flex items-center gap-2\">\n            <span>🐸</span>\n            <span class=\"text-gray-700\">צפרדע - קפיצה</span>\n          </div>\n          <div class=\"flex items-center gap-2\">\n            <span>🦅</span>\n            <span class=\"text-gray-700\">ציפור - ידיים לצדדים</span>\n          </div>\n          <div class=\"flex items-center gap-2\">\n            <span>🐍</span>\n            <span class=\"text-gray-700\">נחש - זחילה</span>\n          </div>\n          <div class=\"flex items-center gap-2\">\n            <span>🐵</span>\n            <span class=\"text-gray-700\">קוף - ניתורים קלים על קצות האצבעות</span>\n          </div>\n        </div>\n<p class=\"text-gray-700 mt-2 text-sm italic\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. סיבובים גדולים 🔄",
+      "content": "<p class=\"text-sm text-gray-700\">נושיט את הכדור קדימה ונסובב את הידיים בסיבובים גדולים קדימה, ולאחר מכן אחורה</p>"
+    },
+    {
+      "title": "2. סיבובים קטנים ⭕",
+      "content": "<p class=\"text-sm text-gray-700\">נסובב את הידיים בעיגולים קטנים קטנים, קדימה ואחורה</p>"
+    },
+    {
+      "title": "3. סיבוב רגליים 🦵",
+      "content": "<p class=\"text-sm text-gray-700\">נשים את הכדור בין הרגליים ולסובב את הרגליים</p>"
+    },
+    {
+      "title": "4. כדור על הראש 🎩",
+      "content": "<p class=\"text-sm text-gray-700\">נרים את הידיים גבוהה למעלה ונניח את הכדור על הראש</p>"
+    },
+    {
+      "title": "5. גלגול על האיברים 🎯",
+      "content": "<p class=\"text-gray-700 text-sm\">נגלגל את הכדור על האיברים השונים עד לכפות הרגליים:</p>\n<p class=\"text-gray-600 text-sm\">מצח → אף → סנטר → צוואר → בית החזה → בטן → ירכיים → שוקיים → כפות רגליים → אצבעות</p>"
+    },
+    {
+      "title": "6-7. ספירה וחזרה ⏱️",
+      "content": "<p class=\"text-gray-700 text-sm\">נחזיק את הכדור על קצות האצבעות ונספור עד 10. נגלגל את הכדור הכי מהר שאנחנו יכולים בחזרה אל הראש. אפשר לחזור על הפעולה פעמיים שלוש.</p>"
+    },
+    {
+      "title": "8. גלגול צידי ↔️",
+      "content": "<p class=\"text-gray-700 text-sm\">בישיבה מזרחית, נגלגל את הכדור על הרצפה מיד ימין ליד שמאל</p>"
+    },
+    {
+      "title": "9. גלגול קדימה ואחורה ⬆️⬇️",
+      "content": "<p class=\"text-gray-700 text-sm\">בישיבה מזרחית על הרצפה, נניח את הכדור על הרצפה, נחזיק את הכדור עם שתי ידיים ונגלגל אותו קדימה, הכי רחוק שאנחנו יכולים להגיע מבלי שהישבן יתרומם מהרצפה וחזרה אחורה. נחזור על הפעולה כמה פעמים.</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">יש לתת זמן לרעיונות משלהם ואם יש רעיון שמתקשר לגלגולים או סיבובים לבקש מכולם לבצע</p>"
+    },
+    {
+      "title": "🎵\n          הפעלה יחד עם מוזיקה: עיגולים מתגלגלים",
+      "content": "<p class=\"text-gray-700 mb-2\">פעילות חופשית בחדר בתנועה:</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• לגלגל את הכדור על הרצפה</li>\n          <li>• לזרוק ולתפוס</li>\n          <li>• לשכב על הכדור עם הבטן ולהתקדם קדימה ואחורה בעזרת הידיים והרגליים</li>\n          <li>• להעביר את הכדור בעזרת הידיים אל מאחורי הגב ובחזרה קדימה</li>\n          <li>• או כל רעיון אחר שעולה לך תוך כדי</li>\n        </ul>"
+    },
+    {
+      "title": "🎶\n          שיר הפעלה נוסף: מתגלגל הופ",
+      "content": "<p class=\"text-gray-700 text-sm\">לפי מילות השיר - לגלגל ולהחביא - לנוח, מקפץ ולנוח</p>"
+    },
+    {
+      "title": "החזרת הכדורים 🎒",
+      "content": "<p class=\"text-gray-700 text-sm\">כל ילד חוזר למקום, מושיט את הכדור קדימה ואנו עוברים עם השק והילד מכניס את הכדור לשק – לשים לב שכל הילדים מחזירים את הכדור</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. קרוסלות מעץ 🎠",
+      "content": "<p class=\"text-gray-700 text-sm\">טור של 2 קרוסלות אחת אחרי השניה. על הילדים לעבור מקרוסלה לקרוסלה מבלי לגעת ברצפה (לא ליפול מהקרוסלה)</p>"
+    },
+    {
+      "title": "2. מזרון יוגה - גלגול עיפרון ✏️",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">לעבור למזרון יוגה לשכב על הגב לרוחב המזרון ולהתגלגל גלגול צידי (גלגול עיפרון)</p>\n<p class=\"text-gray-600 text-sm\">נסמן בעזרת נקודת סימון איפה הראש מונח ואיפה הרגליים - הראש על הנקודה הכחולה והרגליים לכיוון הנקודה האדומה</p>"
+    },
+    {
+      "title": "3. עוד קרוסלות 🎠",
+      "content": "<p class=\"text-gray-700 text-sm\">לאחר מכן עוברים עוד 2 קרוסלות מבלי ליפול</p>\n<p class=\"text-gray-600 text-sm italic\">לשים לב שאנו מחליפים להם את הצד של הראש והרגליים שיתגלגלו פעם מצד ימין שלהם ופעם מצד שמאל על המזרון יוגה</p>"
+    },
+    {
+      "title": "4. חבל משיכה לבן 🪢",
+      "content": "<p class=\"text-gray-700 text-sm\">לסדר את החבל בפיתול, ללכת מעל החבל ברגליים פסוקות מבלי לגעת בחבל בפיתול</p>"
+    },
+    {
+      "title": "5. מזרונים כחולים - גלגול קדמי 🤸",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">טור של 2 מזרונים כחולים - גלגול קדמי:</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• הילד עומד בקצה המזרון</li>\n          <li>• רגליים ברוחב האגן על המזרון</li>\n          <li>• מניחים את כפות הידיים בין הרגליים על המזרון</li>\n          <li>• מדביקים את הסנטר לבית החזה ומניחים את הראש בין הידיים ומתגלגלים קדימה</li>\n        </ul>\n<p class=\"text-gray-600 text-sm mt-2\">אנו עומדים בקצה המזרון הראשון, מדריכים אותם לפעולה נכונה. לאחר הגלגול הראשון בליווי שלכם, הם עוברים למזרון השני ועושים שוב גלגול.</p>\n<p class=\"text-red-600 text-sm font-semibold mt-2\">⚠️ לשים לב שהם שומרים על גב עגול + מניחים את הראש ורק לאחר מכן לוקחים את התנופה לגלגול ולא נופלים על הראש</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-11",
+  "pdf_path": null
+}

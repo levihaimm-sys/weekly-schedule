@@ -1,0 +1,378 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { startOfWeek, addDays, format } from "date-fns";
+import { getTodayInIsrael } from "@/lib/utils/date";
+
+/**
+ * Replicates the master schedule (recurring_schedule) into concrete
+ * lesson instances for a given week. Idempotent - skips if lessons
+ * already exist for that week.
+ *
+ * IMPORTANT - About Duplicate Prevention:
+ * - The weekly schedule is SUPPOSED to repeat (same lesson every week)
+ * - Example: Monday 10:00 lesson should exist in week 1, week 2, week 3, etc.
+ * - BUT: The same lesson should NOT appear twice in the SAME day!
+ *
+ * Protection against duplicates:
+ * 1. This function checks if ANY lessons exist in target week (count > 0)
+ * 2. Database constraint "unique_lesson_schedule" prevents duplicate lessons on same date
+ *    (same instructor + location + date + time cannot be inserted twice)
+ *
+ * If you see duplicate lessons on the SAME date, it's a bug - check:
+ * - Is this function being called multiple times accidentally?
+ * - Is the constraint "unique_lesson_schedule" properly set up?
+ */
+export async function replicateWeekSchedule(targetDate?: string) {
+  const supabase = await createClient();
+
+  // Calculate the week boundaries (Sunday - Friday, Israel work week)
+  const baseDate = targetDate ? new Date(targetDate) : new Date();
+  const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
+  const weekEnd = addDays(weekStart, 5); // Friday
+
+  const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+
+  // Check if lessons already exist for this week
+  const { count } = await supabase
+    .from("lessons")
+    .select("*", { count: "exact", head: true })
+    .gte("lesson_date", weekStartStr)
+    .lte("lesson_date", weekEndStr);
+
+  if (count && count > 0) {
+    return {
+      error: `כבר קיימים ${count} שיעורים לשבוע ${weekStartStr}. לא נוצרו שיעורים חדשים.`,
+      existing: count,
+    };
+  }
+
+  // Fetch master schedule
+  const { data: masterSchedule, error: fetchError } = await supabase
+    .from("recurring_schedule")
+    .select("id, location_id, instructor_id, day_of_week, start_time, group_name");
+
+  if (fetchError || !masterSchedule) {
+    return { error: "שגיאה בטעינת הלוח הקבוע: " + fetchError?.message };
+  }
+
+  // Create lesson instances
+  const lessons = masterSchedule.map((entry) => {
+    const lessonDate = addDays(weekStart, entry.day_of_week);
+    return {
+      recurring_item_id: entry.id,
+      location_id: entry.location_id,
+      instructor_id: entry.instructor_id,
+      lesson_date: format(lessonDate, "yyyy-MM-dd"),
+      start_time: entry.start_time,
+      status: "scheduled",
+    };
+  });
+
+  // Insert in batches
+  let totalInserted = 0;
+  for (let i = 0; i < lessons.length; i += 100) {
+    const batch = lessons.slice(i, i + 100);
+    const { data, error } = await supabase
+      .from("lessons")
+      .insert(batch)
+      .select();
+
+    if (error) {
+      return {
+        error: `שגיאה בהוספת שיעורים (batch ${i}): ${error.message}`,
+        inserted: totalInserted,
+      };
+    }
+    totalInserted += data?.length ?? 0;
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/my-schedule");
+
+  return {
+    success: true,
+    message: `נוצרו ${totalInserted} שיעורים לשבוע ${weekStartStr}`,
+    inserted: totalInserted,
+    weekStart: weekStartStr,
+  };
+}
+
+/**
+ * Update a single lesson (one-time change)
+ */
+export async function updateLesson(
+  lessonId: string,
+  updates: {
+    instructor_id?: string;
+    substitute_instructor_id?: string;
+    status?: string;
+    change_notes?: string;
+    start_time?: string;
+  }
+) {
+  const supabase = await createClient();
+
+  // If this lesson had a pending instructor request, mark it as handled
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select("instructor_absence_request, instructor_request_handled")
+    .eq("id", lessonId)
+    .single();
+
+  const finalUpdates: Record<string, any> = { ...updates };
+  if (lesson?.instructor_absence_request && !lesson?.instructor_request_handled) {
+    finalUpdates.instructor_request_handled = true;
+  }
+
+  const { error } = await supabase
+    .from("lessons")
+    .update(finalUpdates)
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון השיעור: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
+/**
+ * Update the master schedule (permanent change)
+ */
+export async function updateRecurringSchedule(
+  recurringId: string,
+  updates: {
+    instructor_id?: string;
+    start_time?: string;
+    location_id?: string;
+  }
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("recurring_schedule")
+    .update(updates)
+    .eq("id", recurringId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון הלוח הקבוע: " + error.message };
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+
+  return { success: true };
+}
+
+/**
+ * Apply a permanent change: updates the recurring schedule AND
+ * all future lesson instances linked to it (from today onward).
+ */
+export async function applyPermanentChange(
+  recurringId: string,
+  _currentLessonId: string,
+  updates: {
+    instructor_id?: string;
+    start_time?: string;
+  }
+) {
+  const supabase = await createClient();
+
+  // 1. Update the master schedule
+  const { error: recurringError } = await supabase
+    .from("recurring_schedule")
+    .update(updates)
+    .eq("id", recurringId);
+
+  if (recurringError) {
+    return { error: "שגיאה בעדכון הלוח הקבוע: " + recurringError.message };
+  }
+
+  // 2. Update all future lessons from this recurring item (today + forward)
+  const today = getTodayInIsrael();
+  const { error: lessonsError } = await supabase
+    .from("lessons")
+    .update(updates)
+    .eq("recurring_item_id", recurringId)
+    .gte("lesson_date", today);
+
+  if (lessonsError) {
+    return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
+/**
+ * Delete a recurring schedule item and all future lessons created from it.
+ * IMPORTANT: This is a permanent change that affects all future weeks.
+ * Use deleteLesson() for one-time changes to a single lesson.
+ */
+export async function deleteRecurringScheduleItem(recurringItemId: string) {
+  const supabase = await createClient();
+  const today = getTodayInIsrael();
+
+  // Delete all future lessons created from this recurring item
+  const { error: deleteLessonsError } = await supabase
+    .from("lessons")
+    .delete()
+    .eq("recurring_item_id", recurringItemId)
+    .gte("lesson_date", today);
+
+  if (deleteLessonsError) {
+    return {
+      error: "שגיאה במחיקת שיעורים עתידיים: " + deleteLessonsError.message,
+    };
+  }
+
+  // Delete the recurring schedule item
+  const { error: deleteRecurringError } = await supabase
+    .from("recurring_schedule")
+    .delete()
+    .eq("id", recurringItemId);
+
+  if (deleteRecurringError) {
+    return {
+      error: "שגיאה במחיקת לוח קבוע: " + deleteRecurringError.message,
+    };
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
+/**
+ * Ensure lessons exist for the next N weeks (auto-replication).
+ * Can be called from server components (skipRevalidate=true) or server actions.
+ *
+ * IMPORTANT - About Weekly Schedule:
+ * - The organization's schedule repeats weekly (same lessons every week)
+ * - This function creates lesson instances for multiple weeks ahead
+ * - Example: If today is week 1, it creates lessons for weeks 1-8
+ *
+ * Duplicate Prevention:
+ * - Checks if lessons exist in each week before creating (line 241: if count > 0, skip)
+ * - Database constraint "unique_lesson_schedule" prevents same lesson appearing twice on same date
+ * - If you see duplicates on SAME date, check if this function ran concurrently
+ */
+export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) {
+  const supabase = await createClient();
+
+  const now = new Date();
+  let created = 0;
+
+  for (let w = 0; w < weeksAhead; w++) {
+    const targetDate = addDays(now, w * 7);
+    const wkStart = startOfWeek(targetDate, { weekStartsOn: 0 });
+    const wkEnd = addDays(wkStart, 5);
+    const wkStartStr = format(wkStart, "yyyy-MM-dd");
+    const wkEndStr = format(wkEnd, "yyyy-MM-dd");
+
+    const { count } = await supabase
+      .from("lessons")
+      .select("*", { count: "exact", head: true })
+      .gte("lesson_date", wkStartStr)
+      .lte("lesson_date", wkEndStr);
+
+    if (count && count > 0) continue;
+
+    const { data: masterSchedule } = await supabase
+      .from("recurring_schedule")
+      .select("id, location_id, instructor_id, day_of_week, start_time");
+
+    if (!masterSchedule || masterSchedule.length === 0) continue;
+
+    const lessons = masterSchedule.map((entry) => ({
+      recurring_item_id: entry.id,
+      location_id: entry.location_id,
+      instructor_id: entry.instructor_id,
+      lesson_date: format(addDays(wkStart, entry.day_of_week), "yyyy-MM-dd"),
+      start_time: entry.start_time,
+      status: "scheduled",
+    }));
+
+    const { data } = await supabase.from("lessons").insert(lessons).select();
+    created += data?.length ?? 0;
+  }
+
+  if (created > 0 && !skipRevalidate) {
+    revalidatePath("/schedule/weekly");
+    revalidatePath("/dashboard");
+    revalidatePath("/my-schedule");
+  }
+
+  return { success: true, created };
+}
+
+/**
+ * Instructor submits a request (absence, lateness, or other message).
+ */
+export async function submitInstructorRequest(
+  lessonId: string,
+  requestType: "absence" | "lateness" | "other",
+  notes?: string
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      instructor_absence_request: true,
+      instructor_request_type: requestType,
+      instructor_notes: notes || null,
+    })
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בשליחת הבקשה: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+  revalidatePath("/confirm-lessons");
+
+  return { success: true };
+}
+
+/**
+ * Admin clears an instructor request completely (removes it).
+ */
+export async function clearInstructorRequest(lessonId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      instructor_absence_request: false,
+      instructor_request_type: null,
+      instructor_notes: null,
+      instructor_request_handled: false,
+    })
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule/weekly");
+
+  return { success: true };
+}

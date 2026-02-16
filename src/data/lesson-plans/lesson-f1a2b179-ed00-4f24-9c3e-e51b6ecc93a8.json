@@ -1,0 +1,82 @@
+{
+  "id": "f1a2b179-ed00-4f24-9c3e-e51b6ecc93a8",
+  "name": "גמישות תנועה 6",
+  "equipment": [
+    {
+      "name": "נודלים",
+      "quantity": 37
+    },
+    {
+      "name": "חישוקים",
+      "quantity": 10
+    },
+    {
+      "name": "קונוסים",
+      "quantity": 6
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - מסיבת ריקודים/יובל המבולבל",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "👏\n          3. משחק מחיאות כפיים",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נותנים לילדים מקצבים שונים עם הכפיים ומבקשים מהם לחקות את המקצב שאנחנו עשינו.</p>\n<p class=\"text-gray-700 text-sm\">2 מחיאות כפיים, 2 מחיאות כפיים וקריאת וואו. אפשר להמציא גם מקצבים מהפה ע\"י השמעת קולות (להגיד לילדים לחקות אותנו)</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. נחלק לכל ילד חצי נודל",
+      "content": ""
+    },
+    {
+      "title": "2. נחקור יחד עם הילדים את האביזר",
+      "content": "<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• איך הוא נראה?</li>\n          <li>• מה המרקם שלו?</li>\n          <li>• האם הוא רך או קשה?</li>\n          <li>• האם הוא גמיש או יציב?</li>\n        </ul>"
+    },
+    {
+      "title": "3. נשאל את הילדים מה אפשר לעשות עם הנודל? - בעמידה",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(קודם ניתן לילדים לענות ואז אנחנו יכולים להציע רעיונות)</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• לאזן אותו על הראש</li>\n          <li>• לזרוק ולתפוס</li>\n          <li>• להקיף את הגוף שלנו</li>\n          <li>• להתגלגל עליו</li>\n        </ul>"
+    },
+    {
+      "title": "עבודה בזוגות 👥",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נחלק את הילדים לזוגות ונקח את הנודל הנותר. ניתן להם לשחק בזוג ולראות מה אפשר לעשות איתו:</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• להתמסר ביניהם</li>\n          <li>• ללכת בחדר כששניהם מחזיקים את הנודל</li>\n          <li>• לגלגל ביניהם כשהם יושבים אחד מול השנייה</li>\n        </ul>\n<p class=\"text-red-600 text-sm font-semibold mt-2\">* נאסוף את הנודלים והם חוזרים לשבת במקום</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. חישוקים ⭕",
+      "content": "<p class=\"text-gray-700 text-sm\">10 חישוקים מסודרים כמו בצורה של קלאס</p>"
+    },
+    {
+      "title": "2. השמש ☀️",
+      "content": "<p class=\"text-gray-700 text-sm\">מקלות של נודל - הם צריכים לקפוץ הלוך ואז חזור בשתי רגליים</p>"
+    },
+    {
+      "title": "3. קונוסים - זיגזג 🔀",
+      "content": "<p class=\"text-gray-700 text-sm\">6 קונוסים (בתמונה יש רק 3 אבל יש 6) והם צריכים ללכת על 4 בין הקונוסים בזיג זג</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

@@ -1,0 +1,74 @@
+{
+  "id": "07b0edf8-d47a-4abc-954e-2c2afbdadd5f",
+  "name": "פתיחת שנה 1",
+  "equipment": [
+    {
+      "name": "נקודות שטוחות צבעוניות",
+      "quantity": 37
+    },
+    {
+      "name": "מנהרות קפיצים",
+      "quantity": 2
+    },
+    {
+      "name": "חבלים ארוכים",
+      "quantity": 2
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n        מטרת המפגש",
+      "content": ""
+    },
+    {
+      "title": "🚀\n        פתיחה: 5 דק'",
+      "content": ""
+    },
+    {
+      "title": "1. מעגל שמות עם תנועה",
+      "content": "<p class=\"text-gray-700 mb-2\">עושים מעגל שמות עם תנועה, קודם כל מציגים את עצמנו ועושים תנועה עם הגוף בישיבה.</p>\n<p class=\"text-gray-700 mb-2\">עושים סבב של כל הילדים וצריך לחקות את התנועה של כל ילד ביחד עם זה שאומרים את השם.</p>\n<p class=\"text-gray-700 italic\">\"קוראים לי שירה (אני עושה תנועה של מחיאת כף)\" - כולם צריכים לחזור אחרי השם שלי יחד עם מחיאת כף.</p>"
+    },
+    {
+      "title": "2. שיר חימום - מואנה \"בכיף שלך\"",
+      "content": "<p class=\"text-gray-700 mb-2\">מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך.</p>\n<p class=\"text-gray-700 mb-2\">עושים חימום של כל איברי הגוף השונים. מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.</p>\n<p class=\"text-gray-700\">מבקשים מהם ללכת מהר, ואז ממש לאט במהירויות שונות.</p>"
+    },
+    {
+      "title": "💪\n        גוף השיעור: 10 דק'",
+      "content": ""
+    },
+    {
+      "title": "1. הסתדרות במבנים שונים",
+      "content": "<p class=\"text-gray-700 mb-2\">מבקשים מהילדים להסתדר לפי מבנים שונים במרחבי הגן.</p>\n<p class=\"text-gray-700 mb-2\">אומרים להם שהחוק הוא - להסתדר במבנים כמה שיותר מהר.</p>\n<p class=\"text-gray-700 mb-2\">ברקע אפשר לנגן את השיר - \"כל הילדים קופצים\"</p>\n<ul class=\"mr-6 space-y-1 mt-2\">\n          <li class=\"flex items-start gap-2\">\n            <span class=\"text-purple-500\">•</span>\n            <span class=\"text-gray-700\">חלוקה לזוגות</span>\n          </li>\n          <li class=\"flex items-start gap-2\">\n            <span class=\"text-purple-500\">•</span>\n            <span class=\"text-gray-700\">מעגל</span>\n          </li>\n          <li class=\"flex items-start gap-2\">\n            <span class=\"text-purple-500\">•</span>\n            <span class=\"text-gray-700\">2 טורים</span>\n          </li>\n          <li class=\"flex items-start gap-2\">\n            <span class=\"text-purple-500\">•</span>\n            <span class=\"text-gray-700\">שורה אחת ארוכה (אפשר 2 שורות אם אין מקום)</span>\n          </li>\n          <li class=\"flex items-start gap-2\">\n            <span class=\"text-purple-500\">•</span>\n            <span class=\"text-gray-700\">שלשות</span>\n          </li>\n        </ul>"
+    },
+    {
+      "title": "2. משחק עם נקודות צבעוניות",
+      "content": "<p class=\"text-gray-700 mb-2\">מפזרים 20 נקודות שטוחות ברחבי הגן.</p>\n<p class=\"text-gray-700 mb-2\">מבקשים מהילדים ללכת במרחב בלי לגעת/להרים את הנקודות הצבעוניות.</p>\n<p class=\"text-gray-700 mb-2\">מסבירים לילדים שהחוק הוא - כל פעם שאת מוחאת כף מניחים איבר שונה בגוף שלנו על הנקודה. יש לשים לב לחברים שלנו ולעבוד לאט.</p>\n<div class=\"bg-purple-50 rounded-lg p-3 mt-2\">\n          <p class=\"text-sm text-gray-700 mb-1\">דוגמאות להוראות:</p>\n          <ul class=\"mr-6 space-y-1\">\n            <li class=\"text-gray-700 text-sm\">• \"לשים את היד על הנקודה\"</li>\n            <li class=\"text-gray-700 text-sm\">• \"לשים את היד השנייה\"</li>\n            <li class=\"text-gray-700 text-sm\">• \"להניח ברך על הנקודה ואז את השנייה\"</li>\n            <li class=\"text-gray-700 text-sm\">• \"להניח את הראש בזהירות\"</li>\n            <li class=\"text-gray-700 text-sm\">• \"שתי ידיים\"</li>\n          </ul>\n        </div>\n<p class=\"text-gray-700 mt-2 text-sm italic\">💡 יכולה לחשוב על עוד איברים של הגוף: ישבן, גב, כתף, אצבע...</p>\n<p class=\"text-gray-700 text-sm italic\">💡 לילדים הגדולים אפשר לבקש לשים 2-3 איברים במקביל (יד וראש, 2 מרפקים, מצח ואצבע)</p>"
+    },
+    {
+      "title": "🏃\n        מסלול: 15 דק'",
+      "content": ""
+    },
+    {
+      "title": "תחנה 1: נקודות לפיסוק",
+      "content": "<p class=\"text-gray-700\">ליצור 2 טורים מהנקודות במרחק של פיסוק של הילדים (10 זוגות של נקודות).</p>\n<p class=\"text-gray-700\">הם צריכים ללכת בפיסוק עם הידיים מתוחות לצדדים כל פעם עוברים מרגל לרגל.</p>"
+    },
+    {
+      "title": "תחנה 2: מנהרות קפיצים",
+      "content": "<p class=\"text-gray-700\">אחרי הנקודות, נפתח 2 מנהרות קפיצים שהם צריכים לזחול בתוכם.</p>"
+    },
+    {
+      "title": "תחנה 3: חבלים",
+      "content": "<p class=\"text-gray-700\">2 חבלים מסודרים אחד מול השני, הם צריכים ללכת בהליכה צידית ולא לגעת בחבלים.</p>"
+    },
+    {
+      "title": "✨\n        סיכום: 2 דק'",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-%D7%94%D7%AA%D7%97%D7%9C%D7%AA-%D7%A9%D7%A0%D7%94",
+  "pdf_path": null
+}

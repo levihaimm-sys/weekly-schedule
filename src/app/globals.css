@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+:root {
+  /* Soft Pastel Color Palette - Inspired by "Your Health Simplified" */
+  --background: #F5F3EF; /* Cream/beige background - very soft */
+  --foreground: #3a3530; /* Warm dark brown text */
+  --card: #ffffff; /* Pure white for main cards */
+  --card-foreground: #3a3530;
+
+  /* Primary - Soft Mint/Sage Green (calming & fresh) */
+  --primary: #B8C9A8; /* Sage green - calm & natural */
+  --primary-foreground: #3a3530;
+
+  /* Secondary - Soft Peach/Orange (warm & inviting) */
+  --secondary: #F5C89E; /* Soft peach - warm & friendly */
+  --secondary-foreground: #3a3530;
+
+  /* Accent - Light Mint Green (fresh & energetic) */
+  --accent: #C3DDB5; /* Light mint - fresh accent */
+  --accent-foreground: #3a3530;
+
+  /* Tertiary - Soft Pink/Rose (gentle & caring) */
+  --tertiary: #E8C8C1; /* Soft pink - gentle touch */
+  --tertiary-foreground: #3a3530;
+
+  /* Muted - Very light cream */
+  --muted: #F9F7F4; /* Very light cream */
+  --muted-foreground: #8B8175; /* Warm gray-brown */
+
+  /* Border - Soft beige */
+  --border: #E8E4DF; /* Soft beige border */
+
+  /* Status colors - Pastel versions */
+  --destructive: #E89B9B; /* Soft red */
+  --success: #B8C9A8; /* Sage green - same as primary */
+  --warning: #F5C89E; /* Soft orange - same as secondary */
+
+  /* Shadows for depth - very subtle */
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+  /* Radius - larger rounded corners like the inspiration */
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
+}
+
+@theme inline {
+  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* Typography */
+  --font-sans: var(--font-heebo);
+
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  /* Border Radius */
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Lesson plan content override - force pastel colors */
+.lesson-plan-content {
+  font-family: var(--font-heebo), sans-serif;
+}
+
+.lesson-plan-content * {
+  /* Force text color to match theme */
+  color: var(--foreground) !important;
+  /* Remove any background images */
+  background-image: none !important;
+}
+
+/* Hide only the very first heading to avoid duplication with page title */
+.lesson-plan-content > :first-child:is(h1, h2, h3) {
+  display: none !important;
+}
+
+.lesson-plan-content h1,
+.lesson-plan-content h2,
+.lesson-plan-content h3,
+.lesson-plan-content h4,
+.lesson-plan-content h5,
+.lesson-plan-content h6 {
+  /* Subtle header styling - no background */
+  background: transparent !important;
+  color: var(--foreground) !important;
+  padding: 0.25rem 0 !important;
+  border-bottom: none !important;
+  margin-bottom: 0.5rem !important;
+  margin-top: 0.75rem !important;
+  font-weight: bold !important;
+  text-align: right !important;
+}
+
+.lesson-plan-content h1 {
+  font-size: 1.25rem !important;
+  border-bottom-width: 2px !important;
+}
+
+.lesson-plan-content h2 {
+  font-size: 1.125rem !important;
+}
+
+.lesson-plan-content h3 {
+  font-size: 1rem !important;
+}
+
+.lesson-plan-content p {
+  margin-bottom: 0.5rem !important;
+  line-height: 1.5 !important;
+}
+
+.lesson-plan-content strong,
+.lesson-plan-content b {
+  font-weight: bold !important;
+  color: var(--foreground) !important;
+}
+
+.lesson-plan-content ul,
+.lesson-plan-content ol {
+  margin: 0.5rem 0 !important;
+  padding-right: 1.5rem !important;
+}
+
+.lesson-plan-content li {
+  margin-bottom: 0.25rem !important;
+}
+
+.lesson-plan-content table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 0.75rem 0 !important;
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+}
+
+.lesson-plan-content th {
+  background: var(--secondary) !important;
+  color: var(--foreground) !important;
+  padding: 0.75rem !important;
+  font-weight: bold !important;
+  text-align: right !important;
+}
+
+.lesson-plan-content td {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  padding: 0.75rem !important;
+  text-align: right !important;
+}
+
+.lesson-plan-content tr:nth-child(even) td {
+  background: var(--muted) !important;
+}
+
+/* Remove any divs with background */
+.lesson-plan-content div {
+  background: transparent !important;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+  }
+  
+  header,
+  nav,
+  aside,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:block {
+    display: block !important;
+  }
+  
+  main {
+    padding: 1rem !important;
+  }
+}

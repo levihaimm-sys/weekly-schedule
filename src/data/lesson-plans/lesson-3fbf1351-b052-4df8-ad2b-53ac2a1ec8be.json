@@ -1,0 +1,66 @@
+{
+  "id": "3fbf1351-b052-4df8-ad2b-53ac2a1ec8be",
+  "name": "משחקי כדור 1",
+  "equipment": [
+    {
+      "name": "כדורגל",
+      "quantity": 19
+    },
+    {
+      "name": "שערים",
+      "quantity": 2
+    },
+    {
+      "name": "קונוסים",
+      "quantity": 6
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את המושגים - זריקה, תפיסה, מסירה, קליעה, קפיצות, נחיתות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את התנועה סביב ציר</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את היכולת המפרקים בגוף להסתובב ולהתכופף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו במשחקי כדור וקליעה - שליטה בכדור ולימוד כדרור בעמידה ובהתקדמות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יפתחו מיומנויות תקשורת בעבודה בזוגות וקבוצות בדגש על פתרון בעיות</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - UNICORN נעה קירל",
+      "content": "<p class=\"text-gray-700 leading-relaxed mb-2\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n          מבקשים מהם ללכת מהר, ואז ממש לאט במהירויות שונות.\n        </p>\n<p class=\"text-gray-700\">ללכת בהליכות שונות בחדר - הליכה צידית, משקל מרגל לרגל, עקב אחרי אגודל, קפיצת צפרדע, הליכת סרטן, הליכת ברווז - הליכה שפופה.</p>"
+    },
+    {
+      "title": "🎶\n          2. שיר רקע - כי זה רק ספורט",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">1. עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">2. עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">3. עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">4. יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">5. ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">6. ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">7. ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">8. ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "מתרגלים עם הילדים את המשחק עם הכדור - משימות:",
+      "content": "<div class=\"space-y-2\">\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• לשים רגל אחת על הכדור ולספור עד 5, ואותו הדבר ברגל השנייה</p>\n          </div>\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• לגלגל את הכדור מתחת לכף הרגל ולתת לבן זוג לעשות את אותו דבר</p>\n          </div>\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• לעבור מעל הכדור ברגליים פסוקות, ובחזרה אחורה</p>\n          </div>\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• להתמסר עם הכדור בעזרת הרגליים אחד עם השנייה בגלגול</p>\n          </div>\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• בעמידה, אחד מפסק רגליים והשני בועט את הכדור אל בין הרגליים של החבר מולו</p>\n            <p class=\"text-red-600 text-sm font-semibold mt-1\">⚠️ לשים לב לא לבעוט חזק את הכדור. ללמוד בעוצמה של הבעיטה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "בועטים את הכדורים לשער ⚽",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">עומדים ב-2 טורים מסודר וכל פעם שני ילדים עומדים מול שער ובועטים את הכדור לתוך השער.</p>"
+    },
+    {
+      "title": "העלאת רמת קושי 🎯",
+      "content": "<p class=\"text-gray-700 text-sm\">אחר כך מעלים את רמת הקושי (אצל הילדים הגדולים יותר) ומזמינים אותם לגלגל את הכדור מסביב לקונוסים ואז לבעוט לשער.</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-7",
+  "pdf_path": null
+}

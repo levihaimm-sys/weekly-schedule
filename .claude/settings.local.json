@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(cloudflared tunnel:*)",
+      "Bash(where:*)",
+      "Bash(cloudflared:*)",
+      "Bash(powershell -Command \"Get-Command cloudflared -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(findstr:*)",
+      "Bash(start:*)",
+      "Bash(powershell:*)",
+      "Bash(dir:*)",
+      "Bash(ipconfig:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm install cheerio @types/cheerio --save-dev)",
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "Bash(cat:*)",
+      "Bash(npx next build:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(echo:*)",
+      "Bash(node -e:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill /IM node.exe /F)",
+      "Bash(netlify:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "id": "a08241ca-6306-47a2-a4de-6a2bc7528983",
+  "name": "משחקי כדור 4",
+  "equipment": [
+    {
+      "name": "חישוקים שטוחים",
+      "quantity": 40
+    },
+    {
+      "name": "צלחות מסתובבות",
+      "quantity": 2
+    },
+    {
+      "name": "חבלים",
+      "quantity": 3
+    },
+    {
+      "name": "כדורים",
+      "quantity": 2
+    },
+    {
+      "name": "דליים",
+      "quantity": 2
+    },
+    {
+      "name": "קוביות ספוג",
+      "quantity": 2
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את המושגים - זריקה, תפיסה, מסירה, קליעה, קפיצות, נחיתות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את התנועה סביב ציר</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את היכולת המפרקים בגוף להסתובב ולהתכופף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו במשחקי כדור וקליעה - שליטה בכדור ולימוד כדרור בעמידה ובהתקדמות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בקפיצה לרוחק מהמקום ולאחר האצה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יפתחו מיומנויות תקשורת בעבודה בזוגות וקבוצות בדגש על פתרון בעיות</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - זה רק ספורט - דפנה דקל",
+      "content": "<p class=\"text-gray-700 leading-relaxed mb-2\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "חימום המפרקים, חגורת הכתפיים:",
+      "content": "<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• סיבוב המרפק והכתף קדימה ואחורה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפק מעבר לראש ויד נגדית מושכת אותו לכיוון שלה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפק כלפי מעלה כשהיד מכופפת, יד נגדית דוחפת את המרפק אל מאחורי הראש</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפקים מכופפים בגובה המותניים, בתנופה לצדדים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• פיסוק הידיים לאחור לשלוח נשיקה באוויר, חיבוק הידיים על הגוף</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מתיחה של היד על בית החזה לכיוון היד הנגדית, והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• סיבוב מפרקי כף היד + שילוב האצבעות</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכיפוף הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לצד אחד, נגיעה בכף רגל המכופפת והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "🎶\n          2. חימום - שיר רקע - CRAZY FROG",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "🎵\n          3. שני גמדים",
+      "content": "<p class=\"text-gray-700 text-sm\">לפי מילות השיר - שני חברים עומדים פנים מול פנים נותנים יד ועוד אחת ויוצאים לקפוץ/לרוץ/לדלג במרחב</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "חישוקים שטוחים - הצגת תאטרון 🎭",
+      "content": ""
+    },
+    {
+      "title": "1. לשאול את הילדים מה הבאתי מהשוק",
+      "content": "<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• לעשות רעש עם האביזר מבלי להראות אותו</li>\n          <li>• לתאר אותו - צבע, צורה, משקל, מרקם</li>\n          <li>• לתת להם לנחש</li>\n        </ul>"
+    },
+    {
+      "title": "2. חלוקת המכשיר",
+      "content": "<p class=\"text-sm text-gray-700 mb-2\">סידור החישוקים על הריצפה במעגל גדול, לקרוא לכל ילד בנגיעה על ראשו, לבחור חישוק ולעמוד בתוכו</p>\n<p class=\"text-red-600 text-sm font-semibold\">הדגשים: לא מזיזים את החישוקים</p>"
+    },
+    {
+      "title": "🎲\n          3. משחק הקוביות",
+      "content": "<p class=\"text-sm text-gray-700 mb-2\">כשכל ילד עומד בתוך חישוק, אנו מטילים קובייה בתוך המעגל. כל ילד קופץ בתוך החישוק שלו כמספר הפעמים שיצא בקובייה.</p>\n<p class=\"text-sm text-gray-700 mb-2\">נקפוץ לפי מספר הפעמים שיצא בקוביה אך בכל פעם קפיצה שונה. המטרה היא לחשוף אותם לכמה שיותר סוגי קפיצות תוך כדי משחק וצחוק.</p>\n<p class=\"text-blue-600 text-sm font-semibold mb-2\">שיר רקע: בארץ הקפיצות</p>"
+    },
+    {
+      "title": "הוראות:",
+      "content": "<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• בפעם הראשונה אנו מטילים את הקובייה</li>\n          <li>• ובכל פעם נוספת אנו נותנים לילד אחר להטיל את הקובייה</li>\n          <li>• לאחר מספר זריקות נוסיף קובייה נוספת למעגל</li>\n          <li>• ובכל פעם שני ילדים יטילו את הקובייה</li>\n          <li>• נחבר את המספרים שהורו הקוביות ונקפוץ בתוך החישוק</li>\n        </ul>"
+    },
+    {
+      "title": "סוגי קפיצות:",
+      "content": "<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mt-2\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה ברגליים צמודות</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• לסגור ולפסק את הרגליים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה בסיבוב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה קדימה מחוץ לחישוק ואחורה לתוך החישוק</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה מצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה רגל קדימה רגל אחורה – כמו מספריים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה בהצלבה – רגל ימין לצד שמאל ורגל שמאל לצד ימין</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה על רגל אחת, והרגל השנייה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• קפיצה מרגל אל רגל – ניתור לצדדים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• 2 ידיים על הרצפה מחוץ לחישוק ועם הרגליים לקפוץ קדימה ואחורה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "4. קפיצה חופשית במרחב",
+      "content": "<p class=\"text-sm text-gray-700 mb-2\">מוסיפים חישוקים נוספים בתוך המעגל ומפזרים קצת את החישוקים שהיו במעגל. הילדים קופצים מחישוק לחישוק באופן עצמאי.</p>\n<p class=\"text-sm text-gray-700\">כשהמוזיקה עוצרת כל ילד מתיישב בתוך החישוק שלו. וכשהמוזיקה חוזרת לפעול ממשיך לקפוץ במרחב.</p>"
+    },
+    {
+      "title": "רעיונות נוספים:",
+      "content": "<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• להיכנס לתוך החישוק להתכופף למטה ולהוציא את החישוק מעל הראש</li>\n          <li>• נעשה את זה כמה פעמים ובסוף נאמר לילדים מי יכול להניח את החישוק בשקט?</li>\n          <li>• מי יכול לגלגל את החישוק כמו גלגל?</li>\n          <li>• מי יכול לסובב כמו סביבון?</li>\n          <li>• מי יכול לגלגל רחוק ולתפוס את החישוק?</li>\n        </ul>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "ציוד המסלול",
+      "content": "<ul class=\"space-y-1 text-sm text-gray-700\">\n          <li>• 40 חישוקים שטוחים</li>\n          <li>• 2 צלחות מסתובבות</li>\n          <li>• 2 כדורים</li>\n          <li>• 2 דליים</li>\n          <li>• 3 חבלים (כחבל אחד ארוך שהילדים יוכלו ללכת עליו)</li>\n        </ul>"
+    },
+    {
+      "title": "תיאור המסלול:",
+      "content": "<ol class=\"space-y-2 text-sm text-gray-700 mr-4\">\n          <li><strong>1.</strong> 10 חישוקים בלי מרווחים - נקפוץ כמו בקלאס</li>\n          <li><strong>2.</strong> 10 חישוקים עם מרווחים - על רגל אחת או 2 רגליים צמודות (תלוי בגיל הילדים)</li>\n          <li><strong>3.</strong> נסתובב על הצלחות המסתובבות</li>\n          <li><strong>4.</strong> נקלע את הכדור לתוך הדלי</li>\n          <li><strong>5.</strong> מי שרוצה אתגר - עיניים עצומות ויד למדריכה</li>\n        </ol>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-7",
+  "pdf_path": null
+}

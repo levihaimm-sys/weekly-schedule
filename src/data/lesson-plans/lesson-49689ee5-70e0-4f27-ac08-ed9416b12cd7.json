@@ -1,0 +1,70 @@
+{
+  "id": "49689ee5-70e0-4f27-ac08-ed9416b12cd7",
+  "name": "גמישות תנועה 7",
+  "equipment": [
+    {
+      "name": "כרטיסיות יוגה",
+      "quantity": 1
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - הגלשן שלי / דני סנדרסון",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. חימום - שיר רקע - SHAKE IT OFF",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "💃\n          3. סרטון ריקוד",
+      "content": "<p class=\"text-gray-700 text-sm\">(יש לצפות בסרטון לפני השיעור) - נלמד את הילדים את הריקוד ונשים את השיר ברקע</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. תנוחות יוגה לגמישות",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נתרגל עם הילדים תנוחות של יוגה שיעזרו להם להגמיש את הגוף. כל התנוחות אנחנו עושים מאוד לאט ומבקשים מהילדים לנשום.</p>"
+    },
+    {
+      "title": "תנוחה 1 🙇",
+      "content": "<p class=\"text-sm text-gray-700\">עומדים עם רגליים צמודות ומבקשים מהילדים להתכופף קדימה ולגעת בקצות האצבעות. הילדים יכולים לכופף את הברכיים וחשוב לא שזה לא יכאב</p>"
+    },
+    {
+      "title": "תנוחה 2 🐍",
+      "content": "<p class=\"text-sm text-gray-700\">שוכבים על הרצפה ובעזרת הידיים דוחפים את החזה למעלה שיגרום להקשתה של הגב (חשוב לבצע את זה בעדינות ולהגיד לילדים לעלות לאט עד שכבר לא נעים בגוף)</p>"
+    },
+    {
+      "title": "תנוחה 3 👶",
+      "content": "<p class=\"text-sm text-gray-700\">תנוחת הילד - יושבים על הברכיים ומתכופפים קדימה</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "משחק הכרטיסיות הצבעוניות 🎨",
+      "content": "<p class=\"text-gray-700 mb-3\">נרים כרטיסיות בצבעים. כל כרטיסיה אומרת לילדים איזה תנועה לעשות:</p>\n<div class=\"space-y-2\">\n          <div class=\"bg-blue-100 rounded-lg p-3\">\n            <p class=\"text-gray-800 font-semibold\">🔵 הצבע הכחול</p>\n            <p class=\"text-sm text-gray-700\">כולם קופצים קפיצת צפרדע מהצד האחד של הגן לצד השני</p>\n          </div>\n          \n          <div class=\"bg-red-100 rounded-lg p-3\">\n            <p class=\"text-gray-800 font-semibold\">🔴 הצבע האדום</p>\n            <p class=\"text-sm text-gray-700\">כולם מתגלגלים על הרצפה מצד אחד לצד השני</p>\n          </div>\n          \n          <div class=\"bg-orange-100 rounded-lg p-3\">\n            <p class=\"text-gray-800 font-semibold\">🟠 הצבע הכתום</p>\n            <p class=\"text-sm text-gray-700\">כולם הולכים בהליכת סרטן מצד אחד לצד השני</p>\n          </div>\n          \n          <div class=\"bg-green-100 rounded-lg p-3\">\n            <p class=\"text-gray-800 font-semibold\">🟢 הצבע הירוק</p>\n            <p class=\"text-sm text-gray-700\">מוצאים זוג ומותחים את הידיים וצריך ללכת על הצד מבלי לקפל את הידיים</p>\n          </div>\n          \n          <div class=\"bg-pink-100 rounded-lg p-3\">\n            <p class=\"text-gray-800 font-semibold\">🩷 הצבע הוורוד</p>\n            <p class=\"text-sm text-gray-700\">להצמיד גב לגב לילד אחר וללכת הליכה צידית מבלי לנתק את הגב</p>\n          </div>\n        </div>\n<p class=\"text-blue-600 text-sm font-semibold mt-3\">* אפשר לשחק עם הצבעים ולגרום לילדים לעשות את זה נכון אבל גם במהירות</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

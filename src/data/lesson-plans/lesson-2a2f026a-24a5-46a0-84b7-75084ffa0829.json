@@ -1,0 +1,94 @@
+{
+  "id": "2a2f026a-24a5-46a0-84b7-75084ffa0829",
+  "name": "גמישות תנועה 1",
+  "equipment": [
+    {
+      "name": "כובע סביבון",
+      "quantity": 2
+    },
+    {
+      "name": "מזרון יוגה",
+      "quantity": 1
+    },
+    {
+      "name": "מזרון צבעוני",
+      "quantity": 1
+    },
+    {
+      "name": "נקודות סימון (כחולה ואדומה)",
+      "quantity": 2
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - UPTOWN FUNK",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. שיר רקע - SHAKE IT OFF",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "💃\n          3. ריקוד המקרנה",
+      "content": "<p class=\"text-gray-700 text-sm\">נלמד את הילדים את הריקוד ונשים את השיר ברקע</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. תנוחות יוגה לגמישות",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נתרגל עם הילדים תנוחות של יוגה שיעזרו להם להגמיש את הגוף. כל התנוחות אנחנו עושים מאוד לאט ומבקשים מהילדים לנשום.</p>"
+    },
+    {
+      "title": "תנוחה 1 🙇",
+      "content": "<p class=\"text-sm text-gray-700\">עומדים עם רגליים צמודות ומבקשים מהילדים להתכופף קדימה ולגעת בקצות האצבעות. הילדים יכולים לכופף את הברכיים וחשוב לא שזה לא יכאב</p>"
+    },
+    {
+      "title": "תנוחה 2 🐍",
+      "content": "<p class=\"text-sm text-gray-700\">שוכבים על הרצפה ובעזרת הידיים דוחפים את החזה למעלה שיגרום להקשתה של הגב (חשוב לבצע את זה בעדינות ולהגיד לילדים לעלות לאט עד שכבר לא נעים בגוף)</p>"
+    },
+    {
+      "title": "תנוחה 3 👶",
+      "content": "<p class=\"text-sm text-gray-700\">תנוחת הילד - יושבים על הברכיים ומתכופפים קדימה</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. כובע סביבון 🎩",
+      "content": "<p class=\"text-gray-700 text-sm\">על הילדים לשבת עם הישבן בתוך הכובע ולהשלים סיבוב מלא</p>"
+    },
+    {
+      "title": "2. מזרון יוגה - גלגול עיפרון ✏️",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">לעבור למזרון יוגה - לשכב על הגב לרוחב המזרון ולהתגלגל גלגול צידי (גלגול עיפרון)</p>\n<p class=\"text-gray-600 text-sm\">נסמן בעזרת נקודת סימון איפה הראש מונח ואיפה הרגליים - הראש על הנקודה הכחולה והרגליים לכיוון הנקודה האדומה</p>"
+    },
+    {
+      "title": "3. כובע סביבון 2 🎩",
+      "content": "<p class=\"text-gray-700 text-sm\">להשלים סיבוב מלא</p>"
+    },
+    {
+      "title": "4. מזרון צבעוני - גלגול אחורי 🤸",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">הילד מגיע אלינו:</p>\n<ol class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• יורד לישיבה שפופה</li>\n          <li>• נשכב לאט ובזהירות אחורה</li>\n          <li>• מניח את שתי כפות הידיים לצידי הראש (ליד האוזן, מרפקים כלפי מעלה)</li>\n          <li>• מרים את הרגליים עד שיגעו באף</li>\n        </ol>\n<p class=\"text-blue-600 text-sm font-semibold mt-2\">אנו עומדים לצידם - כשהרגליים מגיעות אל האף אנו נותנים להם תנופה ודוחפים את האגן שלהם לכיוון הגלגול.</p>\n<p class=\"text-orange-600 text-sm mt-2\">הילד צריך לדחוף חזק את המזרון עם שתי כפות הידיים בספירה שלך עד שלוש כשהרגליים מגיעות אל האף.</p>\n<p class=\"text-red-600 text-sm font-semibold mt-2\">⚠️ לשים לב בגלגול שהרגליים נוטות לכיוון ימין או שמאל ולא בקו ישר מעל הראש</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

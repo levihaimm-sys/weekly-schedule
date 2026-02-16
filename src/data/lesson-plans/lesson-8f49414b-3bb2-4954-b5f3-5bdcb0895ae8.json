@@ -1,0 +1,25 @@
+{
+  "id": "8f49414b-3bb2-4954-b5f3-5bdcb0895ae8",
+  "name": "חגי תשרי",
+  "equipment": [
+    {
+      "name": "תפוחים=כדורים",
+      "quantity": 37
+    },
+    {
+      "name": "כפות",
+      "quantity": 37
+    },
+    {
+      "name": "דליים עם ציור של דבש",
+      "quantity": 2
+    },
+    {
+      "name": "דבורים",
+      "quantity": 1
+    }
+  ],
+  "sections": [],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

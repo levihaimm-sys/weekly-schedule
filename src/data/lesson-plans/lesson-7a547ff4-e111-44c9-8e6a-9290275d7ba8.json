@@ -1,0 +1,94 @@
+{
+  "id": "7a547ff4-e111-44c9-8e6a-9290275d7ba8",
+  "name": "גמישות תנועה 2",
+  "equipment": [
+    {
+      "name": "צמידי פעמון",
+      "quantity": 37
+    },
+    {
+      "name": "משוכות",
+      "quantity": 2
+    },
+    {
+      "name": "צלחות שיווי משקל",
+      "quantity": 2
+    },
+    {
+      "name": "מזרון יוגה",
+      "quantity": 1
+    },
+    {
+      "name": "מזרון צבעוני",
+      "quantity": 1
+    },
+    {
+      "name": "נקודות סימון",
+      "quantity": 2
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - UPTOWN FUNK",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. שיר רקע - דב דובון",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">לפי מילות השיר:</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• מציאת בן זוג</li>\n          <li>• שפשוף כפות הידיים</li>\n          <li>• חילוף מקום</li>\n          <li>• נשיקות באוויר</li>\n          <li>• חיבוק</li>\n          <li>• ריצה</li>\n          <li>• מציאת מסתור - לשכב בתנוחה עוברית על הריצפה וקוקו</li>\n        </ul>\n<p class=\"text-gray-700 text-sm mt-2\">חוזרים לשבת</p>"
+    },
+    {
+      "title": "🐦\n          3. ריקוד הציפורים",
+      "content": "<p class=\"text-gray-700 text-sm\">נלמד את הילדים את הריקוד ונשים את השיר ברקע</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. משחק השקט 🤫",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נבקש מהילדים לעמוד ולרוץ בחדר. כל פעם שאת מוחאת כף הם צריכים לשמור על שקט מוחלט.</p>\n<p class=\"text-gray-700 text-sm\">נשחק את זה כמה פעמים. אפשר לבקש מהם ללכת בכל מיני צורות - הליכה צידית, לזחול, להתגלגל על הצד, קפיצות צפרדע</p>"
+    },
+    {
+      "title": "2. משחק המקצבים 🎵",
+      "content": "<p class=\"text-gray-700 text-sm\">מבקשים מהילדים לרשרש את הצמיד לפי הקצב שאת מכתיבה.</p>\n<p class=\"text-gray-600 text-sm italic\">אם הם קטנים לעשות מקצבים פשוטים, 3 נקישות, 2 נקישות. אם הם גדולים יותר אפשר לתת להם מקצבים מסובכים יותר</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. משוכות 🏃",
+      "content": "<p class=\"text-gray-700 text-sm\">2 משוכות - הילדים צריכים לזחול מתחת למשוכות</p>"
+    },
+    {
+      "title": "2. מזרון יוגה - גלגול עיפרון ✏️",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">לעבור למזרון יוגה - לשכב על הגב לרוחב המזרון ולהתגלגל גלגול צידי (גלגול עיפרון)</p>\n<p class=\"text-gray-600 text-sm\">נסמן בעזרת נקודת סימון איפה הראש מונח ואיפה הרגליים - הראש על הנקודה הכחולה והרגליים לכיוון הנקודה האדומה</p>"
+    },
+    {
+      "title": "3. צלחות שיווי משקל ⚖️",
+      "content": "<p class=\"text-gray-700 text-sm\">2 צלחות שיווי משקל - הילדים צריכים לעבור מצלחת לצלחת</p>"
+    },
+    {
+      "title": "4. מזרון צבעוני - גלגול אחורי 🤸",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">הילד מגיע אלינו:</p>\n<ol class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• יורד לישיבה שפופה</li>\n          <li>• נשכב לאט ובזהירות אחורה</li>\n          <li>• מניח את שתי כפות הידיים לצידי הראש (ליד האוזן, מרפקים כלפי מעלה)</li>\n          <li>• מרים את הרגליים עד שיגעו באף</li>\n        </ol>\n<p class=\"text-blue-600 text-sm font-semibold mt-2\">אנו עומדים לצידם - כשהרגליים מגיעות אל האף אנו נותנים להם תנופה ודוחפים את האגן שלהם לכיוון הגלגול.</p>\n<p class=\"text-orange-600 text-sm mt-2\">הילד צריך לדחוף חזק את המזרון עם שתי כפות הידיים בספירה שלך עד שלוש כשהרגליים מגיעות אל האף.</p>\n<p class=\"text-red-600 text-sm font-semibold mt-2\">⚠️ לשים לב בגלגול שהרגליים נוטות לכיוון ימין או שמאל ולא בקו ישר מעל הראש</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

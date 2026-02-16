@@ -1,0 +1,74 @@
+{
+  "id": "60446bce-a368-4269-bbfc-ceb3cacad01d",
+  "name": "משחקי כדור 8",
+  "equipment": [
+    {
+      "name": "מחבטי טניס שולחן/ מטקות",
+      "quantity": 37
+    },
+    {
+      "name": "כדורי פינג פונג",
+      "quantity": 20
+    },
+    {
+      "name": "מצנח גדול",
+      "quantity": 1
+    },
+    {
+      "name": "כדור ספוג",
+      "quantity": 1
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את המושגים - זריקה, תפיסה, מסירה, קליעה, קפיצות, נחיתות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את התנועה סביב ציר</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את היכולת המפרקים בגוף להסתובב ולהתכופף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו במשחקי כדור וקליעה - שליטה בכדור ולימוד כדרור בעמידה ובהתקדמות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בסוגי מסירות (כדורי ספוג)</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בקפיצה לרוחק מהמקום ולאחר האצה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יפתחו מיומנויות תקשורת בעבודה בזוגות וקבוצות בדגש על פתרון בעיות</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - UPTOWN FUNK",
+      "content": "<p class=\"text-gray-700 leading-relaxed mb-2\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "חימום המפרקים, חגורת הכתפיים:",
+      "content": "<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• סיבוב המרפק והכתף קדימה ואחורה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפק מעבר לראש ויד נגדית מושכת אותו לכיוון שלה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפק כלפי מעלה כשהיד מכופפת, יד נגדית דוחפת את המרפק אל מאחורי הראש</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפקים מכופפים בגובה המותניים, בתנופה לצדדים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• פיסוק הידיים לאחור לשלוח נשיקה באוויר, חיבוק הידיים על הגוף</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מתיחה של היד על בית החזה לכיוון היד הנגדית, והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• סיבוב מפרקי כף היד + שילוב האצבעות</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכיפוף הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לצד אחד, נגיעה בכף רגל המכופפת והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "🎶\n          2. חימום - שיר רקע - SHAKE IT OFF",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "מחבטי טניס שולחן ופינג פונג 🏓",
+      "content": "<p class=\"text-gray-700\">מחלקים את הילדים לזוגות</p>"
+    },
+    {
+      "title": "תרגילים:",
+      "content": "<div class=\"space-y-3\">\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• <strong>תרגול אישי:</strong> כל זוג מקבל כדור. בהתחלה ילד אחד מנסה להקפיץ פעם אחת את הכדור על המחבט שלו ואז נותן לחבר שלו</p>\n          </div>\n          \n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\">• <strong>תרגול בזוגות:</strong> הם מנסים להקפיץ את הכדור ביחד ביניהם</p>\n          </div>\n        </div>\n<div class=\"bg-orange-100 rounded-lg p-3 mt-3\">\n          <p class=\"text-sm text-orange-900 font-semibold\">\n            * ניתן לילדים זמן לתרגל את הפעולה. לקטנים זה יהיה מאתגר אז לתת להם להתנסות יחד\n          </p>\n        </div>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "🪂\n          משחק המצנח",
+      "content": "<p class=\"text-gray-700 mb-3\">עושים מעגל גדול ונותנים לכל ילד להחזיק חלק מהמצנח.</p>\n<p class=\"text-gray-700 mb-3\">בתוך המצנח שמים כדור ספוג והמטרה היא להקפיץ יחד את הכדור גבוה גבוה.</p>\n<p class=\"text-blue-600 font-semibold\">שמים להם את השיר חימום של ההתחלה ובעיקר נהנים! 🎉</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-7",
+  "pdf_path": null
+}

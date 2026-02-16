@@ -1,0 +1,74 @@
+{
+  "id": "46be66a0-594b-4e31-a000-595444ad3514",
+  "name": "גמישות תנועה 3",
+  "equipment": [
+    {
+      "name": "חבלים",
+      "quantity": 37
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - טריליליללה",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. ALL ABOUT THE BASE",
+      "content": "<p class=\"text-gray-700 text-sm\">מחלקים את הילדים לזוגות והם צריכים כל פעם לחקות את מי שמולם בתנועות שהוא עושה. ואז מתחלפים.</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">אנחנו רוצים שהילדים ילמדו לבטא את הגוף עם הגוף שלהם את המוזיקה</p>"
+    },
+    {
+      "title": "👏\n          3. משחק מחיאות כפיים",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נותנים לילדים מקצבים שונים עם הכפיים ומבקשים מהם לחקות את המקצב שאנחנו עשינו.</p>\n<p class=\"text-gray-700 text-sm\">2 מחיאות כפיים, 2 מחיאות כפיים וקריאת וואו. אפשר להמציא גם מקצבים מהפה ע\"י השמעת קולות (להגיד לילדים לחקות אותנו)</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "אפשרויות להצגת האביזר - הצגת תאטרון 🎭",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">לפתוח את התיק לאט, לשאול את מי הבאתי.. אולי חתול? כלב? פרה?...</p>\n<p class=\"text-gray-700 text-sm mb-2\">ואז להגיד שהבאתי נחש פששששש, להוציא את החבל לאט מהתיק שרק צד אחד על הרצפה והצד השני ביד שלי ולהזיז את החבל כמו נחש, ולשאול אותם זה נחש? \"לא\"</p>\n<div class=\"space-y-2 mt-3\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-sm text-gray-700\">🦁 <strong>אוזניים של אריה?</strong> להדגים עם הידיות על הראש ולשאוג כמו אריה, \"לא\"</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-sm text-gray-700\">🐘 <strong>חדק של פיל?</strong> צד אחד על האף וצד שני זז מצד לצד כמו חדק של פיל, \"לא\"</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "חלוקת החבלים",
+      "content": "<p class=\"text-gray-700 text-sm\">כל אחד מקבל חבל בתורו ושם אותו על הרצפה בין הרגליים</p>"
+    },
+    {
+      "title": "משחק בעלי החיים 🦁",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">לשאול את הילדים \"מה אפשר לעשות עם החבל – אולי נדמה בעלי חיים?\" (דגש על האולי בדוגמאות - אנחנו רק משחקים)</p>\n<p class=\"text-gray-600 text-sm italic mb-2\">לגילאים הגדולים יותר - לאתגר את התרגילים (דימויים) בעמידה על רגל אחת</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm mt-2\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">🐘 חדק של פיל – ידית אחת על האף שלנו ועם היד השנייה להחזיק בידית השנייה ולנופף כמו חדק</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">🦁 אוזניים של אריה – שתי ידיות על הראש ולשאוג כמו אריה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">🐰 שיניים של שפן – שתי ידיות כמו שיניים ארוכות ולהשמיע קול של לעיסת גזר</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">🎧 אוזניות - ידית על כל אוזן - נהיה כולם בשקט נקשיב למוזיקה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">🔭 משקפת - ידית על כל עיין - אני מדמיינת שדה עם פרפרים, טרקטור חורש</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">⭕ לחבר את הידיות אחת לשנייה ולצייר עיגולים גדולים קדימה ואחורה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "לומדים לקפוץ בחבל 🪢",
+      "content": "<div class=\"space-y-2\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-sm text-gray-700\"><strong>1.</strong> מניחים את החבל על הרצפה, שתי הידיות מאחורי הגב ועומדים בתוך המעגל שנוצר מהחבל. יוצאים החוצה מעל החבל רגל רודפת רגל, ואחורה בחזרה רגל רודפת רגל X 3</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-sm text-gray-700\"><strong>2.</strong> קופצים החוצה עם שתי הרגליים ביחד וחוזרים אחורה רגל רודפת רגל X 3</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-sm text-gray-700\"><strong>3.</strong> להחזיק בשתי הידיות וחזרה על אותו התרגיל, קצה החבל נוגע ברצפה ועוברים קדימה רגל רודפת רגל ואחורה, ואז בקפיצה עם שתי הרגליים ביחד</p>\n          </div>\n        </div>\n<p class=\"text-blue-600 text-sm font-semibold mt-3\">לתת להם זמן חופשי לקפיצה בחבל ופיתוח רעיונות</p>\n<p class=\"text-green-600 text-sm font-semibold\">שיר רקע: כמו צפרדע</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "ציוד: 37 חבלים",
+      "content": "<p class=\"text-gray-700 text-sm\">מסלול: 4 מסלולים שונים פרוסים במרחב</p>"
+    },
+    {
+      "title": "תיאור המסלולים:",
+      "content": "<div class=\"space-y-2\">\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\"><strong>1.</strong> ארבע שורות של חבלים - קופצים מעל כל חבל עם שתי רגליים ו ו ו ו ו</p>\n          </div>\n          \n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\"><strong>2.</strong> חבל לאורך – רגליים פסוקות – עוברים בקפיצות - - - - -</p>\n          </div>\n          \n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\"><strong>3.</strong> אותו חבל לאורך – רגליים פסוקות – עוברים בקפיצות אחורה - - - - -</p>\n          </div>\n          \n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\"><strong>4.</strong> ארבעה מעגלים מהחבלים – קופצים מעיגול לעיגול עם 2 כפות רגליים ביחד O O O O</p>\n          </div>\n          \n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <p class=\"text-gray-700 text-sm\"><strong>5.</strong> אם יש לך רעיון נוסף למסלול עם החבלים, תוכלי לשלב אותו</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

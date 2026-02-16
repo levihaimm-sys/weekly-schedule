@@ -1,0 +1,118 @@
+{
+  "id": "994e3e8c-ff2b-4073-b210-57562f9c2f55",
+  "name": "מיומנות יסוד 8",
+  "equipment": [
+    {
+      "name": "דליים",
+      "quantity": 22
+    },
+    {
+      "name": "משטח נגד החלקה",
+      "quantity": 1
+    },
+    {
+      "name": "משוכות כתומות",
+      "quantity": 3
+    },
+    {
+      "name": "משוכות צהובות גבוהות",
+      "quantity": 2
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו כיוונים שונים - לצדדים, קדימה, אחורה, מעל, מתחת, ליד, בתוך ומחוץ</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה במהירויות שונות האטה - האצה, זינוק, עצירה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה בכיוונים שונים וברמות גובה שונות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה במסלולים שונים (ישר, זיג זג, עגול, מפותל, סיבוב) עם ובלי אביזר</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תנועה במרחב הכללי באופני התקדמות שונים</span>\n      </li>\n    </ul>\n<div class=\"mt-4 bg-orange-100 rounded-lg p-3\">\n      <p class=\"text-sm text-orange-900 font-semibold\">\n        ⚠️ חשוב מאוד להתייחס למושגי היסוד במשך כל ההפעלה כדי שהילדים ילמדו את המושגים ברמה הגופנית וברמה המילולית\n      </p>\n    </div>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - האקונה מטטה",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n          מבקשים מהם ללכת מהר, ואז ממש לאט במהירויות שונות.\n        </p>"
+    },
+    {
+      "title": "🎶\n          2. חימום 2: בתוך הים / בת הים הקטנה",
+      "content": "<div class=\"space-y-2 text-sm\">\n          <div class=\"flex items-start gap-2\">\n            <span class=\"text-green-600\">🐴</span>\n            <p class=\"text-gray-700\"><strong>דוהר כמו סוס</strong> - כשהסוס עוצר יושבים על הרצפה, כשהמוזיקה חוזרת חוזרים לדהור במרחב בכיוון השעון</p>\n          </div>\n          <div class=\"flex items-start gap-2\">\n            <span class=\"text-green-600\">🕷️</span>\n            <p class=\"text-gray-700\"><strong>עכבישים</strong> - מתחילים מישיבה במרחב החדר (לשים לב שהם לא קמים). מתפסים עם הידיים באוויר מישיבה לעמידה ונופלים. עכביש רץ - רצים כמו עכביש – הליכה על ארבע או על שש</p>\n          </div>\n          <div class=\"flex items-start gap-2\">\n            <span class=\"text-green-600\">🦀</span>\n            <p class=\"text-gray-700\"><strong>סרטן</strong> - הליכת סרטן, קדימה, לצד, אחורה (אם הם גדולים) חשוב לעשות לאט</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "כולם עומדים ואנחנו מתרגלים את הכיוונים השונים:",
+      "content": "<div class=\"grid grid-cols-1 md:grid-cols-2 gap-3\">\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <h4 class=\"font-bold text-blue-800 mb-1\">לפני 🤰</h4>\n            <p class=\"text-sm text-gray-700\">נגיד לילדים לשים את הדלי מלפניהם ולעשות בטן של דובה גדולה בהריון</p>\n          </div>\n\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <h4 class=\"font-bold text-green-800 mb-1\">מאחורי 🐪</h4>\n            <p class=\"text-sm text-gray-700\">נגיד לילדים לשים את הדלי מאחורי הגב דבשת של גמל</p>\n          </div>\n\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <h4 class=\"font-bold text-purple-800 mb-1\">בצד 🥁</h4>\n            <p class=\"text-sm text-gray-700\">מתחת לבית השחי כמו דרבוקה ונתופף וצד שני</p>\n          </div>\n\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <h4 class=\"font-bold text-pink-800 mb-1\">על 🦵</h4>\n            <p class=\"text-sm text-gray-700\">יד רגל על הדלי, ברך על הדלי (אם הם קטנים איבר אחד בלבד, אם הם גדולים יותר אפשר עד 4 איברים)</p>\n          </div>\n\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <h4 class=\"font-bold text-orange-800 mb-1\">מתחת 🚒</h4>\n            <p class=\"text-sm text-gray-700\">נניח על הראש - קסדה של סמי הכבאי, כובע של בוב הבנאי</p>\n          </div>\n\n          <div class=\"bg-white rounded-lg p-3 shadow-sm\">\n            <h4 class=\"font-bold text-teal-800 mb-1\">ישיבה 🚗</h4>\n            <p class=\"text-sm text-gray-700\">מושיבים את הילדים והדלי הופך להגה. ידיים אוחזות בדלי. אפשר לסובב אפשר להזיז תלוי בגיל שלהם</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "לפני 🤰",
+      "content": "<p class=\"text-sm text-gray-700\">נגיד לילדים לשים את הדלי מלפניהם ולעשות בטן של דובה גדולה בהריון</p>"
+    },
+    {
+      "title": "מאחורי 🐪",
+      "content": "<p class=\"text-sm text-gray-700\">נגיד לילדים לשים את הדלי מאחורי הגב דבשת של גמל</p>"
+    },
+    {
+      "title": "בצד 🥁",
+      "content": "<p class=\"text-sm text-gray-700\">מתחת לבית השחי כמו דרבוקה ונתופף וצד שני</p>"
+    },
+    {
+      "title": "על 🦵",
+      "content": "<p class=\"text-sm text-gray-700\">יד רגל על הדלי, ברך על הדלי (אם הם קטנים איבר אחד בלבד, אם הם גדולים יותר אפשר עד 4 איברים)</p>"
+    },
+    {
+      "title": "מתחת 🚒",
+      "content": "<p class=\"text-sm text-gray-700\">נניח על הראש - קסדה של סמי הכבאי, כובע של בוב הבנאי</p>"
+    },
+    {
+      "title": "ישיבה 🚗",
+      "content": "<p class=\"text-sm text-gray-700\">מושיבים את הילדים והדלי הופך להגה. ידיים אוחזות בדלי. אפשר לסובב אפשר להזיז תלוי בגיל שלהם</p>"
+    },
+    {
+      "title": "שוכב 🛏️",
+      "content": "<p class=\"text-gray-700\">נשכב על הרצפה ונשים את הדלי מולנו, מצד ימין ומצד שמאל, להחזיק ביד אחת ואז בשנייה.</p>"
+    },
+    {
+      "title": "תרגיל בעמידת שש - הדלי על הגב ומתקדמים:",
+      "content": "<ol class=\"space-y-2 text-sm text-gray-700 mr-4\">\n          <li>1. נדמה הליכה של חיות ונעשה את הקולות שלהם (חתול/כלב/פרה)</li>\n          <li>2. נשלח יד אחת קדימה ושהדלי לא ייפול. יד שנייה קדימה והדלי לא ייפול</li>\n          <li>3. הליכת סרטן דלי על הבטן למי הדלי לא ייפול?</li>\n          <li>4. נעצור במקום כמו פסל, נשים את הדלי על הראש ונחזיק אותו עם הידיים כשהוא על הראש. ונשאל: מי יכול לנתק רגל אחת מבלי שהדלי ייפול? מי יכול לנתק יד אחת מבלי שהדלי ייפול?</li>\n        </ol>"
+    },
+    {
+      "title": "🎵\n          משחק ה\"כסאות\" רק אם דליים - (שיר טרנטלה סיצילאני)",
+      "content": "<p class=\"text-gray-700 mb-2\">כשהמוזיקה פועלת הולכים בין הדליים על קצות האצבעות/על העקבים/הליכת דב/הליכת סרטן מבלי לגעת בדליים.</p>\n<p class=\"text-gray-700 mb-2\">כשהמוזיקה נעצרת מנסים לבלבל את הילדים. לומר להם לשים איבר על הדלי:</p>\n<ul class=\"space-y-1 text-sm text-gray-700 mr-4\">\n          <li>• יד על הדלי</li>\n          <li>• רגל על הדלי</li>\n          <li>• ברך על הדלי</li>\n          <li>• מרפק על הדלי</li>\n        </ul>\n<p class=\"text-gray-700 mt-2\">לאט לאט עולים ברמת הקושי. שואלים: \"מי יכול להניח 2 איברים? מי יכול להניח 3 איברים\" (לדוגמא: מרפק אצבע וזרת).</p>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "תיאור המסלול:",
+      "content": "<ol class=\"space-y-2 text-gray-700 mr-4\">\n        <li><strong>1.</strong> טור של 16 דליים מסודרים על משטח נגד החלקה - הולכים קדימה על קצות האצבעות מעל כל דלי - מבלי לגעת בדלי</li>\n        <li><strong>2.</strong> 3 משוכות נמוכות כתומות – עוברים מעל</li>\n        <li><strong>3.</strong> אחרי נניח עוד טור של 6 דליים – הולכים הליכה צידית מעל הדלי</li>\n        <li><strong>4.</strong> 2 משוכות גבוהות צהובות – זוחלים מתחת</li>\n      </ol>"
+    },
+    {
+      "title": "🪣 טור ראשון - 16 דליים",
+      "content": "<p class=\"text-sm text-gray-700\">הליכה קדמית על קצות האצבעות לעבור מעל הדליים</p>"
+    },
+    {
+      "title": "🏃 משוכות נמוכות",
+      "content": "<p class=\"text-sm text-gray-700\">עוברים מעל המשוכות (אפשר לעלות דרגת קושי לילדים גדולים ולקפוץ מעל המשוכות)</p>"
+    },
+    {
+      "title": "🪣 טור שני - 6 דליים",
+      "content": "<p class=\"text-sm text-gray-700\">הליכה צידית מעל הדליים מבלי לגעת</p>"
+    },
+    {
+      "title": "🤸 משוכות גבוהות",
+      "content": "<p class=\"text-sm text-gray-700\">זחילה על הבטן (חשוב להדגיש על הבטן!!!!) מתחת למשוכה הצהובה</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-11",
+  "pdf_path": null
+}

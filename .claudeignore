@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+
+# next.js build output
+.next/
+out/
+build/
+
+# env files
+.env*
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# coverage & testing artifacts
+coverage/
+
+# vercel
+.vercel/
+
+# typescript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# lock files (large, not needed for code understanding)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# lesson plan JSON data (large, auto-generated)
+src/data/lesson-plans/
+
+# misc
+.DS_Store
+*.pem
+*.JPG
+*.jpg
+*.png
+*.svg
+*.ico

@@ -1,0 +1,1642 @@
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
+
+  if (code) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        // Check if profile exists
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, instructor_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile) {
+          // First login: try to match email to an instructor
+          const { data: instructor } = await supabase
+            .from("instructors")
+            .select("id, full_name")
+            .eq("email", user.email)
+            .single();
+
+          if (instructor) {
+            await supabase.from("profiles").insert({
+              id: user.id,
+              role: "instructor",
+              instructor_id: instructor.id,
+              display_name: instructor.full_name,
+              email: user.email,
+            });
+            return NextResponse.redirect(`${origin}/my-schedule`);
+          }
+
+          // No matching instructor - redirect to login with error
+          return NextResponse.redirect(
+            `${origin}/login?error=no_instructor_match`
+          );
+        }
+
+        // Redirect based on existing role
+        if (profile.role === "admin") {
+          return NextResponse.redirect(`${origin}/dashboard`);
+        }
+        return NextResponse.redirect(`${origin}/my-schedule`);
+      }
+    }
+  }
+
+  return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+}
+"use client";
+
+import { loginAsInstructor } from "@/lib/actions/auth";
+import { useActionState } from "react";
+import { Phone, User } from "lucide-react";
+
+export default function InstructorLoginPage() {
+  const [state, formAction, isPending] = useActionState(
+    async (_prev: { error?: string } | null, formData: FormData) => {
+      return await loginAsInstructor(formData);
+    },
+    null
+  );
+
+  return (
+    <div className="rounded-xl border border-border bg-background p-8 shadow-sm">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-bold">חיים בתנועה</h1>
+        <p className="mt-2 text-muted-foreground">כניסת מדריכים</p>
+      </div>
+
+      <form action={formAction} className="space-y-4">
+        <div>
+          <label htmlFor="name" className="mb-1 block text-sm font-medium">
+            שם מלא
+          </label>
+          <div className="relative">
+            <User
+              size={18}
+              className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              className="w-full rounded-lg border border-border bg-background ps-10 pe-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="הזן את שמך המלא"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="phone" className="mb-1 block text-sm font-medium">
+            מספר טלפון
+          </label>
+          <div className="relative">
+            <Phone
+              size={18}
+              className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              required
+              dir="ltr"
+              className="w-full rounded-lg border border-border bg-background ps-10 pe-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="050-1234567"
+            />
+          </div>
+        </div>
+
+        {state?.error && (
+          <p className="text-sm text-destructive">{state.error}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {isPending ? "מתחבר..." : "התחבר"}
+        </button>
+      </form>
+
+      <div className="mt-6 border-t border-border pt-4 text-center">
+        <a href="/login" className="text-sm text-primary hover:underline">
+          כניסת מנהלים
+        </a>
+      </div>
+    </div>
+  );
+}
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+      <div className="w-full max-w-md">{children}</div>
+    </div>
+  );
+}
+"use client";
+
+import { loginWithPassword } from "@/lib/actions/auth";
+import { useActionState } from "react";
+import { LogIn } from "lucide-react";
+
+export default function LoginPage() {
+  const [state, formAction, isPending] = useActionState(
+    async (_prev: { error?: string } | null, formData: FormData) => {
+      return await loginWithPassword(formData);
+    },
+    null
+  );
+
+  return (
+    <div className="rounded-xl border border-border bg-background p-8 shadow-sm">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-bold">חיים בתנועה</h1>
+        <p className="mt-2 text-muted-foreground">כניסת מנהלים</p>
+      </div>
+
+      <form action={formAction} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            אימייל
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="admin@example.com"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="password"
+            className="mb-1 block text-sm font-medium"
+          >
+            סיסמה
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="••••••••"
+          />
+        </div>
+
+        {state?.error && (
+          <p className="text-sm text-destructive">{state.error}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          <LogIn size={18} />
+          {isPending ? "מתחבר..." : "כניסה"}
+        </button>
+      </form>
+
+      <div className="mt-6 border-t border-border pt-4 text-center">
+        <a
+          href="/instructor-login"
+          className="text-sm text-primary hover:underline"
+        >
+          כניסת מדריכים
+        </a>
+      </div>
+    </div>
+  );
+}
+import {
+  getLessonsByDate,
+} from "@/lib/queries/dashboard";
+import { getAllInstructors, getRecentChanges } from "@/lib/queries/schedule";
+import { ensureFutureWeeks } from "@/lib/actions/schedule";
+import { DAYS_SHORT } from "@/lib/utils/constants";
+import { DayLessonsViewer } from "@/components/dashboard/day-lessons-viewer";
+import { RecentChangesList } from "@/components/dashboard/recent-changes-list";
+import { startOfWeek, addDays, format } from "date-fns";
+
+export default async function DashboardPage() {
+  // Auto-replicate 2 months ahead on dashboard load (skip revalidate during render)
+  await ensureFutureWeeks(8, true);
+
+  // Build current week dates
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 0 });
+  const today = format(now, "yyyy-MM-dd");
+  const weekDates = Array.from({ length: 6 }, (_, i) => {
+    const d = addDays(weekStart, i);
+    return {
+      date: format(d, "yyyy-MM-dd"),
+      dayName: DAYS_SHORT[i] as string,
+      displayDate: format(d, "dd/MM"),
+    };
+  });
+
+  // Fetch all data in parallel
+  const [instructors, recentChanges, ...dayLessonsResults] =
+    await Promise.all([
+      getAllInstructors(),
+      getRecentChanges(),
+      ...weekDates.map((d) => getLessonsByDate(d.date)),
+    ]);
+
+  // Build lessons-by-date map
+  const lessonsByDate: Record<string, any[]> = {};
+  weekDates.forEach((d, i) => {
+    lessonsByDate[d.date] = dayLessonsResults[i] as any[];
+  });
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold md:text-2xl">לוח בקרה</h2>
+
+      {/* Changes Section */}
+      <RecentChangesList changes={recentChanges as any} instructors={instructors} />
+
+      {/* Day Picker + Lessons */}
+      <DayLessonsViewer
+        weekDates={weekDates}
+        lessonsByDate={lessonsByDate}
+        instructors={instructors}
+        initialDate={today}
+      />
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { InstructorManager } from "@/components/instructors/instructor-manager";
+
+export default async function InstructorsPage() {
+  const supabase = await createClient();
+
+  const { data: instructors } = await supabase
+    .from("instructors")
+    .select("id, full_name, phone, email, is_active")
+    .order("full_name");
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold md:text-2xl">מדריכים</h2>
+      <InstructorManager instructors={instructors ?? []} />
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { getRecurringSchedule } from "@/lib/queries/schedule";
+import { DAYS_SHORT } from "@/lib/utils/constants";
+import { formatTime } from "@/lib/utils/date";
+import { User, Phone, Mail, ArrowRight } from "lucide-react";
+import Link from "next/link";
+
+export default async function InstructorDetailPage({
+  params,
+}: {
+  params: Promise<{ instructorId: string }>;
+}) {
+  const { instructorId } = await params;
+  const supabase = await createClient();
+
+  const { data: instructor } = await supabase
+    .from("instructors")
+    .select("*")
+    .eq("id", instructorId)
+    .single();
+
+  if (!instructor) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        מדריך לא נמצא
+      </div>
+    );
+  }
+
+  const schedule = await getRecurringSchedule({ instructorId });
+
+  // Group schedule by day
+  const byDay: Record<number, any[]> = {};
+  for (let d = 0; d < 6; d++) byDay[d] = [];
+  for (const item of schedule as any[]) {
+    if (byDay[item.day_of_week]) byDay[item.day_of_week].push(item);
+  }
+
+  return (
+    <div className="space-y-6">
+      <Link
+        href="/instructors"
+        className="flex items-center gap-1 text-sm text-primary hover:underline"
+      >
+        <ArrowRight size={14} />
+        חזרה לרשימת מדריכים
+      </Link>
+
+      {/* Instructor info - compact header */}
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-background p-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <User size={24} />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-xl font-bold">{instructor.full_name}</h2>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {instructor.phone && (
+              <span className="flex items-center gap-1">
+                <Phone size={13} /> {instructor.phone}
+              </span>
+            )}
+            {instructor.email && (
+              <span className="flex items-center gap-1">
+                <Mail size={13} /> {instructor.email}
+              </span>
+            )}
+          </div>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-medium ${
+            instructor.is_active
+              ? "bg-green-50 text-green-700"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {instructor.is_active ? "פעיל" : "לא פעיל"}
+        </span>
+      </div>
+
+      {/* Weekly grid - same style as the master schedule */}
+      <div>
+        <h3 className="mb-3 text-lg font-semibold">
+          לוח שבועי ({schedule.length} שיעורים)
+        </h3>
+
+        {schedule.length === 0 ? (
+          <p className="text-muted-foreground">אין שיעורים קבועים</p>
+        ) : (
+          <div className="grid grid-cols-6 gap-3">
+            {[0, 1, 2, 3, 4, 5].map((day) => (
+              <div key={day} className="space-y-2">
+                <div className="rounded-lg bg-primary/10 py-2 text-center text-sm font-bold text-primary">
+                  {DAYS_SHORT[day]}
+                </div>
+                <div className="space-y-2">
+                  {byDay[day].length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                      —
+                    </div>
+                  ) : (
+                    byDay[day].map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-border bg-background p-2.5"
+                      >
+                        <p className="text-xs font-bold text-primary">
+                          {formatTime(item.start_time)}
+                        </p>
+                        <p className="mt-0.5 text-sm font-medium leading-tight">
+                          {item.location?.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.location?.city}
+                          {item.location?.street
+                            ? ` - ${item.location.street}`
+                            : ""}
+                        </p>
+                        {item.location?.age_group && (
+                          <span className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                            גיל {item.location.age_group}
+                          </span>
+                        )}
+                        {item.group_name && (
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {item.group_name}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+import { AdminSidebar } from "@/components/layout/admin-sidebar";
+import { AdminTopbar } from "@/components/layout/admin-topbar";
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <AdminSidebar />
+      <div className="md:ps-64">
+        <AdminTopbar />
+        <main className="p-4 md:p-6">{children}</main>
+      </div>
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { MapPin } from "lucide-react";
+
+export default async function LocationsPage() {
+  const supabase = await createClient();
+
+  const { data: locations } = await supabase
+    .from("locations")
+    .select("id, name, city, street, age_group")
+    .order("city")
+    .order("name");
+
+  // Group by city
+  const byCity: Record<string, typeof locations> = {};
+  for (const loc of locations ?? []) {
+    if (!byCity[loc.city]) byCity[loc.city] = [];
+    byCity[loc.city]!.push(loc);
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">מיקומים</h2>
+
+      {Object.entries(byCity).map(([city, locs]) => (
+        <div key={city}>
+          <h3 className="mb-3 text-lg font-semibold">{city}</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {(locs ?? []).map((loc) => (
+              <div
+                key={loc.id}
+                className="rounded-xl border border-border bg-background p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+                    <MapPin size={18} />
+                  </div>
+                  <div>
+                    <p className="font-medium">{loc.name}</p>
+                    {loc.street && (
+                      <p className="text-sm text-muted-foreground">
+                        {loc.street}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {loc.age_group && (
+                  <span className="mt-2 inline-block rounded bg-muted px-2 py-0.5 text-xs">
+                    גיל {loc.age_group}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+import { getAllInstructors } from "@/lib/queries/schedule";
+import { FileText } from "lucide-react";
+import { ReportForm } from "@/components/reports/report-form";
+
+export default async function ReportsPage() {
+  const instructors = await getAllInstructors();
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">דוחות חודשיים</h2>
+
+      <div className="rounded-xl border border-border bg-background p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <FileText className="text-primary" size={24} />
+          <h3 className="text-lg font-semibold">יצירת דוח חדש</h3>
+        </div>
+
+        <ReportForm instructors={instructors} />
+      </div>
+    </div>
+  );
+}
+import { getRecurringSchedule, getAllCities, getAllInstructors } from "@/lib/queries/schedule";
+import { ScheduleGrid } from "@/components/schedule/schedule-grid";
+
+export default async function SchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ city?: string; instructor?: string; day?: string }>;
+}) {
+  const params = await searchParams;
+
+  const [schedule, cities, instructors] = await Promise.all([
+    getRecurringSchedule({
+      city: params.city,
+      instructorId: params.instructor,
+      dayOfWeek: params.day ? parseInt(params.day) : undefined,
+    }),
+    getAllCities(),
+    getAllInstructors(),
+  ]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold md:text-2xl">לוח זמנים קבוע</h2>
+      </div>
+
+      <ScheduleGrid
+        schedule={schedule as any[]}
+        cities={cities}
+        instructors={instructors}
+        currentFilters={params}
+      />
+    </div>
+  );
+}
+import { getWeekLessons, getAllInstructors, getAllCities } from "@/lib/queries/schedule";
+import { ensureFutureWeeks } from "@/lib/actions/schedule";
+import { format, addDays, startOfWeek } from "date-fns";
+import { ReplicateButton } from "@/components/schedule/replicate-button";
+import { WeekNavigator } from "@/components/schedule/week-navigator";
+import { WeeklyGrid } from "@/components/schedule/weekly-grid";
+import Link from "next/link";
+
+export default async function WeeklySchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string; city?: string; instructor?: string }>;
+}) {
+  const params = await searchParams;
+
+  // Auto-replicate 2 months ahead (skip revalidate during render)
+  await ensureFutureWeeks(8, true);
+
+  // Parse week from query or use current week
+  const baseDate = params.week ? new Date(params.week) : new Date();
+  const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
+  const weekEnd = addDays(weekStart, 5);
+  const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+
+  const filters = {
+    instructorId: params.instructor,
+    city: params.city,
+  };
+
+  const [lessons, instructors, cities] = await Promise.all([
+    getWeekLessons(weekStartStr, weekEndStr, filters),
+    getAllInstructors(),
+    getAllCities(),
+  ]);
+
+  // Build 6-day grid (Sun-Fri)
+  const weekDates = Array.from({ length: 6 }, (_, i) =>
+    format(addDays(weekStart, i), "yyyy-MM-dd")
+  );
+  const byDay: Record<string, typeof lessons> = {};
+  for (const dateStr of weekDates) {
+    byDay[dateStr] = [];
+  }
+  for (const lesson of lessons) {
+    if (byDay[lesson.lesson_date]) {
+      byDay[lesson.lesson_date].push(lesson);
+    }
+  }
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold md:text-2xl">לוח שבועי</h2>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/schedule"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted md:px-4 md:py-2 md:text-sm"
+            >
+              לוח קבוע
+            </Link>
+            <ReplicateButton targetDate={weekStartStr} />
+          </div>
+        </div>
+        <WeekNavigator
+          weekStartStr={weekStartStr}
+          weekEndStr={weekEndStr}
+          basePath="/schedule/weekly"
+        />
+      </div>
+
+      {lessons.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-background p-12 text-center">
+          <p className="text-lg font-medium text-muted-foreground">
+            אין שיעורים לשבוע הזה
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            לחץ על &quot;צור שיעורים לשבוע&quot; כדי ליצור מהלוח הקבוע
+          </p>
+        </div>
+      ) : (
+        <WeeklyGrid
+          weekDates={weekDates}
+          lessonsByDay={byDay as any}
+          instructors={instructors}
+          cities={cities}
+          currentFilters={{ city: params.city, instructor: params.instructor }}
+        />
+      )}
+
+      <p className="text-sm text-muted-foreground">
+        סה&quot;כ {lessons.length} שיעורים השבוע
+      </p>
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { DAYS_HEBREW } from "@/lib/utils/constants";
+import { formatTime } from "@/lib/utils/date";
+import { MapPin, Clock, CheckCircle } from "lucide-react";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { redirect } from "next/navigation";
+import { LessonConfirmButtons } from "@/components/schedule/lesson-confirm-buttons";
+import { MonthSelector } from "@/components/schedule/month-selector";
+
+const MONTHS_HEBREW = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+
+export default async function ConfirmLessonsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const params = await searchParams;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // Get instructor profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("instructor_id, display_name")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.instructor_id) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        לא נמצא פרופיל מדריך מקושר
+      </div>
+    );
+  }
+
+  // Determine which month to show
+  const now = new Date();
+  const selectedMonth = params.month
+    ? new Date(params.month + "-01")
+    : now;
+  const monthStart = format(startOfMonth(selectedMonth), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(selectedMonth), "yyyy-MM-dd");
+  const monthLabel = `${MONTHS_HEBREW[selectedMonth.getMonth()]} ${selectedMonth.getFullYear()}`;
+  const currentMonthStr = format(now, "yyyy-MM");
+  const prevMonthStr = format(subMonths(now, 1), "yyyy-MM");
+
+  // Fetch all lessons for the month
+  const { data: lessons } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      lesson_date,
+      start_time,
+      status,
+      location:locations!lessons_location_id_fkey(id, name, city, street)
+    `
+    )
+    .eq("instructor_id", profile.instructor_id)
+    .gte("lesson_date", monthStart)
+    .lte("lesson_date", monthEnd)
+    .order("lesson_date")
+    .order("start_time");
+
+  // Fetch signatures
+  const lessonIds = (lessons ?? []).map((l) => l.id);
+  const sigMap: Record<
+    string,
+    { signer_name: string; signer_role: string; signature_url: string | null }
+  > = {};
+  if (lessonIds.length > 0) {
+    const { data: signatures } = await supabase
+      .from("signatures")
+      .select("lesson_id, signer_name, signer_role, signature_url")
+      .in("lesson_id", lessonIds);
+    for (const sig of signatures ?? []) {
+      sigMap[sig.lesson_id] = {
+        signer_name: sig.signer_name,
+        signer_role: sig.signer_role,
+        signature_url: sig.signature_url,
+      };
+    }
+  }
+
+  const allLessons = lessons ?? [];
+  const confirmedCount = allLessons.filter((l) => sigMap[l.id]).length;
+  const scheduledCount = allLessons.filter(
+    (l) => l.status === "scheduled" || l.status === "completed"
+  ).length;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">אישור שיעורים</h2>
+
+      {/* Month selector */}
+      <MonthSelector
+        currentMonthStr={currentMonthStr}
+        prevMonthStr={prevMonthStr}
+        selectedMonth={params.month ?? currentMonthStr}
+        monthLabel={monthLabel}
+      />
+
+      {/* Summary */}
+      <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
+        <CheckCircle size={16} className="text-green-600" />
+        <span>
+          {confirmedCount} מאושרים מתוך {scheduledCount} שיעורים
+        </span>
+      </div>
+
+      {/* Lessons list */}
+      <div className="space-y-3">
+        {allLessons.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            אין שיעורים בחודש זה
+          </div>
+        ) : (
+          allLessons.map((lesson: any) => {
+            const isConfirmed = !!sigMap[lesson.id];
+            const lessonDate = new Date(lesson.lesson_date);
+            const dayName = DAYS_HEBREW[lessonDate.getDay()];
+            const dateStr = format(lessonDate, "dd/MM");
+
+            return (
+              <div key={lesson.id} className="space-y-2">
+                <div
+                  className={`rounded-xl border p-4 ${
+                    isConfirmed
+                      ? "border-green-300 bg-green-50/50"
+                      : lesson.status === "cancelled"
+                        ? "border-red-200 bg-red-50/30"
+                        : "border-border bg-background"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {dayName} {dateStr}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={13} />
+                          {formatTime(lesson.start_time)}
+                        </span>
+                      </div>
+                      <p className="font-medium">{lesson.location?.name}</p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin size={12} />
+                        {lesson.location?.city}
+                      </div>
+                    </div>
+                    {isConfirmed && (
+                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        מאושר
+                      </span>
+                    )}
+                    {lesson.status === "cancelled" && (
+                      <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                        בוטל
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Confirmation buttons for non-cancelled, non-confirmed lessons */}
+                {!isConfirmed && lesson.status !== "cancelled" && (
+                  <LessonConfirmButtons
+                    lessonId={lesson.id}
+                    locationName={lesson.location?.name ?? ""}
+                    startTime={lesson.start_time}
+                    signature={null}
+                  />
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+
+export default function InstructorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen bg-muted/30 pb-20">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
+        <h1 className="text-center text-lg font-bold text-primary">
+          חיים בתנועה
+        </h1>
+      </header>
+      <main className="p-4">{children}</main>
+      <MobileBottomNav />
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { DAYS_HEBREW, DAYS_SHORT, LESSON_STATUS, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
+import { formatTime, formatDateShort } from "@/lib/utils/date";
+import { MapPin, Clock, Navigation, Calendar } from "lucide-react";
+import { getWazeUrl } from "@/lib/utils/waze";
+import { format, addDays, startOfWeek } from "date-fns";
+import { WeekNavigator } from "@/components/schedule/week-navigator";
+import { InstructorReportButton } from "@/components/schedule/instructor-report-button";
+import { LessonConfirmButtons } from "@/components/schedule/lesson-confirm-buttons";
+import { redirect } from "next/navigation";
+
+export default async function MySchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const params = await searchParams;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // Get instructor profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("instructor_id, display_name")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.instructor_id) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        לא נמצא פרופיל מדריך מקושר
+      </div>
+    );
+  }
+
+  // Calculate week boundaries
+  const baseDate = params.week ? new Date(params.week) : new Date();
+  const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
+  const weekEnd = addDays(weekStart, 5);
+  const weekStartStr = format(weekStart, "yyyy-MM-dd");
+  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+  const today = new Date().toISOString().split("T")[0];
+  const dayOfWeek = new Date().getDay();
+
+  // Check if current week
+  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+  const isCurrentWeek = format(currentWeekStart, "yyyy-MM-dd") === weekStartStr;
+
+  // Get lessons for this week
+  const { data: weekLessons } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      lesson_date,
+      start_time,
+      status,
+      change_notes,
+      instructor_absence_request,
+      instructor_request_type,
+      instructor_notes,
+      location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
+    `
+    )
+    .eq("instructor_id", profile.instructor_id)
+    .gte("lesson_date", weekStartStr)
+    .lte("lesson_date", weekEndStr)
+    .order("lesson_date")
+    .order("start_time");
+
+  // Fetch signatures for this week's lessons
+  const lessonIds = (weekLessons ?? []).map((l) => l.id);
+  const sigMap: Record<string, { signer_name: string; signer_role: string; signature_url: string | null }> = {};
+  if (lessonIds.length > 0) {
+    const { data: signatures } = await supabase
+      .from("signatures")
+      .select("lesson_id, signer_name, signer_role, signature_url")
+      .in("lesson_id", lessonIds);
+    for (const sig of signatures ?? []) {
+      sigMap[sig.lesson_id] = {
+        signer_name: sig.signer_name,
+        signer_role: sig.signer_role,
+        signature_url: sig.signature_url,
+      };
+    }
+  }
+
+  // Build days
+  const weekDates = Array.from({ length: 6 }, (_, i) => ({
+    date: format(addDays(weekStart, i), "yyyy-MM-dd"),
+    dayName: DAYS_SHORT[i],
+    displayDate: format(addDays(weekStart, i), "dd/MM"),
+  }));
+
+  const byDay: Record<string, any[]> = {};
+  for (const d of weekDates) byDay[d.date] = [];
+  for (const lesson of weekLessons ?? []) {
+    if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold">שלום, {profile.display_name}</h2>
+        {isCurrentWeek && (
+          <p className="text-sm text-muted-foreground">
+            {DAYS_HEBREW[dayOfWeek]} | {formatDateShort(new Date())}
+          </p>
+        )}
+      </div>
+
+      {/* Week Navigation */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar size={18} className="text-primary" />
+          <span className="text-sm font-medium">לוח שבועי</span>
+        </div>
+        <WeekNavigator
+          weekStartStr={weekStartStr}
+          weekEndStr={weekEndStr}
+          basePath="/my-schedule"
+        />
+      </div>
+
+      {/* Weekly Schedule */}
+      <div className="space-y-3">
+        {weekDates.map(({ date, dayName, displayDate }) => {
+          const dayLessons = byDay[date] ?? [];
+          const isToday = date === today;
+
+          return (
+            <div key={date}>
+              {/* Day header */}
+              <div
+                className={`mb-2 flex items-center gap-2 rounded-lg px-3 py-1.5 ${
+                  isToday ? "bg-primary/10" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`text-sm font-bold ${isToday ? "text-primary" : ""}`}
+                >
+                  {dayName}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {displayDate}
+                </span>
+                {isToday && (
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                    היום
+                  </span>
+                )}
+                {dayLessons.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    ({dayLessons.length})
+                  </span>
+                )}
+              </div>
+
+              {dayLessons.length === 0 ? (
+                <div className="mb-3 rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                  אין שיעורים
+                </div>
+              ) : (
+                <div className="mb-3 space-y-2">
+                  {dayLessons.map((lesson: any) => {
+                    const hasRequest = lesson.instructor_absence_request;
+                    const requestType = lesson.instructor_request_type as
+                      | keyof typeof INSTRUCTOR_REQUEST_TYPES
+                      | null;
+                    const isFuture = date >= today;
+                    const isScheduled = lesson.status === "scheduled";
+                    const isConfirmed = !!sigMap[lesson.id];
+
+                    return (
+                      <div key={lesson.id} className="space-y-2">
+                        {/* Lesson card - read only */}
+                        <div
+                          className={`rounded-xl border bg-background p-4 ${
+                            isConfirmed
+                              ? "border-green-300 bg-green-50/50"
+                              : hasRequest
+                                ? "border-orange-300 bg-orange-50/50"
+                                : "border-border"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Clock size={16} className="text-primary" />
+                                <span className="font-bold">
+                                  {formatTime(lesson.start_time)}
+                                </span>
+                              </div>
+                              <p className="text-lg font-medium">
+                                {lesson.location?.name}
+                              </p>
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <MapPin size={14} />
+                                <span>
+                                  {lesson.location?.city}
+                                  {lesson.location?.street
+                                    ? `, ${lesson.location.street}`
+                                    : ""}
+                                </span>
+                              </div>
+                              {lesson.location?.age_group && (
+                                <span className="inline-block rounded bg-muted px-2 py-0.5 text-xs">
+                                  גיל {lesson.location.age_group}
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                isConfirmed
+                                  ? "bg-green-100 text-green-700"
+                                  : lesson.status === "completed"
+                                    ? "bg-green-50 text-green-700"
+                                    : lesson.status === "cancelled"
+                                      ? "bg-red-50 text-red-700"
+                                      : "bg-blue-50 text-blue-700"
+                              }`}
+                            >
+                              {isConfirmed
+                                ? "שיעור מאושר"
+                                : (LESSON_STATUS[
+                                    lesson.status as keyof typeof LESSON_STATUS
+                                  ] ?? lesson.status)}
+                            </span>
+                          </div>
+
+                          {lesson.change_notes && (
+                            <p className="mt-2 text-xs text-orange-600">
+                              {lesson.change_notes}
+                            </p>
+                          )}
+
+                          {hasRequest && (
+                            <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-orange-600">
+                              <span>
+                                {requestType
+                                  ? INSTRUCTOR_REQUEST_TYPES[requestType]
+                                  : "בקשה"}{" "}
+                                נשלחה
+                              </span>
+                              {lesson.instructor_notes && (
+                                <span className="text-orange-500">
+                                  - {lesson.instructor_notes}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Waze button */}
+                        {lesson.location?.street && lesson.location?.city && (
+                          <a
+                            href={getWazeUrl(
+                              lesson.location.street,
+                              lesson.location.city
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+                          >
+                            <Navigation size={16} />
+                            ניווט ב-Waze
+                          </a>
+                        )}
+
+                        {/* Report button - only for future scheduled lessons without existing request */}
+                        {!hasRequest && isScheduled && isFuture && (
+                          <InstructorReportButton lessonId={lesson.id} />
+                        )}
+
+                        {/* Confirmation buttons - for today/past scheduled lessons or already confirmed */}
+                        {(sigMap[lesson.id] || (!isFuture && isScheduled)) && (
+                          <LessonConfirmButtons
+                            lessonId={lesson.id}
+                            locationName={lesson.location?.name ?? ""}
+                            startTime={lesson.start_time}
+                            signature={sigMap[lesson.id] ?? null}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { formatTime, formatDateHebrew } from "@/lib/utils/date";
+import { LESSON_STATUS } from "@/lib/utils/constants";
+import { getWazeUrl } from "@/lib/utils/waze";
+import {
+  Clock,
+  MapPin,
+  Navigation,
+  Users,
+  PenLine,
+  CheckCircle2,
+  ArrowRight,
+} from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+export default async function LessonDetailPage({
+  params,
+}: {
+  params: Promise<{ lessonId: string }>;
+}) {
+  const { lessonId } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      lesson_date,
+      start_time,
+      status,
+      change_notes,
+      instructor:instructors!lessons_instructor_id_fkey(id, full_name),
+      location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
+    `
+    )
+    .eq("id", lessonId)
+    .single();
+
+  if (!lesson) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        שיעור לא נמצא
+      </div>
+    );
+  }
+
+  const { data: signature } = await supabase
+    .from("signatures")
+    .select("id, signer_name, signed_at, signature_url")
+    .eq("lesson_id", lessonId)
+    .single();
+
+  const location = lesson.location as any;
+  const isSigned = !!signature;
+
+  return (
+    <div className="space-y-4">
+      <Link
+        href="/my-schedule"
+        className="flex items-center gap-1 text-sm text-primary"
+      >
+        <ArrowRight size={16} />
+        חזרה ללוח
+      </Link>
+
+      <div className="rounded-xl border border-border bg-background p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">{location?.name}</h2>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              lesson.status === "completed"
+                ? "bg-green-50 text-green-700"
+                : lesson.status === "cancelled"
+                  ? "bg-red-50 text-red-700"
+                  : "bg-blue-50 text-blue-700"
+            }`}
+          >
+            {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ??
+              lesson.status}
+          </span>
+        </div>
+
+        <p className="mt-1 text-sm text-muted-foreground">
+          {formatDateHebrew(new Date(lesson.lesson_date))}
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Clock size={18} className="text-primary" />
+            <span className="font-medium">{formatTime(lesson.start_time)}</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <MapPin size={18} className="text-primary" />
+            <div>
+              <p>{location?.city}</p>
+              {location?.street && (
+                <p className="text-sm text-muted-foreground">
+                  {location.street}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {location?.age_group && (
+            <div className="flex items-center gap-3">
+              <Users size={18} className="text-primary" />
+              <span>גיל {location.age_group}</span>
+            </div>
+          )}
+        </div>
+
+        {lesson.change_notes && (
+          <div className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-700">
+            {lesson.change_notes}
+          </div>
+        )}
+      </div>
+
+      {/* Waze Navigation */}
+      {location?.street && location?.city && (
+        <a
+          href={getWazeUrl(location.street, location.city)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-3.5 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+        >
+          <Navigation size={20} />
+          נווט עם Waze
+        </a>
+      )}
+
+      {/* Signature Section */}
+      <div className="rounded-xl border border-border bg-background p-5">
+        <h3 className="mb-3 font-semibold">חתימת גננת</h3>
+        {isSigned ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-success">
+              <CheckCircle2 size={20} />
+              <span className="font-medium">נחתם</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              נחתם על ידי: {signature.signer_name}
+            </p>
+            {signature.signature_url && (
+              <img
+                src={signature.signature_url}
+                alt="חתימה"
+                className="h-24 rounded-lg border border-border bg-white object-contain"
+              />
+            )}
+          </div>
+        ) : (
+          <Link
+            href={`/sign/${lessonId}`}
+            className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <PenLine size={20} />
+            לחץ כאן לחתימה
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { User, Mail, Phone, LogOut } from "lucide-react";
+import { logout } from "@/lib/actions/auth";
+
+export default async function ProfilePage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, email, phone, role")
+    .eq("id", user.id)
+    .single();
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold">הפרופיל שלי</h2>
+
+      <div className="rounded-xl border border-border bg-background p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <User size={32} />
+          </div>
+          <div>
+            <p className="text-xl font-bold">{profile?.display_name}</p>
+            <p className="text-sm text-muted-foreground">
+              {profile?.role === "admin" ? "מנהל" : "מדריך"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {profile?.email && (
+            <div className="flex items-center gap-3 text-sm">
+              <Mail size={18} className="text-muted-foreground" />
+              <span>{profile.email}</span>
+            </div>
+          )}
+          {profile?.phone && (
+            <div className="flex items-center gap-3 text-sm">
+              <Phone size={18} className="text-muted-foreground" />
+              <span>{profile.phone}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <form action={logout}>
+        <button
+          type="submit"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-destructive px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <LogOut size={18} />
+          התנתק
+        </button>
+      </form>
+    </div>
+  );
+}
+import { createClient } from "@/lib/supabase/server";
+import { SignaturePad } from "@/components/signature/signature-pad";
+import { redirect } from "next/navigation";
+
+export default async function SignPage({
+  params,
+}: {
+  params: Promise<{ lessonId: string }>;
+}) {
+  const { lessonId } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // Fetch lesson details
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      status,
+      location:locations!lessons_location_id_fkey(name, city)
+    `
+    )
+    .eq("id", lessonId)
+    .single();
+
+  if (!lesson) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        שיעור לא נמצא
+      </div>
+    );
+  }
+
+  // Check if already signed
+  const { data: existingSignature } = await supabase
+    .from("signatures")
+    .select("id, signer_name, signed_at")
+    .eq("lesson_id", lessonId)
+    .single();
+
+  if (existingSignature) {
+    return (
+      <div className="p-8 text-center">
+        <div className="rounded-xl border border-success/30 bg-success/10 p-6">
+          <p className="text-lg font-bold text-success">השיעור כבר נחתם</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            נחתם על ידי: {existingSignature.signer_name}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const locationName = `${(lesson.location as any)?.name ?? ""} - ${(lesson.location as any)?.city ?? ""}`;
+
+  return <SignaturePad lessonId={lessonId} locationName={locationName} />;
+}
+import { createClient } from "@/lib/supabase/server";
+import { renderToBuffer } from "@react-pdf/renderer";
+import { MonthlyReportDocument } from "@/lib/pdf/report-template";
+import { NextRequest, NextResponse } from "next/server";
+import React from "react";
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { instructorId, month, year } = body;
+
+  if (!instructorId || !month || !year) {
+    return NextResponse.json(
+      { error: "Missing instructorId, month, or year" },
+      { status: 400 }
+    );
+  }
+
+  // Fetch instructor
+  const { data: instructor } = await supabase
+    .from("instructors")
+    .select("id, full_name")
+    .eq("id", instructorId)
+    .single();
+
+  if (!instructor) {
+    return NextResponse.json(
+      { error: "Instructor not found" },
+      { status: 404 }
+    );
+  }
+
+  // Calculate date range for the month
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2, "0")}-${lastDay}`;
+
+  // Fetch lessons for this instructor and month
+  const { data: lessons } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      lesson_date,
+      start_time,
+      status,
+      location:locations!lessons_location_id_fkey(name, city)
+    `
+    )
+    .eq("instructor_id", instructorId)
+    .gte("lesson_date", startDate)
+    .lte("lesson_date", endDate)
+    .order("lesson_date")
+    .order("start_time");
+
+  if (!lessons || lessons.length === 0) {
+    return NextResponse.json(
+      { error: "אין שיעורים לתקופה זו" },
+      { status: 404 }
+    );
+  }
+
+  // Fetch signatures for these lessons
+  const lessonIds = lessons.map((l) => l.id);
+  const { data: signatures } = await supabase
+    .from("signatures")
+    .select("lesson_id, signer_name, signer_role, signature_url")
+    .in("lesson_id", lessonIds);
+
+  const sigMap = new Map(
+    (signatures ?? []).map((s) => [s.lesson_id, s])
+  );
+
+  // Build report data
+  const reportLessons = lessons.map((lesson: any) => {
+    const sig = sigMap.get(lesson.id);
+    const lessonDate = new Date(lesson.lesson_date);
+    return {
+      date: lessonDate.toLocaleDateString("he-IL"),
+      dayOfWeek: lessonDate.getDay(),
+      time: lesson.start_time.slice(0, 5),
+      locationName: lesson.location?.name ?? "—",
+      city: lesson.location?.city ?? "—",
+      status: lesson.status,
+      signatureUrl: sig?.signature_url ?? null,
+      signerName: sig?.signer_name ?? null,
+      signerRole: sig?.signer_role ?? null,
+    };
+  });
+
+  // Generate PDF
+  const pdfBuffer = await renderToBuffer(
+    React.createElement(MonthlyReportDocument, {
+      data: {
+        instructorName: instructor.full_name,
+        month,
+        year,
+        lessons: reportLessons,
+      },
+    }) as any
+  );
+
+  // Return PDF as download
+  return new NextResponse(new Uint8Array(pdfBuffer), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="report-${instructor.full_name}-${month}-${year}.pdf"`,
+    },
+  });
+}
+import type { Metadata, Viewport } from "next";
+import { Heebo } from "next/font/google";
+import "./globals.css";
+
+const heebo = Heebo({
+  subsets: ["hebrew", "latin"],
+  variable: "--font-heebo",
+});
+
+export const metadata: Metadata = {
+  title: "חיים בתנועה - ניהול פעילויות",
+  description: "מערכת ניהול פעילויות ספורט ונוכחות לעמותת חיים בתנועה",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="he" dir="rtl">
+      <body className={`${heebo.variable} font-sans antialiased`}>
+        {children}
+      </body>
+    </html>
+  );
+}
+import { redirect } from "next/navigation";
+
+export default function HomePage() {
+  // Middleware handles redirection based on auth state
+  redirect("/login");
+}

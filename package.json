@@ -1,0 +1,49 @@
+{
+  "name": "weekly-schedule",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "import:lesson-plans": "tsx scripts/import-lesson-plans.ts",
+    "update:playlists": "tsx scripts/update-playlist-urls.ts",
+    "import:lesson-contents": "node scripts/import-all-lesson-contents.mjs",
+    "style:lesson-contents": "node scripts/style-all-lesson-contents.mjs",
+    "restyle:lessons-perfect": "node scripts/restyle-all-lessons-perfect.mjs",
+    "perfect:all-lessons": "node scripts/perfect-style-all-lessons.mjs"
+  },
+  "dependencies": {
+    "@fontsource/heebo": "^5.2.8",
+    "@react-pdf/renderer": "^4.3.2",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
+    "canvas": "^3.2.1",
+    "cheerio": "^1.2.0",
+    "clsx": "^2.1.1",
+    "csv-parse": "^5.6.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
+    "lucide-react": "^0.563.0",
+    "next": "16.1.6",
+    "pdfjs-dist": "^5.4.624",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-pdf": "^10.3.0",
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-signature-canvas": "^1.0.7",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}

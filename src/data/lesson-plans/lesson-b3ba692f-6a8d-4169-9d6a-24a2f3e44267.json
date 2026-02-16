@@ -1,0 +1,66 @@
+{
+  "id": "b3ba692f-6a8d-4169-9d6a-24a2f3e44267",
+  "name": "גמישות תנועה 5",
+  "equipment": [
+    {
+      "name": "טבעות",
+      "quantity": 37
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו ויתרגלו את הגמישות של הגוף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בגלגול לפנים, גלגול לאחור, עמידת נר - תרגילי התעמלות קרקע</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו בזכרון תנועתי של משפטי תנועה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>תזוזה של הגוף במרחב לפי מקצבים שונים של מוזיקה</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>היכרות עם משחקים לנופש פעיל</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>סיכום המיומנויות שנלמדו במהלך השנה</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - מסיבת ריקודים/יובל המבולבל",
+      "content": "<p class=\"text-gray-700 leading-relaxed\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>"
+    },
+    {
+      "title": "👏\n          3. משחק מחיאות כפיים",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">נותנים לילדים מקצבים שונים עם הכפיים ומבקשים מהם לחקות את המקצב שאנחנו עשינו.</p>\n<p class=\"text-gray-700 text-sm\">2 מחיאות כפיים, 2 מחיאות כפיים וקריאת וואו. אפשר להמציא גם מקצבים מהפה ע\"י השמעת קולות (להגיד לילדים לחקות אותנו)</p>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר - אנחנו רוצים להתחיל לסכם איתם את השנה ולהזכיר להם את הדברים שלמדנו תוך כדי</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "1. מלמדים את הילדים למתוח את הגוף והשרירים",
+      "content": "<p class=\"text-gray-600 text-sm italic\">הכל בישיבה על הרצפה</p>"
+    },
+    {
+      "title": "🦋 ישיבת פרפר",
+      "content": "<p class=\"text-sm text-gray-700\">נשב בישיבת פרפר כפות הרגליים נוגעות אחת בשנייה. מישרים את הגב ומתכופפים לאט לאט קדימה</p>"
+    },
+    {
+      "title": "➡️ רגליים קדימה",
+      "content": "<p class=\"text-sm text-gray-700\">ניישר את הרגליים קדימה אפשר לכופף מעט וגם נתכופף קדימה</p>"
+    },
+    {
+      "title": "↔️ מתיחה צידית",
+      "content": "<p class=\"text-sm text-gray-700\">נפתח את הרגליים לצדדים ונגע עם יד שמאל בקצות האצבעות של רגל ימין. ואז הפוך יד ימין בקצות האצבעות של רגל שמאל</p>"
+    },
+    {
+      "title": "🔄 טוויסט",
+      "content": "<p class=\"text-sm text-gray-700\">נשב בישיבה מזרחית, נמתח את הידיים למעלה ונסובב את החלק גוף העליון להסתכל אחורה (טוויסט) ואז לצד השני</p>\n<p class=\"text-red-600 text-xs mt-1\">⚠️ לשים לב לא להסתובב בכוח! הכל בעדינות והקשבה לגוף שלנו</p>"
+    },
+    {
+      "title": "⭐ כוכב וכדור",
+      "content": "<p class=\"text-sm text-gray-700\">נשכב על הרצפה ונמתח את הגוף חזק לצדדים בצורת כוכב ואז נתכווץ לכדור. לחזור על הפעולה כמה פעמים</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/music",
+  "pdf_path": null
+}

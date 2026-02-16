@@ -1,0 +1,74 @@
+{
+  "id": "f17c6257-31f4-4b29-b0ea-36c443aae784",
+  "name": "משחקי כדור 2",
+  "equipment": [
+    {
+      "name": "כדורסל",
+      "quantity": 19
+    },
+    {
+      "name": "קונוסים גדולים",
+      "quantity": 6
+    },
+    {
+      "name": "מקלות כתומים",
+      "quantity": 6
+    },
+    {
+      "name": "תופסנים",
+      "quantity": 6
+    },
+    {
+      "name": "חישוקים שטוחים",
+      "quantity": 6
+    }
+  ],
+  "sections": [
+    {
+      "title": "ציוד",
+      "content": ""
+    },
+    {
+      "title": "🎯\n      מטרות המפגש",
+      "content": "<ul class=\"space-y-2 text-gray-700\">\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את המושגים - זריקה, תפיסה, מסירה, קליעה, קפיצות, נחיתות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את התנועה סביב ציר</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יכירו את היכולת המפרקים בגוף להסתובב ולהתכופף</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יתנסו במשחקי כדור וקליעה - שליטה בכדור ולימוד כדרור בעמידה ובהתקדמות</span>\n      </li>\n      <li class=\"flex items-start gap-2\">\n        <span class=\"text-orange-500 font-bold\">•</span>\n        <span>הילדים יפתחו מיומנויות תקשורת בעבודה בזוגות וקבוצות בדגש על פתרון בעיות</span>\n      </li>\n    </ul>"
+    },
+    {
+      "title": "פתיחה - 5 דקות",
+      "content": ""
+    },
+    {
+      "title": "🎵\n          1. חימום עם מוזיקה - אני אוהב להתעמל",
+      "content": "<p class=\"text-gray-700 leading-relaxed mb-2\">\n          מנגנים את השיר ברקע ומבקשים לילדים לחקות אותך. עושים חימום של כל איברי הגוף השונים.\n          מתחילים מסיבוב של הראש והצוואר, ידיים קדימה ואחורה, סיבוב כתפיים, סיבוב אגן, מתיחות מצד לצד.\n        </p>\n<p class=\"text-gray-700\">ללכת בהליכות שונות בחדר - הליכה צידית, משקל מרגל לרגל, עקב אחרי אגודל, קפיצת צפרדע, הליכת סרטן, הליכת ברווז - הליכה שפופה.</p>"
+    },
+    {
+      "title": "🎶\n          2. שיר רקע - כי זה רק ספורט",
+      "content": "<p class=\"text-gray-600 text-sm italic mb-2\">(יש להתאים את רמת החימום לגיל של הילדים, בגילאים הקטנים לשמור על פשטות זאת מילת המפתח)</p>\n<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">1. עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">2. עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכפיפה של הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">3. עמידה בפיסוק, מתיחה, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">4. יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">5. ריצה מהירה במקום</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">6. ריצה איטית במקום כשהברכיים נוגעות בכפות הידיים</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">7. ניתור ברגליים צמודות בצד לצד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">8. ניתור מרגל אחת אל הרגל השנייה</p>\n          </div>\n        </div>\n<p class=\"text-gray-600 text-sm italic mt-2\">להזכיר את נושא החודש ולשאול במה שיחקנו בשבוע שעבר</p>"
+    },
+    {
+      "title": "גוף השיעור - 10 דקות",
+      "content": ""
+    },
+    {
+      "title": "חימום המפרקים, חגורת הכתפיים, הרמה, הרחקה וקרוב השכמות:",
+      "content": "<div class=\"grid grid-cols-1 md:grid-cols-2 gap-2 text-sm\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• ידיים על הכתפיים סיבוב לפנים ולאחור - סיבוב המרפק ומפרק הכתף</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפק מעבר לראש ויד נגדית מושכת אותו לכיוון שלה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפק כלפי מעלה כשהיד מכופפת, יד נגדית דוחפת את המרפק אל מאחורי הראש</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מרפקים מכופפים בגובה המותניים, בתנופה לצדדים, מצד אל צד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• פיסוק הידיים לאחור לשלוח נשיקה באוויר, חיבוק הידיים על הגוף</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• מתיחה של היד על בית החזה לכיוון היד הנגדית, והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• סיבוב מפרקי כף היד + שילוב האצבעות וסיבוב מפרקי כף היד</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, מתיחה, יד ימין נוגעת ברגל שמאל ויד שמאל מונפת למעלה - כמו מאוורר והפוך</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, שתי ידיים באמצע מונפות למעלה ולמטה, זקיפה וכיפוף הגב</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• עמידה בפיסוק, רגל מכופפת ורגל ישרה לאחור, נגיעה בכף רגל המכופפת בספירה עד 4 ורגל שנייה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700\">• יד אחת על המותן, היד השנייה למעלה ועושים ניעות הצידה וצד שני</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "2. לחלק את הילדים לזוגות ולכל זוג נותנים כדורסל",
+      "content": "<p class=\"text-gray-600 text-sm mb-2\">כל פעם הם עושים את המשימה אחד אחרי השני:</p>\n<div class=\"space-y-2\">\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• בעמידה, להעביר את הכדור מיד ליד בניהם מבלי שיפול ולהחליף</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• להחזיק את הכדור בשתי ידיים, יד מתחת לכדור ויד מעל הכדור, להרים את היד שלמעלה ולהחזיק את הכדור רק עם יד אחת ולספור עד 5 ולהעביר לבן זוג, כנ\"ל ליד השנייה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• להרים את הכדור מעל הראש ולספור עד 5 ולהעביר לבן זוג</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• לגלגל את הכדור מסביב לגוף בגובה המותניים (בטן וגב) ולהעביר</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• להחזיק את הכדור בשתי ידיים בגובה המותניים, לעזוב אותו ובן הזוג צריך לתפוס אותו מהר לפני שהוא נופל לרצפה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• לכדרר את הכדור עם יד אחת, ביד ימין ושמאל</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• לכדרר את הכדור מיד ליד פעם ימין ופעם שמאל</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• לכדרר בהליכה</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• בעמידה, להתמסר בכדור מבלי שיפול</p>\n          </div>\n          <div class=\"bg-white rounded p-2\">\n            <p class=\"text-gray-700 text-sm\">• בעמידה, להתמסר בכדור כשבכל פעם הוא נוגע פעם אחת בלבד ברצפה</p>\n          </div>\n        </div>"
+    },
+    {
+      "title": "מסלול - 15 דקות",
+      "content": ""
+    },
+    {
+      "title": "יוצרים סלים 🏀",
+      "content": "<p class=\"text-gray-700 text-sm mb-2\">יוצרים סלים מהחישוקים והתופסנים. סה\"כ 6 סלים.</p>\n<p class=\"text-gray-700 text-sm\">חלוקה לקבוצות של עד שישה ילדים - 6 תחנות + 6 כדורים. כל ילד בתורו קולע אל הסל.</p>"
+    },
+    {
+      "title": "סיכום - 2 דקות",
+      "content": ""
+    }
+  ],
+  "playlist_url": "https://hspisrael.wixsite.com/newbuli/copy-of-7",
+  "pdf_path": null
+}
