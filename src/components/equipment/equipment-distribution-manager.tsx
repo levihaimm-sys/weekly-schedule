@@ -225,7 +225,7 @@ export function EquipmentDistributionManager({
                       </button>
                     )}
 
-                    {isDistributed && assignment.equipment_distributed_at && (
+                    {isDistributed && assignment?.equipment_distributed_at && (
                       <div className="text-xs text-muted-foreground">
                         חולק ב-
                         {new Date(
