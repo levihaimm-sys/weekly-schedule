@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
-  const lessonPlanId = params.id;
+  const { id: lessonPlanId } = await params;
 
   // Get equipment for this lesson plan
   const { data: equipmentData, error } = await supabase
