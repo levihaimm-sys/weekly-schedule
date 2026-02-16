@@ -71,7 +71,15 @@ export default async function EquipmentDistributionPage() {
 
   // Create a map of instructor assignments
   const assignmentMap = new Map(
-    (assignments || []).map((a) => [a.instructor_id, a])
+    (assignments || []).map((a) => [
+      a.instructor_id,
+      {
+        ...a,
+        lesson_plan: Array.isArray(a.lesson_plan)
+          ? a.lesson_plan[0] ?? null
+          : a.lesson_plan,
+      },
+    ])
   );
 
   // Combine data
