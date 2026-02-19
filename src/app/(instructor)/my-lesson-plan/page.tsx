@@ -52,20 +52,15 @@ export default async function MyLessonPlanPage() {
     .eq("id", user.id)
     .single();
 
-  console.log("[MyLessonPlanPage] User:", user.id);
-  console.log("[MyLessonPlanPage] Profile:", profile);
-
   if (!profile?.instructor_id) {
-    console.log("[MyLessonPlanPage] No instructor_id in profile");
     redirect("/instructor-login");
   }
 
-  // Get current week assignment
-  const assignment = await getInstructorCurrentWeekAssignment(
-    profile.instructor_id
-  );
-
-  console.log("[MyLessonPlanPage] Assignment:", assignment ? "Found" : "Not found");
+  // Parallel: fetch current + next week assignments simultaneously
+  const [assignment, nextWeekAssignment] = await Promise.all([
+    getInstructorCurrentWeekAssignment(profile.instructor_id),
+    getInstructorNextWeekAssignment(profile.instructor_id),
+  ]);
 
   if (!assignment) {
     return (
@@ -83,8 +78,13 @@ export default async function MyLessonPlanPage() {
     );
   }
 
-  // Get lesson plan with equipment details
-  const lessonPlan = await getLessonPlanWithEquipment(assignment.lesson_plan.id);
+  // Parallel: fetch lesson plans for current + next week
+  const [lessonPlan, nextWeekPlan] = await Promise.all([
+    getLessonPlanWithEquipment(assignment.lesson_plan.id),
+    nextWeekAssignment?.lesson_plan?.id
+      ? getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id)
+      : Promise.resolve(null),
+  ]);
 
   if (!lessonPlan) {
     return (
@@ -108,13 +108,6 @@ export default async function MyLessonPlanPage() {
   const sunday = getSundayOfWeek();
   const weekEndDate = new Date(sunday);
   weekEndDate.setDate(sunday.getDate() + 6);
-
-  // Get next week's assignment and its equipment
-  const nextWeekAssignment = await getInstructorNextWeekAssignment(profile.instructor_id);
-  let nextWeekPlan: Awaited<ReturnType<typeof getLessonPlanWithEquipment>> = null;
-  if (nextWeekAssignment?.lesson_plan?.id) {
-    nextWeekPlan = await getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id);
-  }
 
   return (
     <div className="space-y-6">

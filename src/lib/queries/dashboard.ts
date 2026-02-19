@@ -186,15 +186,16 @@ export async function getUpcomingUnassignedLessons() {
 }
 
 /**
- * Get upcoming lessons where the assigned instructor differs from the recurring schedule instructor.
- * This shows one-time changes / substitutions.
+ * Get lessons where the assigned instructor differs from the recurring schedule instructor.
+ * Includes seen status and past 30 days for the "ראיתי" tab.
  */
 export async function getUpcomingScheduleChanges() {
   const supabase = await createClient();
   const today = getTodayInIsrael();
   const endDate = getUpcomingEndDate();
+  const pastDate = format(addDays(new Date(today), -30), "yyyy-MM-dd");
 
-  // Fetch lessons with their instructor AND the recurring schedule info
+  // Fetch lessons from past 30 days through upcoming end date
   const { data: lessons } = await supabase
     .from("lessons")
     .select(
@@ -211,7 +212,7 @@ export async function getUpcomingScheduleChanges() {
     )
     .not("recurring_item_id", "is", null)
     .not("instructor_id", "is", null)
-    .gte("lesson_date", today)
+    .gte("lesson_date", pastDate)
     .lte("lesson_date", endDate)
     .neq("status", "cancelled")
     .order("lesson_date")
@@ -232,23 +233,35 @@ export async function getUpcomingScheduleChanges() {
     recurringItems.map((r) => [r.id, r])
   );
 
-  // Filter to only lessons where instructor changed from the recurring schedule
-  return lessons
-    .filter((lesson) => {
-      const recurring = recurringMap.get(lesson.recurring_item_id!);
-      if (!recurring) return false;
-      return lesson.instructor_id !== recurring.instructor_id;
-    })
-    .map((lesson) => {
-      const recurring = recurringMap.get(lesson.recurring_item_id!)!;
-      const recurringInstructor = Array.isArray(recurring.instructor)
-        ? recurring.instructor[0]
-        : recurring.instructor;
-      return {
-        ...lesson,
-        recurring_instructor: recurringInstructor as { id: string; full_name: string } | null,
-      };
-    });
+  // Filter to only lessons where instructor changed
+  const changedLessons = lessons.filter((lesson) => {
+    const recurring = recurringMap.get(lesson.recurring_item_id!);
+    if (!recurring) return false;
+    return lesson.instructor_id !== recurring.instructor_id;
+  });
+
+  if (changedLessons.length === 0) return [];
+
+  // Fetch seen status for all changed lessons
+  const changedIds = changedLessons.map((l) => l.id);
+  const { data: seenItems } = await supabase
+    .from("schedule_change_seen")
+    .select("lesson_id")
+    .in("lesson_id", changedIds);
+
+  const seenSet = new Set((seenItems ?? []).map((s) => s.lesson_id));
+
+  return changedLessons.map((lesson) => {
+    const recurring = recurringMap.get(lesson.recurring_item_id!)!;
+    const recurringInstructor = Array.isArray(recurring.instructor)
+      ? recurring.instructor[0]
+      : recurring.instructor;
+    return {
+      ...lesson,
+      recurring_instructor: recurringInstructor as { id: string; full_name: string } | null,
+      is_seen: seenSet.has(lesson.id),
+    };
+  });
 }
 
 /**

@@ -3,13 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 export async function AdminTopbar() {
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("display_name")
-    .eq("id", user?.id ?? "")
+    .eq("id", session?.user?.id ?? "")
     .single();
 
   return (

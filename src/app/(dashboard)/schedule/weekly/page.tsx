@@ -5,6 +5,8 @@ import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyGrid } from "@/components/schedule/weekly-grid";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function WeeklySchedulePage({
   searchParams,
 }: {
@@ -12,8 +14,8 @@ export default async function WeeklySchedulePage({
 }) {
   const params = await searchParams;
 
-  // Auto-replicate 2 months ahead (skip revalidate during render)
-  await ensureFutureWeeks(8, true);
+  // Auto-replicate 2 months ahead (fire-and-forget, don't block page render)
+  ensureFutureWeeks(8, true);
 
   // Parse week from query or use current week
   const baseDate = params.week ? new Date(params.week) : new Date();

@@ -127,10 +127,10 @@ export function ScheduleGrid({
                     <p className="mt-1 text-base font-bold text-[#1C1917]">
                       {item.instructor?.full_name ?? <span className="text-red-600">ללא מדריך</span>}
                     </p>
-                    <p className="mt-1 text-sm font-medium leading-tight">
+                    <p className="mt-1 text-base leading-tight">
                       {item.location?.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       {item.location?.street && `${item.location.street}, `}
                       {item.location?.city}
                     </p>
@@ -173,10 +173,10 @@ export function ScheduleGrid({
                           <p className="mt-1 text-sm font-bold text-[#1C1917]">
                             {item.instructor?.full_name ?? <span className="text-red-600 font-medium">ללא מדריך</span>}
                           </p>
-                          <p className="mt-1 text-xs font-medium leading-tight">
+                          <p className="mt-1 text-sm leading-tight">
                             {item.location?.name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm text-muted-foreground">
                             {item.location?.street && `${item.location.street}, `}
                             {item.location?.city}
                           </p>

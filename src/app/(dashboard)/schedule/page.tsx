@@ -1,6 +1,8 @@
 import { getRecurringSchedule, getAllCities, getAllInstructors } from "@/lib/queries/schedule";
 import { ScheduleGrid } from "@/components/schedule/schedule-grid";
 
+export const dynamic = "force-dynamic";
+
 export default async function SchedulePage({
   searchParams,
 }: {

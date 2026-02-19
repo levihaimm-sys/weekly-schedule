@@ -16,6 +16,7 @@ import {
   Loader2,
   Filter,
   MapPin,
+  Search,
 } from "lucide-react";
 import { INSTRUCTOR_STATUS, InstructorStatusType } from "@/lib/utils/constants";
 
@@ -46,11 +47,16 @@ export function InstructorManager({
   const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editWorkCities, setEditWorkCities] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Filter by selected statuses (treat null/missing status as "active")
-  const filtered = instructors.filter((i) => selectedStatuses.has(i.status ?? "active"));
+  // Filter by selected statuses and search query
+  const filtered = instructors.filter((i) => {
+    const matchesStatus = selectedStatuses.has(i.status ?? "active");
+    const matchesSearch = !searchQuery || i.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
   // Count by status (treat null/missing status as "active")
   const activeCount = instructors.filter((i) => (i.status ?? "active") === "active").length;
@@ -136,8 +142,19 @@ export function InstructorManager({
         </button>
       </div>
 
-      {/* Multi-select filter */}
+      {/* Search and filter */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="relative">
+          <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="חיפוש לפי שם..."
+            className="w-44 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
+          />
+        </div>
+        <div className="mx-1 h-6 w-px bg-border" />
         <div className="flex items-center gap-1.5 text-sm font-medium">
           <Filter size={14} />
           <span>הצג:</span>

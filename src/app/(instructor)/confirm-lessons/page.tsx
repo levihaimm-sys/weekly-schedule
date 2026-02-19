@@ -9,6 +9,8 @@ import { InstructorReportButton } from "@/components/schedule/instructor-report-
 import { MonthSelector } from "@/components/schedule/month-selector";
 import { ConfirmLessonsFilters } from "@/components/schedule/confirm-lessons-filters";
 
+export const dynamic = "force-dynamic";
+
 const MONTHS_HEBREW = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",

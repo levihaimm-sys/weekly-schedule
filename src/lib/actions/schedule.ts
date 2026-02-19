@@ -185,8 +185,102 @@ export async function updateRecurringSchedule(
     return { error: "לא נמצא שיעור קבוע עם ID: " + recurringId };
   }
 
+  // --- Propagate changes to future lesson instances (from next week onward) ---
+  const today = getTodayInIsrael();
+  const nextSunday = format(
+    startOfWeek(addDays(new Date(today), 7), { weekStartsOn: 0 }),
+    "yyyy-MM-dd"
+  );
+
+  const updatedItem = data[0];
+  const dayChanged = updates.day_of_week !== undefined;
+
+  if (dayChanged) {
+    // Day changed: existing lesson dates are wrong — delete and recreate
+
+    // Find the horizon: max lesson_date for this recurring item
+    const { data: lastLesson } = await supabase
+      .from("lessons")
+      .select("lesson_date")
+      .eq("recurring_item_id", recurringId)
+      .gte("lesson_date", nextSunday)
+      .order("lesson_date", { ascending: false })
+      .limit(1);
+
+    // Delete all future lessons for this recurring item
+    const { error: delError } = await supabase
+      .from("lessons")
+      .delete()
+      .eq("recurring_item_id", recurringId)
+      .gte("lesson_date", nextSunday);
+
+    if (delError) {
+      return { error: "שגיאה במחיקת שיעורים עתידיים: " + delError.message };
+    }
+
+    // Recreate lessons with the new day_of_week up to the horizon
+    if (lastLesson && lastLesson.length > 0) {
+      const horizon = new Date(lastLesson[0].lesson_date);
+      const newLessons: Array<{
+        recurring_item_id: string;
+        location_id: string;
+        instructor_id: string | null;
+        lesson_date: string;
+        start_time: string;
+        status: string;
+      }> = [];
+
+      let weekStart = startOfWeek(new Date(nextSunday), { weekStartsOn: 0 });
+      while (weekStart <= horizon) {
+        const lessonDate = addDays(weekStart, updatedItem.day_of_week);
+        newLessons.push({
+          recurring_item_id: updatedItem.id,
+          location_id: updatedItem.location_id,
+          instructor_id: updatedItem.instructor_id,
+          lesson_date: format(lessonDate, "yyyy-MM-dd"),
+          start_time: updatedItem.start_time,
+          status: "scheduled",
+        });
+        weekStart = addDays(weekStart, 7);
+      }
+
+      if (newLessons.length > 0) {
+        const { error: insertError } = await supabase
+          .from("lessons")
+          .insert(newLessons);
+
+        if (insertError) {
+          return { error: "שגיאה ביצירת שיעורים חדשים: " + insertError.message };
+        }
+      }
+    }
+  } else {
+    // Simple change (instructor, time, location): update future lessons in-place
+    const lessonUpdates: Record<string, string | null> = {};
+    if (cleanUpdates.instructor_id !== undefined)
+      lessonUpdates.instructor_id = cleanUpdates.instructor_id as string | null;
+    if (cleanUpdates.start_time)
+      lessonUpdates.start_time = cleanUpdates.start_time as string;
+    if (cleanUpdates.location_id)
+      lessonUpdates.location_id = cleanUpdates.location_id as string;
+
+    if (Object.keys(lessonUpdates).length > 0) {
+      const { error: lessonsError } = await supabase
+        .from("lessons")
+        .update(lessonUpdates)
+        .eq("recurring_item_id", recurringId)
+        .gte("lesson_date", nextSunday);
+
+      if (lessonsError) {
+        return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
+      }
+    }
+  }
+
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
 
   return { success: true };
 }
@@ -376,6 +470,43 @@ export async function submitInstructorRequest(
   revalidatePath("/my-schedule");
   revalidatePath("/confirm-lessons");
 
+  return { success: true };
+}
+
+/**
+ * Mark a schedule change as "seen" (dismiss from active view).
+ */
+export async function markChangeAsSeen(lessonId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("schedule_change_seen")
+    .upsert({ lesson_id: lessonId }, { onConflict: "lesson_id" });
+
+  if (error) {
+    return { error: "שגיאה בסימון שינוי: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * Unmark a schedule change as "seen" (restore to active view).
+ */
+export async function unmarkChangeAsSeen(lessonId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("schedule_change_seen")
+    .delete()
+    .eq("lesson_id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בביטול סימון: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
   return { success: true };
 }
 

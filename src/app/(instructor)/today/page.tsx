@@ -37,11 +37,12 @@ export default async function TodayPage() {
   const today = getTodayInIsrael();
   const now = getNowInIsrael();
 
-  // Get today's lessons
-  const { data: todayLessons, error: lessonsError } = await supabase
-    .from("lessons")
-    .select(
-      `
+  // Parallel: fetch today's lessons + weekly assignment at the same time
+  const [lessonsResult, assignment] = await Promise.all([
+    supabase
+      .from("lessons")
+      .select(
+        `
       id,
       lesson_date,
       start_time,
@@ -52,60 +53,51 @@ export default async function TodayPage() {
       instructor_notes,
       location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
     `
-    )
-    .eq("instructor_id", profile.instructor_id)
-    .eq("lesson_date", today)
-    .order("start_time");
+      )
+      .eq("instructor_id", profile.instructor_id)
+      .eq("lesson_date", today)
+      .order("start_time"),
+    getInstructorCurrentWeekAssignment(profile.instructor_id),
+  ]);
 
+  const todayLessons = lessonsResult.data;
 
-  // Fetch signatures
+  // Parallel: fetch signatures + equipment confirmations
   const lessonIds = (todayLessons ?? []).map((l) => l.id);
+
+  const [signaturesResult, equipmentResult] = await Promise.all([
+    lessonIds.length > 0
+      ? supabase
+          .from("signatures")
+          .select("lesson_id, signer_name, signer_role, signature_url")
+          .in("lesson_id", lessonIds)
+      : Promise.resolve({ data: [] as any[] }),
+    assignment
+      ? supabase
+          .from("equipment_confirmations")
+          .select(`*, equipment:equipment(id, name)`)
+          .eq("assignment_id", assignment.id)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
   const sigMap: Record<string, { signer_name: string; signer_role: string; signature_url: string | null }> = {};
-  if (lessonIds.length > 0) {
-    const { data: signatures } = await supabase
-      .from("signatures")
-      .select("lesson_id, signer_name, signer_role, signature_url")
-      .in("lesson_id", lessonIds);
-    for (const sig of signatures ?? []) {
-      sigMap[sig.lesson_id] = {
-        signer_name: sig.signer_name,
-        signer_role: sig.signer_role,
-        signature_url: sig.signature_url,
-      };
-    }
+  for (const sig of signaturesResult.data ?? []) {
+    sigMap[sig.lesson_id] = {
+      signer_name: sig.signer_name,
+      signer_role: sig.signer_role,
+      signature_url: sig.signature_url,
+    };
   }
+
+  const equipmentConfirmations: any[] = equipmentResult.data ?? [];
+  const allConfirmed = equipmentConfirmations.every((c: any) => c.is_confirmed);
+  const shouldShowEquipmentConfirmation = equipmentConfirmations.length > 0 && !allConfirmed;
 
   const dayOfWeek = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"][now.getDay()];
   const dateStr = now.toLocaleDateString("he-IL", { day: "numeric", month: "long" });
   const isSunday = now.getDay() === 0;
   const isMonday = now.getDay() === 1;
   const canConfirmEquipment = isSunday || isMonday;
-
-  // Get weekly assignment and equipment
-  const assignment = await getInstructorCurrentWeekAssignment(profile.instructor_id);
-  let equipmentConfirmations: any[] = [];
-  let shouldShowEquipmentConfirmation = false;
-
-  if (assignment) {
-    // Check if there are any equipment confirmations for this assignment
-    const { data: existingConfirmations } = await supabase
-      .from("equipment_confirmations")
-      .select(
-        `
-        *,
-        equipment:equipment(id, name)
-      `
-      )
-      .eq("assignment_id", assignment.id);
-
-    if (existingConfirmations && existingConfirmations.length > 0) {
-      equipmentConfirmations = existingConfirmations;
-
-      // Show equipment confirmation if not all items are confirmed yet
-      const allConfirmed = equipmentConfirmations.every((c: any) => c.is_confirmed);
-      shouldShowEquipmentConfirmation = !allConfirmed;
-    }
-  }
 
 
   return (

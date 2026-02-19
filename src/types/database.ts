@@ -136,6 +136,16 @@ export interface EquipmentConfirmation {
 }
 
 // =============================================
+// SCHEDULE CHANGE SEEN (סימון שינויים כנראו)
+// =============================================
+
+export interface ScheduleChangeSeen {
+  id: string;
+  lesson_id: string;
+  seen_at: string;
+}
+
+// =============================================
 // TASKS SYSTEM (משימות)
 // =============================================
 

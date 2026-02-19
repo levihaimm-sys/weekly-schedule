@@ -31,7 +31,9 @@
       "Bash(taskkill:*)",
       "Bash(netsh advfirewall firewall add rule:*)",
       "Bash(npm run build:*)",
-      "Bash(git -C \"c:/Users/levih/Documents/weekly-schedule\" log --oneline -3)"
+      "Bash(git -C \"c:/Users/levih/Documents/weekly-schedule\" log --oneline -3)",
+      "Bash(head:*)",
+      "Bash(xxd:*)"
     ]
   }
 }

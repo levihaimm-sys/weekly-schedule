@@ -211,10 +211,10 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
                               <span className="text-red-600 font-medium">ללא מדריך</span>
                             )}
                           </p>
-                          <p className="mt-1 text-xs font-medium leading-tight">
+                          <p className="mt-1 text-sm leading-tight">
                             {lesson.location?.name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm text-muted-foreground">
                             {lesson.location?.street && `${lesson.location.street}, `}
                             {lesson.location?.city}
                           </p>
@@ -271,10 +271,10 @@ function MobileLessonCard({
               <span className="font-medium text-red-600">ללא מדריך</span>
             )}
           </p>
-          <p className="mt-1 text-sm font-medium leading-tight">
+          <p className="mt-1 text-base leading-tight">
             {lesson.location?.name ?? "—"}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             {lesson.location?.city}
             {lesson.location?.street && `, ${lesson.location.street}`}
           </p>
