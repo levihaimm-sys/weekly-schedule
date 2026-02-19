@@ -48,7 +48,7 @@ export function RecentChangesList({
     <>
       <div className="rounded-xl border border-border bg-background">
         <div className="flex items-center gap-2 border-b border-border bg-muted/50 p-4 rounded-t-xl">
-          <AlertTriangle size={18} className="text-primary" />
+          <AlertTriangle size={18} className="text-orange-500" />
           <h3 className="text-lg font-semibold">
             שינויים ({changes.length})
           </h3>
@@ -79,18 +79,18 @@ export function RecentChangesList({
                       : ""
                 }`}
               >
-                <div className="min-w-[50px] text-center">
-                  <p className="text-sm font-bold">{formatTime(lesson.start_time)}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                <div className="min-w-[56px] text-center">
+                  <p className="text-base font-bold text-[#1C1917]">{formatTime(lesson.start_time)}</p>
+                  <p className="text-xs text-muted-foreground">
                     {DAYS_SHORT[dayIndex]} {format(date, "dd/MM")}
                   </p>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium">{lesson.location?.name}</p>
+                    <p className="text-sm font-semibold text-[#1C1917]">{lesson.location?.name}</p>
                     {lesson.instructor_absence_request && reqType && (
                       <span
-                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                        className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
                           isHandled
                             ? "bg-yellow-100 text-yellow-700"
                             : "bg-red-100 text-red-700"
@@ -102,7 +102,7 @@ export function RecentChangesList({
                     )}
                     {lesson.status !== "scheduled" && (
                       <span
-                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                        className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
                           lesson.status === "completed"
                             ? "bg-green-50 text-green-700"
                             : lesson.status === "cancelled"
@@ -114,20 +114,20 @@ export function RecentChangesList({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {lesson.instructor?.full_name} &middot; {lesson.location?.city}
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-[#1C1917]">{lesson.instructor?.full_name}</span> &middot; {lesson.location?.city}
                   </p>
                   {lesson.instructor_notes && (
-                    <p className={`mt-0.5 text-xs ${isPend ? "text-red-600" : "text-yellow-600"}`}>
+                    <p className={`mt-1 text-sm ${isPend ? "text-red-600" : "text-yellow-600"}`}>
                       &quot;{lesson.instructor_notes}&quot;
                     </p>
                   )}
                   {lesson.change_notes && (
-                    <p className="mt-0.5 text-xs text-orange-600">{lesson.change_notes}</p>
+                    <p className="mt-1 text-sm text-orange-600">{lesson.change_notes}</p>
                   )}
                 </div>
                 {isPend && (
-                  <span className="shrink-0 rounded-lg bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+                  <span className="shrink-0 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-semibold text-red-700">
                     טפל
                   </span>
                 )}
@@ -145,7 +145,7 @@ export function RecentChangesList({
         {sorted.length > 8 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex w-full items-center justify-center gap-1 border-t border-border py-3 text-sm font-medium text-primary hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center justify-center gap-1 border-t border-border py-3 text-sm font-medium text-orange-600 hover:bg-muted/50 transition-colors"
           >
             {expanded ? (
               <>

@@ -1,7 +1,6 @@
 import { getWeekLessons, getAllInstructors, getAllCities } from "@/lib/queries/schedule";
 import { ensureFutureWeeks } from "@/lib/actions/schedule";
 import { format, addDays, startOfWeek } from "date-fns";
-import { ReplicateButton } from "@/components/schedule/replicate-button";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyGrid } from "@/components/schedule/weekly-grid";
 import Link from "next/link";
@@ -23,9 +22,12 @@ export default async function WeeklySchedulePage({
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
+  const selectedCities = params.city ? params.city.split(",") : [];
+  const selectedInstructors = params.instructor ? params.instructor.split(",") : [];
+
   const filters = {
-    instructorId: params.instructor,
-    city: params.city,
+    instructorIds: selectedInstructors.length > 0 ? selectedInstructors : undefined,
+    cities: selectedCities.length > 0 ? selectedCities : undefined,
   };
 
   const [lessons, instructors, cities] = await Promise.all([
@@ -52,7 +54,7 @@ export default async function WeeklySchedulePage({
     <div className="space-y-4 md:space-y-6">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold md:text-2xl">לוח שבועי</h2>
+          <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח שבועי</h2>
           <div className="flex items-center gap-2">
             <Link
               href="/schedule"
@@ -60,7 +62,6 @@ export default async function WeeklySchedulePage({
             >
               לוח קבוע
             </Link>
-            <ReplicateButton targetDate={weekStartStr} />
           </div>
         </div>
         <WeekNavigator
@@ -76,7 +77,7 @@ export default async function WeeklySchedulePage({
             אין שיעורים לשבוע הזה
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            לחץ על &quot;צור שיעורים לשבוע&quot; כדי ליצור מהלוח הקבוע
+            השיעורים נוצרים אוטומטית מהלוח הקבוע
           </p>
         </div>
       ) : (
@@ -85,7 +86,7 @@ export default async function WeeklySchedulePage({
           lessonsByDay={byDay as any}
           instructors={instructors}
           cities={cities}
-          currentFilters={{ city: params.city, instructor: params.instructor }}
+          currentFilters={{ cities: selectedCities, instructors: selectedInstructors }}
         />
       )}
 

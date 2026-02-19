@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Package, Check, AlertCircle, ChevronDown } from "lucide-react";
-import { distributeEquipmentToInstructor } from "@/lib/actions/equipment";
+import { distributeEquipmentToInstructor, createWeeklyAssignment } from "@/lib/actions/equipment";
 
 interface Instructor {
   id: string;
@@ -34,6 +34,8 @@ interface Props {
   weekStartDate: string;
 }
 
+type EquipmentFilter = "all" | "has" | "none";
+
 export function EquipmentDistributionManager({
   instructors,
   allLessonPlans,
@@ -49,9 +51,17 @@ export function EquipmentDistributionManager({
   const [equipmentData, setEquipmentData] = useState<
     Record<string, Array<{ equipment_id: string; equipment_name: string; quantity: number }>>
   >({});
+  const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>("all");
+
+  // Filter instructors
+  const filteredInstructors = instructors.filter((instructor) => {
+    if (equipmentFilter === "all") return true;
+    const hasEquipment = instructor.assignment?.equipment_distributed || false;
+    return equipmentFilter === "has" ? hasEquipment : !hasEquipment;
+  });
 
   // Group instructors by route
-  const groupedInstructors = instructors.reduce(
+  const groupedInstructors = filteredInstructors.reduce(
     (acc, instructor) => {
       const route = instructor.route || "ללא מסלול";
       if (!acc[route]) acc[route] = [];
@@ -62,6 +72,10 @@ export function EquipmentDistributionManager({
   );
 
   const routes = Object.keys(groupedInstructors).sort();
+
+  // Counts for filter badges
+  const hasEquipmentCount = instructors.filter((i) => i.assignment?.equipment_distributed).length;
+  const noEquipmentCount = instructors.length - hasEquipmentCount;
 
   const handleLessonPlanChange = async (
     instructorId: string,
@@ -101,12 +115,69 @@ export function EquipmentDistributionManager({
     });
   };
 
+  const handleCreateAndDistribute = (instructorId: string) => {
+    const lessonPlanId = selectedLessonPlan[instructorId];
+
+    if (!lessonPlanId) {
+      alert("אנא בחר מערך");
+      return;
+    }
+
+    startTransition(async () => {
+      // First create the assignment
+      const createResult = await createWeeklyAssignment(
+        instructorId,
+        lessonPlanId,
+        weekStartDate
+      );
+
+      if (!createResult.success || !createResult.data) {
+        alert("שגיאה ביצירת שיבוץ: " + createResult.error);
+        return;
+      }
+
+      // Then distribute equipment
+      const distResult = await distributeEquipmentToInstructor(
+        createResult.data.id,
+        lessonPlanId
+      );
+
+      if (!distResult.success) {
+        alert("שגיאה בחלוקת ציוד: " + distResult.error);
+      }
+    });
+  };
+
+  const filterButtons: { key: EquipmentFilter; label: string; count: number }[] = [
+    { key: "all", label: "הכל", count: instructors.length },
+    { key: "has", label: "עם ציוד", count: hasEquipmentCount },
+    { key: "none", label: "ללא ציוד", count: noEquipmentCount },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Filter */}
+      <div className="flex flex-wrap gap-2">
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.key}
+            onClick={() => setEquipmentFilter(btn.key)}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              equipmentFilter === btn.key
+                ? "bg-secondary text-[#1C1917] border-secondary"
+                : "border-border bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {btn.label}
+            <span className="mr-1.5 text-xs text-muted-foreground">({btn.count})</span>
+          </button>
+        ))}
+      </div>
+
       {routes.map((route) => (
         <div key={route} className="rounded-xl border bg-card p-4">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Package className="text-primary" size={20} />
+            <Package className="text-orange-500" size={20} />
             מסלול: {route}
           </h2>
 
@@ -140,76 +211,70 @@ export function EquipmentDistributionManager({
                         )}
                       </div>
 
-                      {assignment ? (
-                        <div className="mt-2 space-y-2">
-                          {/* Lesson Plan Selector */}
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">
-                              מערך:
-                            </label>
-                            <select
-                              value={currentLessonPlanId || ""}
-                              onChange={(e) =>
-                                handleLessonPlanChange(
-                                  instructor.id,
-                                  e.target.value
-                                )
-                              }
-                              disabled={isPending || isDistributed}
-                              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                            >
-                              <option value="">בחר מערך</option>
-                              {allLessonPlans.map((plan) => (
-                                <option key={plan.id} value={plan.id}>
-                                  {plan.name} ({plan.category})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Equipment List Toggle */}
-                          {equipment.length > 0 && (
-                            <button
-                              onClick={() =>
-                                setExpandedInstructor(
-                                  isExpanded ? null : instructor.id
-                                )
-                              }
-                              className="flex items-center gap-1 text-sm text-primary hover:underline"
-                            >
-                              <ChevronDown
-                                size={16}
-                                className={`transition-transform ${
-                                  isExpanded ? "rotate-180" : ""
-                                }`}
-                              />
-                              {isExpanded ? "הסתר" : "הצג"} רשימת ציוד (
-                              {equipment.length} פריטים)
-                            </button>
-                          )}
-
-                          {/* Equipment List */}
-                          {isExpanded && equipment.length > 0 && (
-                            <div className="mt-2 space-y-1 rounded-lg bg-muted/50 p-3">
-                              {equipment.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex justify-between text-sm"
-                                >
-                                  <span>{item.equipment_name}</span>
-                                  <span className="font-medium">
-                                    {item.quantity} יחידות
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                      <div className="mt-2 space-y-2">
+                        {/* Lesson Plan Selector */}
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">
+                            מערך:
+                          </label>
+                          <select
+                            value={currentLessonPlanId || ""}
+                            onChange={(e) =>
+                              handleLessonPlanChange(
+                                instructor.id,
+                                e.target.value
+                              )
+                            }
+                            disabled={isPending || isDistributed}
+                            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                          >
+                            <option value="">בחר מערך</option>
+                            {allLessonPlans.map((plan) => (
+                              <option key={plan.id} value={plan.id}>
+                                {plan.name} ({plan.category})
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          אין שיבוץ לשבוע זה
-                        </p>
-                      )}
+
+                        {/* Equipment List Toggle */}
+                        {equipment.length > 0 && (
+                          <button
+                            onClick={() =>
+                              setExpandedInstructor(
+                                isExpanded ? null : instructor.id
+                              )
+                            }
+                            className="flex items-center gap-1 text-sm text-orange-600 hover:underline"
+                          >
+                            <ChevronDown
+                              size={16}
+                              className={`transition-transform ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                            {isExpanded ? "הסתר" : "הצג"} רשימת ציוד (
+                            {equipment.length} פריטים)
+                          </button>
+                        )}
+
+                        {/* Equipment List */}
+                        {isExpanded && equipment.length > 0 && (
+                          <div className="mt-2 space-y-1 rounded-lg bg-muted/50 p-3">
+                            {equipment.map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between text-sm"
+                              >
+                                <span>{item.equipment_name}</span>
+                                <span className="font-medium">
+                                  {item.quantity} יחידות
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Distribute Button */}
@@ -222,6 +287,17 @@ export function EquipmentDistributionManager({
                         className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
                         {isPending ? "מחלק..." : "אשר חלוקה"}
+                      </button>
+                    )}
+
+                    {/* Create assignment + distribute for unassigned instructors */}
+                    {!assignment && (
+                      <button
+                        onClick={() => handleCreateAndDistribute(instructor.id)}
+                        disabled={isPending || !selectedLessonPlan[instructor.id]}
+                        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {isPending ? "מחלק..." : "הקצה וחלק"}
                       </button>
                     )}
 
@@ -241,10 +317,12 @@ export function EquipmentDistributionManager({
         </div>
       ))}
 
-      {instructors.length === 0 && (
+      {filteredInstructors.length === 0 && (
         <div className="rounded-xl border border-dashed p-8 text-center">
           <AlertCircle className="mx-auto mb-2 text-muted-foreground" size={32} />
-          <p className="text-muted-foreground">אין מדריכים במערכת</p>
+          <p className="text-muted-foreground">
+            {instructors.length === 0 ? "אין מדריכים במערכת" : "אין מדריכים התואמים לסינון"}
+          </p>
         </div>
       )}
     </div>

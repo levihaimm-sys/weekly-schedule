@@ -13,9 +13,9 @@ import {
   Phone,
   Pencil,
   Check,
-  X,
   Loader2,
   Filter,
+  MapPin,
 } from "lucide-react";
 import { INSTRUCTOR_STATUS, InstructorStatusType } from "@/lib/utils/constants";
 
@@ -26,13 +26,16 @@ interface Instructor {
   email: string | null;
   status: InstructorStatusType;
   address: string | null;
+  work_cities: string | null;
+}
+
+interface InstructorManagerProps {
+  instructors: Instructor[];
 }
 
 export function InstructorManager({
   instructors,
-}: {
-  instructors: Instructor[];
-}) {
+}: InstructorManagerProps) {
   const router = useRouter();
   const [selectedStatuses, setSelectedStatuses] = useState<Set<InstructorStatusType>>(
     new Set(["active", "substitute"])
@@ -42,14 +45,15 @@ export function InstructorManager({
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
+  const [editWorkCities, setEditWorkCities] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Filter by selected statuses
-  const filtered = instructors.filter((i) => selectedStatuses.has(i.status));
+  // Filter by selected statuses (treat null/missing status as "active")
+  const filtered = instructors.filter((i) => selectedStatuses.has(i.status ?? "active"));
 
-  // Count by status
-  const activeCount = instructors.filter((i) => i.status === "active").length;
+  // Count by status (treat null/missing status as "active")
+  const activeCount = instructors.filter((i) => (i.status ?? "active") === "active").length;
   const substituteCount = instructors.filter((i) => i.status === "substitute").length;
   const inactiveCount = instructors.filter((i) => i.status === "inactive").length;
 
@@ -60,7 +64,6 @@ export function InstructorManager({
     } else {
       newSet.add(status);
     }
-    // Ensure at least one status is selected
     if (newSet.size > 0) {
       setSelectedStatuses(newSet);
     }
@@ -85,7 +88,6 @@ export function InstructorManager({
       if (result.error) {
         console.error("Error updating status:", result.error);
       }
-      // Let revalidatePath handle the refresh instead of router.refresh()
     });
   }
 
@@ -95,6 +97,7 @@ export function InstructorManager({
         full_name: editName.trim() || undefined,
         phone: editPhone.trim() || null,
         address: editAddress.trim() || null,
+        work_cities: editWorkCities.trim() || null,
       });
       setEditingId(null);
       router.refresh();
@@ -106,6 +109,7 @@ export function InstructorManager({
     setEditName(instructor.full_name);
     setEditPhone(instructor.phone ?? "");
     setEditAddress(instructor.address ?? "");
+    setEditWorkCities(instructor.work_cities ?? "");
   }
 
   const statusColors = {
@@ -162,7 +166,7 @@ export function InstructorManager({
       {addFormOpen && (
         <form
           action={handleAdd}
-          className="rounded-xl border border-primary/30 bg-primary/5 p-4"
+          className="rounded-xl border border-secondary/40 bg-secondary/5 p-4"
         >
           <h3 className="mb-3 font-medium">מדריך חדש</h3>
           <div className="space-y-3">
@@ -186,6 +190,12 @@ export function InstructorManager({
               name="address"
               type="text"
               placeholder="כתובת מגורים"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <input
+              name="work_cities"
+              type="text"
+              placeholder="ערים לעבודה (טקסט חופשי)"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
             <div className="flex gap-2">
@@ -232,130 +242,145 @@ export function InstructorManager({
             return (
               <div
                 key={instructor.id}
-                className={`flex items-center gap-3 p-4 transition-colors ${
+                className={`p-4 transition-colors ${
                   instructor.status === "inactive" ? "opacity-50" : ""
                 }`}
               >
-                {/* Avatar */}
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    instructor.status === "active"
-                      ? "bg-green-100 text-green-700"
-                      : instructor.status === "substitute"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  <Users size={18} />
-                </div>
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                      instructor.status === "active"
+                        ? "bg-green-100 text-green-700"
+                        : instructor.status === "substitute"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    <Users size={18} />
+                  </div>
 
-                {/* Content */}
-                {isEditing ? (
-                  <div className="flex flex-1 flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                  {/* Content */}
+                  {isEditing ? (
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="min-w-[120px] flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                          autoFocus
+                          placeholder="שם מלא"
+                        />
+                        <input
+                          type="tel"
+                          dir="ltr"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="טלפון"
+                          className="w-32 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                        />
+                      </div>
                       <input
                         type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="min-w-[120px] flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                        autoFocus
-                        placeholder="שם מלא"
+                        value={editAddress}
+                        onChange={(e) => setEditAddress(e.target.value)}
+                        placeholder="כתובת מגורים"
+                        className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
                       />
                       <input
-                        type="tel"
-                        dir="ltr"
-                        value={editPhone}
-                        onChange={(e) => setEditPhone(e.target.value)}
-                        placeholder="טלפון"
-                        className="w-32 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                        type="text"
+                        value={editWorkCities}
+                        onChange={(e) => setEditWorkCities(e.target.value)}
+                        placeholder="ערים לעבודה (טקסט חופשי)"
+                        className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
                       />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(instructor.id)}
+                          disabled={isPending}
+                          className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {isPending ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <>
+                              <Check size={14} className="inline" /> שמור
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                        >
+                          ביטול
+                        </button>
+                      </div>
                     </div>
-                    <input
-                      type="text"
-                      value={editAddress}
-                      onChange={(e) => setEditAddress(e.target.value)}
-                      placeholder="כתובת מגורים"
-                      className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleSaveEdit(instructor.id)}
-                        disabled={isPending}
-                        className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        {isPending ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <>
-                            <Check size={14} className="inline" /> שמור
-                          </>
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{instructor.full_name}</p>
+                      <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
+                        {instructor.phone && (
+                          <span className="flex items-center gap-1" dir="ltr">
+                            <Phone size={12} />
+                            {instructor.phone}
+                          </span>
                         )}
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted"
-                      >
-                        ביטול
-                      </button>
+                        {instructor.address && (
+                          <span className="text-xs">
+                            {instructor.address}
+                          </span>
+                        )}
+                        {instructor.work_cities && (
+                          <span className="flex items-center gap-1 text-xs text-orange-700">
+                            <MapPin size={12} />
+                            {instructor.work_cities}
+                          </span>
+                        )}
+                        {!instructor.phone && !instructor.address && !instructor.work_cities && (
+                          <span className="text-xs text-muted-foreground/60">
+                            ללא פרטים נוספים
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium">{instructor.full_name}</p>
-                    <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-                      {instructor.phone && (
-                        <span className="flex items-center gap-1" dir="ltr">
-                          <Phone size={12} />
-                          {instructor.phone}
-                        </span>
-                      )}
-                      {instructor.address && (
-                        <span className="text-xs">
-                          {instructor.address}
-                        </span>
-                      )}
-                      {!instructor.phone && !instructor.address && (
-                        <span className="text-xs text-muted-foreground/60">
-                          ללא פרטים נוספים
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Actions */}
-                {!isEditing && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => startEdit(instructor)}
-                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      title="ערוך"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <select
-                      value={instructor.status}
-                      onChange={(e) =>
-                        handleChangeStatus(
-                          instructor.id,
-                          e.target.value as InstructorStatusType
-                        )
-                      }
-                      disabled={isPending}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        statusColors[instructor.status]
-                      }`}
-                    >
-                      {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(
-                        ([key, label]) => (
-                          <option key={key} value={key}>
-                            {label}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
-                )}
+                  {/* Actions */}
+                  {!isEditing && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => startEdit(instructor)}
+                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="ערוך"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <select
+                        value={instructor.status}
+                        onChange={(e) =>
+                          handleChangeStatus(
+                            instructor.id,
+                            e.target.value as InstructorStatusType
+                          )
+                        }
+                        disabled={isPending}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          statusColors[instructor.status]
+                        }`}
+                      >
+                        {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(
+                          ([key, label]) => (
+                            <option key={key} value={key}>
+                              {label}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })

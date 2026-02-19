@@ -18,7 +18,7 @@ import { logout } from "@/lib/actions/auth";
 const NAV_ITEMS = [
   { href: "/today", label: "היום", icon: Home },
   { href: "/my-lesson-plan", label: "המערך השבועי", icon: BookOpen },
-  { href: "/my-schedule", label: "לוח זמנים", icon: CalendarDays },
+  { href: "/my-schedule", label: "לוז שבועי", icon: CalendarDays },
   { href: "/confirm-lessons", label: "דיווחים", icon: ClipboardCheck },
 ];
 
@@ -56,7 +56,7 @@ export function InstructorSidebar() {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-6">
-          <h1 className="text-lg font-bold text-primary">חיים בתנועה</h1>
+          <h1 className="text-lg font-bold text-[#1C1917]">חיים בתנועה</h1>
           <button
             onClick={() => setMobileOpen(false)}
             className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
@@ -77,7 +77,7 @@ export function InstructorSidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-secondary/20 text-[#1C1917] font-semibold"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >

@@ -2,21 +2,21 @@
 
 :root {
   /* Soft Pastel Color Palette - Inspired by "Your Health Simplified" */
-  --background: #F5F3EF; /* Cream/beige background - very soft */
+  --background: #FFFFFF; /* Pure white background */
   --foreground: #3a3530; /* Warm dark brown text */
   --card: #ffffff; /* Pure white for main cards */
   --card-foreground: #3a3530;
 
   /* Primary - Soft Mint/Sage Green (calming & fresh) */
-  --primary: #B8C9A8; /* Sage green - calm & natural */
+  --primary: #A3BA8F; /* Sage green - slightly deeper */
   --primary-foreground: #3a3530;
 
   /* Secondary - Soft Peach/Orange (warm & inviting) */
-  --secondary: #F5C89E; /* Soft peach - warm & friendly */
+  --secondary: #EDAE7A; /* Warm peach-orange - slightly stronger */
   --secondary-foreground: #3a3530;
 
   /* Accent - Light Mint Green (fresh & energetic) */
-  --accent: #C3DDB5; /* Light mint - fresh accent */
+  --accent: #B0D19E; /* Light mint - slightly deeper */
   --accent-foreground: #3a3530;
 
   /* Tertiary - Soft Pink/Rose (gentle & caring) */
@@ -24,16 +24,16 @@
   --tertiary-foreground: #3a3530;
 
   /* Muted - Very light cream */
-  --muted: #F9F7F4; /* Very light cream */
-  --muted-foreground: #8B8175; /* Warm gray-brown */
+  --muted: #FCFBF9; /* Very light cream - lighter */
+  --muted-foreground: #7D7468; /* Warm gray-brown - slightly darker */
 
   /* Border - Soft beige */
   --border: #E8E4DF; /* Soft beige border */
 
   /* Status colors - Pastel versions */
   --destructive: #E89B9B; /* Soft red */
-  --success: #B8C9A8; /* Sage green - same as primary */
-  --warning: #F5C89E; /* Soft orange - same as secondary */
+  --success: #A3BA8F; /* Sage green - same as primary */
+  --warning: #EDAE7A; /* Warm orange - same as secondary */
 
   /* Shadows for depth - very subtle */
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);

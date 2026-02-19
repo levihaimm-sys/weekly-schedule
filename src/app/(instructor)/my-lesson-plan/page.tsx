@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Package, Music } from "lucide-react";
 import {
   getInstructorCurrentWeekAssignment,
+  getInstructorNextWeekAssignment,
   getOrCreateEquipmentConfirmations,
   getLessonPlanWithEquipment,
 } from "@/lib/queries/lesson-plans";
@@ -108,6 +109,13 @@ export default async function MyLessonPlanPage() {
   const weekEndDate = new Date(sunday);
   weekEndDate.setDate(sunday.getDate() + 6);
 
+  // Get next week's assignment and its equipment
+  const nextWeekAssignment = await getInstructorNextWeekAssignment(profile.instructor_id);
+  let nextWeekPlan: Awaited<ReturnType<typeof getLessonPlanWithEquipment>> = null;
+  if (nextWeekAssignment?.lesson_plan?.id) {
+    nextWeekPlan = await getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id);
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with green background */}
@@ -160,6 +168,32 @@ export default async function MyLessonPlanPage() {
           <p className="text-base font-medium text-foreground/70">אין ציוד רשום למערך זה</p>
         )}
       </div>
+
+      {/* Next Week Assignment */}
+      {nextWeekAssignment && nextWeekPlan && (
+        <div className="rounded-3xl bg-card p-7 shadow-md space-y-4">
+          <h3 className="text-xl font-bold text-foreground">המערך הבא שלי</h3>
+          <p className="text-base font-semibold text-foreground/80">
+            {nextWeekPlan.name}
+          </p>
+          {nextWeekPlan.equipment && nextWeekPlan.equipment.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Package className="w-5 h-5 text-foreground/70" />
+                <span className="text-base font-bold text-foreground">ציוד:</span>
+              </div>
+              <ul className="space-y-3">
+                {nextWeekPlan.equipment.map((item, idx) => (
+                  <li key={idx} className="flex items-center gap-4 p-4 bg-white/30 rounded-2xl">
+                    <span className="text-3xl font-bold text-foreground">{item.quantity}</span>
+                    <span className="text-lg font-semibold text-foreground">{item.equipment_name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

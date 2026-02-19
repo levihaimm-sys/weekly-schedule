@@ -135,6 +135,27 @@ export interface EquipmentConfirmation {
   is_extra: boolean;
 }
 
+// =============================================
+// TASKS SYSTEM (משימות)
+// =============================================
+
+export interface Task {
+  id: string;
+  description: string;
+  urgency: 'low' | 'normal' | 'urgent';
+  assigned_to: string;
+  created_by: string;
+  due_date: string | null;
+  status: 'pending' | 'in_progress' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskWithProfiles extends Task {
+  assignee: Pick<Profile, 'id' | 'display_name'>;
+  creator: Pick<Profile, 'id' | 'display_name'>;
+}
+
 // Joined types for lesson plans queries
 export interface LessonPlanWithEquipment extends LessonPlan {
   equipment: Array<{

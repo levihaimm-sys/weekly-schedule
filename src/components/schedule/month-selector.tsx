@@ -18,13 +18,13 @@ export function MonthSelector({
 }: MonthSelectorProps) {
   return (
     <div className="flex items-center gap-2">
-      <Calendar size={18} className="text-primary" />
+      <Calendar size={18} className="text-orange-500" />
       <div className="flex gap-1 rounded-lg border border-border p-1">
         <Link
           href={`/confirm-lessons?month=${prevMonthStr}`}
           className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             selectedMonth === prevMonthStr
-              ? "bg-primary text-primary-foreground"
+              ? "bg-secondary text-[#1C1917]"
               : "hover:bg-muted"
           }`}
         >
@@ -34,7 +34,7 @@ export function MonthSelector({
           href={`/confirm-lessons?month=${currentMonthStr}`}
           className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             selectedMonth === currentMonthStr || !selectedMonth
-              ? "bg-primary text-primary-foreground"
+              ? "bg-secondary text-[#1C1917]"
               : "hover:bg-muted"
           }`}
         >

@@ -50,7 +50,7 @@ export function MobileBottomNav() {
           )}
         >
           <CalendarDays size={24} strokeWidth={isScheduleActive ? 2.5 : 2} />
-          לו"ז
+          לוז שבועי
         </Link>
         <Link
           href="/confirm-lessons"

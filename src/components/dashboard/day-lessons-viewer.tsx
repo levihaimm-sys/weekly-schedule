@@ -90,17 +90,17 @@ export function DayLessonsViewer({
             <button
               key={date}
               onClick={() => setSelectedDate(date)}
-              className={`flex-1 py-3 text-center transition-colors relative ${
+              className={`flex-1 py-4 text-center transition-colors relative ${
                 isSelected
-                  ? "bg-primary text-primary-foreground font-bold"
+                  ? "bg-secondary text-[#1C1917] font-bold"
                   : "hover:bg-muted"
               }`}
             >
-              <p className="text-sm font-bold">{dayName}</p>
-              <p className={`text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+              <p className="text-base font-bold">{dayName}</p>
+              <p className={`text-sm ${isSelected ? "text-[#1C1917]/70" : "text-muted-foreground"}`}>
                 {displayDate}
               </p>
-              <p className={`text-xs ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+              <p className={`text-sm ${isSelected ? "text-[#1C1917]/70" : "text-muted-foreground"}`}>
                 {dayLessons.length} שיעורים
               </p>
               {/* Status dots in top-start corner */}
@@ -143,7 +143,7 @@ export function DayLessonsViewer({
         {(filterCity || filterInstructor) && (
           <button
             onClick={() => { setFilterCity(""); setFilterInstructor(""); }}
-            className="rounded-lg px-2 py-1 text-xs text-primary hover:bg-muted"
+            className="rounded-lg px-2 py-1 text-xs text-orange-600 hover:bg-muted"
           >
             נקה סינון
           </button>
@@ -153,7 +153,7 @@ export function DayLessonsViewer({
       {/* Lessons list */}
       <div className="p-4">
         {lessons.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">
+          <div className="py-8 text-center text-base text-muted-foreground">
             אין שיעורים ליום זה
           </div>
         ) : (
@@ -164,14 +164,25 @@ export function DayLessonsViewer({
               const isConfirmed = !!lesson.signature;
               const reqType = lesson.instructor_request_type as keyof typeof INSTRUCTOR_REQUEST_TYPES | null;
               const prevLesson = index > 0 ? lessons[index - 1] : null;
-              const isNewInstructor =
-                prevLesson &&
+              const isFirstOfInstructor =
+                !prevLesson ||
                 (lesson.instructor?.id ?? "__none__") !== (prevLesson.instructor?.id ?? "__none__");
 
               return (
                 <div key={lesson.id}>
-                {isNewInstructor && (
-                  <div className="border-t border-border my-3" />
+                {/* Instructor group header */}
+                {isFirstOfInstructor && (
+                  <div className={`flex items-center gap-2.5 ${index > 0 ? "mt-6 pt-4 border-t-[3px] border-[#1C1917]/30" : ""} mb-2`}>
+                    <div className="h-7 w-1.5 rounded-full bg-secondary" />
+                    <h4 className="text-lg font-bold text-[#1C1917]">
+                      {lesson.instructor?.full_name ?? (
+                        <span className="text-red-600">ללא מדריך</span>
+                      )}
+                    </h4>
+                    <span className="text-sm text-muted-foreground">
+                      ({lessons.filter(l => (l.instructor?.id ?? "__none__") === (lesson.instructor?.id ?? "__none__")).length} שיעורים)
+                    </span>
+                  </div>
                 )}
                 <div
                   onClick={() => setEditingLesson(lesson)}
@@ -184,17 +195,17 @@ export function DayLessonsViewer({
                           ? "border-red-200 bg-red-50/30"
                           : isConfirmed
                             ? "border-green-300 bg-green-50/30"
-                            : "border-border hover:border-primary/30"
+                            : "border-border hover:border-secondary/30"
                   }`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="min-w-[50px] text-center">
-                      <p className="text-lg font-bold text-primary">
+                    <div className="min-w-[56px] text-center">
+                      <p className="text-xl font-bold text-[#1C1917]">
                         {formatTime(lesson.start_time)}
                       </p>
                     </div>
                     <div>
-                      <p className="font-medium">{lesson.location?.name ?? "—"}</p>
+                      <p className="text-base font-semibold text-[#1C1917]">{lesson.location?.name ?? "—"}</p>
                       <p className="text-sm text-muted-foreground">
                         {lesson.location?.city}
                         {lesson.location?.street ? `, ${lesson.location.street}` : ""}
@@ -208,54 +219,49 @@ export function DayLessonsViewer({
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-end">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <p className="text-sm">
-                          {lesson.instructor?.full_name ?? (
-                            <span className="font-medium text-red-600">ללא מדריך</span>
-                          )}
-                        </p>
-                        {lesson.signature && (
-                          <span title={
-                            lesson.signature.signer_role === "teacher"
-                              ? `אושר ע"י גננת (${lesson.signature.signer_name})`
-                              : 'אושר ע"י המדריכה'
-                          }>
-                            <CheckCircle size={14} className="text-green-600" />
-                          </span>
-                        )}
-                      </div>
                       {isPendingRequest && (
-                        <div className="flex items-center gap-1 text-xs text-red-600">
-                          <AlertTriangle size={10} />
+                        <div className="flex items-center gap-1 text-sm text-red-600 font-medium">
+                          <AlertTriangle size={12} />
                           {reqType ? INSTRUCTOR_REQUEST_TYPES[reqType] : "בקשה"}
                         </div>
                       )}
                       {isHandledRequest && (
-                        <div className="flex items-center gap-1 text-xs text-yellow-600">
-                          <CheckCircle size={10} />
+                        <div className="flex items-center gap-1 text-sm text-yellow-600">
+                          <CheckCircle size={12} />
                           {reqType ? INSTRUCTOR_REQUEST_TYPES[reqType] : "בקשה"} - טופל
                         </div>
                       )}
                       {lesson.change_notes && (
-                        <p className="text-xs text-orange-600">{lesson.change_notes}</p>
+                        <p className="text-sm text-orange-600">{lesson.change_notes}</p>
                       )}
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        isConfirmed
-                          ? "bg-green-100 text-green-700"
-                          : lesson.status === "completed"
-                            ? "bg-green-50 text-green-700"
-                            : lesson.status === "cancelled"
-                              ? "bg-red-50 text-red-700"
-                              : "bg-blue-50 text-blue-700"
-                      }`}
-                    >
-                      {isConfirmed
-                        ? "שיעור מאושר"
-                        : (LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ??
-                          lesson.status)}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5">
+                      {lesson.signature && (
+                        <span title={
+                          lesson.signature.signer_role === "teacher"
+                            ? `אושר ע"י גננת (${lesson.signature.signer_name})`
+                            : 'אושר ע"י המדריכה'
+                        }>
+                          <CheckCircle size={16} className="text-green-600" />
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          isConfirmed
+                            ? "bg-green-100 text-green-700"
+                            : lesson.status === "completed"
+                              ? "bg-green-50 text-green-700"
+                              : lesson.status === "cancelled"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-blue-50 text-blue-700"
+                        }`}
+                      >
+                        {isConfirmed
+                          ? "מאושר"
+                          : (LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ??
+                            lesson.status)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 </div>
@@ -264,7 +270,7 @@ export function DayLessonsViewer({
           </div>
         )}
 
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
           {lessons.length === dayLessonsRaw.length
             ? `${lessons.length} שיעורים`
             : `${lessons.length} מתוך ${dayLessonsRaw.length} שיעורים`}

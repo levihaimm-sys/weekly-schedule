@@ -3,11 +3,11 @@
 ALTER TABLE instructors ADD COLUMN IF NOT EXISTS rotation_order integer;
 
 -- Set initial rotation order based on the specified chain:
--- סתיו דהן → אריאל ברמן → טליה דודזון → קרן ינוב → אורית צ'קול → רמי שמש → עליזה אברבנל → חוי פוקס → טל שומרת
+-- סתיו דהן → אריאל ברמן → קרן ינוב → טליה דודזון → אורית צ'קול → רמי שמש → עליזה אברבנל → חוי פוקס → טל שומרת
 UPDATE instructors SET rotation_order = 1 WHERE full_name = 'סתיו דהן';
 UPDATE instructors SET rotation_order = 2 WHERE full_name = 'אריאל ברמן';
-UPDATE instructors SET rotation_order = 3 WHERE full_name = 'טליה דודזון';
-UPDATE instructors SET rotation_order = 4 WHERE full_name = 'קרן ינוב';
+UPDATE instructors SET rotation_order = 3 WHERE full_name = 'קרן ינוב';
+UPDATE instructors SET rotation_order = 4 WHERE full_name = 'טליה דודזון';
 UPDATE instructors SET rotation_order = 5 WHERE full_name = 'אורית צ''קול';
 UPDATE instructors SET rotation_order = 6 WHERE full_name = 'רמי שמש';
 UPDATE instructors SET rotation_order = 7 WHERE full_name = 'עליזה אברבנל';

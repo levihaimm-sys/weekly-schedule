@@ -27,7 +27,7 @@ export default async function InstructorDetailPage({
     );
   }
 
-  const schedule = await getRecurringSchedule({ instructorId });
+  const schedule = await getRecurringSchedule({ instructorIds: [instructorId] });
 
   // Group schedule by day
   const byDay: Record<number, any[]> = {};
@@ -40,7 +40,7 @@ export default async function InstructorDetailPage({
     <div className="space-y-6">
       <Link
         href="/instructors"
-        className="flex items-center gap-1 text-sm text-primary hover:underline"
+        className="flex items-center gap-1 text-sm text-orange-600 hover:underline"
       >
         <ArrowRight size={14} />
         חזרה לרשימת מדריכים
@@ -48,11 +48,11 @@ export default async function InstructorDetailPage({
 
       {/* Instructor info - compact header */}
       <div className="flex items-center gap-4 rounded-xl border border-border bg-background p-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/20 text-[#1C1917]">
           <User size={24} />
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold">{instructor.full_name}</h2>
+          <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">{instructor.full_name}</h2>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {instructor.phone && (
               <span className="flex items-center gap-1">
@@ -89,7 +89,7 @@ export default async function InstructorDetailPage({
           <div className="grid grid-cols-5 gap-3">
             {[0, 1, 2, 3, 4].map((day) => (
               <div key={day} className="space-y-2">
-                <div className="rounded-lg bg-primary/10 py-2 text-center text-sm font-bold text-primary">
+                <div className="rounded-lg bg-secondary/15 py-2 text-center text-sm font-bold text-[#1C1917]">
                   {DAYS_SHORT[day]}
                 </div>
                 <div className="space-y-2">
@@ -103,7 +103,7 @@ export default async function InstructorDetailPage({
                         key={item.id}
                         className="rounded-lg border border-border bg-background p-2.5"
                       >
-                        <p className="text-xs font-bold text-primary">
+                        <p className="text-sm font-bold text-[#1C1917]">
                           {formatTime(item.start_time)}
                         </p>
                         <p className="mt-0.5 text-sm font-medium leading-tight">

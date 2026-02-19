@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_ROUTES = ["/login", "/instructor-login", "/auth/callback"];
-const ADMIN_ROUTES = ["/dashboard", "/schedule", "/instructors", "/locations", "/reports", "/settings"];
+const ADMIN_ROUTES = ["/dashboard", "/schedule", "/instructors", "/locations", "/reports", "/settings", "/tasks"];
 const INSTRUCTOR_ROUTES = ["/today", "/my-schedule", "/confirm-lessons", "/sign", "/profile"];
 
 export async function middleware(request: NextRequest) {
@@ -36,23 +36,16 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Check if user has auth cookies (simple check without API call)
-  const authCookies = request.cookies.getAll().filter(cookie => 
-    cookie.name.includes('sb-') && cookie.name.includes('-auth-token')
-  );
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // No auth cookies -> redirect to login
-  if (authCookies.length === 0) {
+  if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Root path -> redirect to /today (pages will handle role-based redirects)
   if (pathname === "/") {
     return NextResponse.redirect(new URL("/today", request.url));
   }
 
-  // If we have auth cookies, allow the request to proceed
-  // The page itself will handle auth state and redirects if needed
   return supabaseResponse;
 }
 

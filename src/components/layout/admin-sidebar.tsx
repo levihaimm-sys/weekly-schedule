@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   CalendarDays,
   CalendarClock,
   Users,
-  MapPin,
   FileText,
   BookOpen,
   Package,
+  ClipboardList,
   LogOut,
   Menu,
   X,
@@ -20,13 +20,12 @@ import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "לוח בקרה", icon: LayoutDashboard },
+  { href: "/dashboard", label: "דשבורד", icon: ClipboardList },
   { href: "/schedule/weekly", label: "לוח שבועי", icon: CalendarClock },
-  { href: "/equipment-distribution", label: "חלוקת ציוד", icon: Package },
-  { href: "/instructors", label: "מדריכים", icon: Users },
-  { href: "/lesson-plans", label: "מערכי שיעור", icon: BookOpen },
   { href: "/schedule", label: "לוח קבוע", icon: CalendarDays },
-  { href: "/locations", label: "מיקומים", icon: MapPin },
+  { href: "/instructors", label: "מדריכים", icon: Users },
+  { href: "/lesson-plans", label: "ציוד", icon: Package },
+  { href: "/lesson-plans/manage", label: "ניהול מערכי שיעור", icon: BookOpen },
   { href: "/reports", label: "דוחות", icon: FileText },
 ];
 
@@ -64,7 +63,13 @@ export function AdminSidebar() {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-6">
-          <h1 className="text-lg font-bold text-primary">חיים בתנועה</h1>
+          <Image
+            src="/logo.png"
+            alt="חיים בתנועה"
+            width={140}
+            height={48}
+            className="h-auto w-auto max-h-10"
+          />
           <button
             onClick={() => setMobileOpen(false)}
             className="rounded-lg p-1 text-muted-foreground hover:bg-muted md:hidden"
@@ -78,7 +83,15 @@ export function AdminSidebar() {
             const isActive =
               item.href === "/schedule"
                 ? pathname === "/schedule"
-                : pathname === item.href || pathname.startsWith(item.href + "/");
+                : item.href === "/lesson-plans"
+                  ? pathname === "/lesson-plans" ||
+                    pathname === "/lesson-plans/assignments" ||
+                    pathname === "/lesson-plans/confirmations-review" ||
+                    pathname === "/lesson-plans/equipment-report" ||
+                    pathname === "/equipment-distribution"
+                  : item.href === "/lesson-plans/manage"
+                    ? pathname.startsWith("/lesson-plans/manage")
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
@@ -87,7 +100,7 @@ export function AdminSidebar() {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-secondary text-[#1C1917] font-semibold"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >

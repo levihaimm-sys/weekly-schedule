@@ -68,7 +68,7 @@ export default function LoginPage() {
       <div className="mt-6 border-t border-border pt-4 text-center">
         <a
           href="/instructor-login"
-          className="text-sm text-primary hover:underline"
+          className="text-sm text-orange-600 hover:underline"
         >
           כניסת מדריכים
         </a>

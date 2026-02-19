@@ -2,9 +2,9 @@
 
 import { useState, useTransition, useOptimistic } from "react";
 import { useRouter } from "next/navigation";
-import { confirmByInstructor } from "@/lib/actions/signatures";
+import { confirmByInstructor, markLessonDidNotHappen } from "@/lib/actions/signatures";
 import { LessonConfirmDialog } from "./lesson-confirm-dialog";
-import { PenLine, Check, CheckCircle, Loader2 } from "lucide-react";
+import { PenLine, Check, CheckCircle, Loader2, XCircle } from "lucide-react";
 
 interface LessonConfirmButtonsProps {
   lessonId: string;
@@ -25,6 +25,7 @@ export function LessonConfirmButtons({
 }: LessonConfirmButtonsProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isDidNotHappenPending, startDidNotHappenTransition] = useTransition();
   const router = useRouter();
   
   // Optimistic state for instructor confirmation
@@ -87,6 +88,23 @@ export function LessonConfirmButtons({
             <Check size={14} />
           )}
           אישור מדריכה
+        </button>
+        <button
+          onClick={() => {
+            startDidNotHappenTransition(async () => {
+              await markLessonDidNotHappen(lessonId);
+              router.refresh();
+            });
+          }}
+          disabled={isDidNotHappenPending}
+          className="flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive shadow-sm transition-all hover:bg-destructive/20 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
+        >
+          {isDidNotHappenPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <XCircle size={14} />
+          )}
+          לא התקיים
         </button>
       </div>
 

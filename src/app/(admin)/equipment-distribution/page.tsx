@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EquipmentDistributionManager } from "@/components/equipment/equipment-distribution-manager";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default async function EquipmentDistributionPage() {
   const supabase = await createClient();
@@ -90,8 +92,12 @@ export default async function EquipmentDistributionPage() {
 
   return (
     <div className="space-y-6">
+      <Link href="/lesson-plans" className="flex items-center gap-1 text-sm text-orange-600 hover:underline w-fit">
+        <ArrowRight size={14} />
+        חזרה לציוד
+      </Link>
       <div>
-        <h1 className="text-3xl font-bold">חלוקת ציוד</h1>
+        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">חלוקת ציוד</h2>
         <p className="text-muted-foreground mt-1">
           ניהול חלוקת ציוד למדריכים לשבוע הנוכחי
         </p>

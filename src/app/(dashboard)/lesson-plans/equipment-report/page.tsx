@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AlertTriangle, CheckCircle, Package } from "lucide-react";
+import { AlertTriangle, CheckCircle, Package, ArrowRight } from "lucide-react";
 import { getMissingEquipmentReport } from "@/lib/queries/lesson-plans";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +66,13 @@ export default async function EquipmentReportPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
+      <Link href="/lesson-plans" className="flex items-center gap-1 text-sm text-orange-600 hover:underline w-fit mb-4">
+        <ArrowRight size={14} />
+        חזרה לציוד
+      </Link>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">דו"ח ציוד חסר</h1>
+        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917] mb-2">דו&quot;ח ציוד חסר</h2>
         <p className="text-gray-600">
           מעקב אחר ציוד שאבד - השוואה בין כמות שהתקבלה לכמות שהועברה למדריך
           הבא

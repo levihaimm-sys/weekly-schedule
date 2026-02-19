@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { DAYS_SHORT, LESSON_STATUS, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle } from "lucide-react";
 
 interface WeeklyLesson {
@@ -35,7 +36,7 @@ interface WeeklyGridProps {
   lessonsByDay: Record<string, WeeklyLesson[]>;
   instructors: { id: string; full_name: string }[];
   cities?: string[];
-  currentFilters?: { city?: string; instructor?: string };
+  currentFilters?: { cities?: string[]; instructors?: string[] };
 }
 
 function getLessonBorderClass(lesson: WeeklyLesson) {
@@ -71,10 +72,10 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
   const [editingLesson, setEditingLesson] = useState<WeeklyLesson | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
 
-  function updateFilter(key: string, value: string) {
+  function updateFilter(key: string, values: string[]) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(key, value);
+    if (values.length > 0) {
+      params.set(key, values.join(","));
     } else {
       params.delete(key);
     }
@@ -86,31 +87,18 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
       {/* Filters */}
       {cities && cities.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          <select
-            value={currentFilters?.city ?? ""}
-            onChange={(e) => updateFilter("city", e.target.value)}
-            className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm sm:flex-none sm:min-w-[160px]"
-          >
-            <option value="">כל הערים</option>
-            {cities.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={currentFilters?.instructor ?? ""}
-            onChange={(e) => updateFilter("instructor", e.target.value)}
-            className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm sm:flex-none sm:min-w-[160px]"
-          >
-            <option value="">כל המדריכים</option>
-            {instructors.map((inst) => (
-              <option key={inst.id} value={inst.id}>
-                {inst.full_name}
-              </option>
-            ))}
-          </select>
+          <MultiSelectFilter
+            options={cities.map((city) => ({ value: city, label: city }))}
+            selected={currentFilters?.cities ?? []}
+            onChange={(values) => updateFilter("city", values)}
+            placeholder="כל הערים"
+          />
+          <MultiSelectFilter
+            options={instructors.map((inst) => ({ value: inst.id, label: inst.full_name }))}
+            selected={currentFilters?.instructors ?? []}
+            onChange={(values) => updateFilter("instructor", values)}
+            placeholder="כל המדריכים"
+          />
         </div>
       )}
 
@@ -125,17 +113,17 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
               <button
                 key={dateStr}
                 onClick={() => setSelectedDay(dayIndex)}
-                className={`flex-1 py-2.5 text-center transition-colors relative ${
+                className={`flex-1 py-3 text-center transition-colors relative ${
                   isSelected
-                    ? "bg-primary text-primary-foreground font-bold"
+                    ? "bg-secondary text-[#1C1917] font-bold"
                     : "hover:bg-muted"
                 }`}
               >
-                <p className="text-sm font-bold">{DAYS_SHORT[dayIndex]}</p>
-                <p className={`text-[10px] ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                <p className="text-base font-bold">{DAYS_SHORT[dayIndex]}</p>
+                <p className={`text-sm ${isSelected ? "text-[#1C1917]/70" : "text-muted-foreground"}`}>
                   {format(date, "dd/MM")}
                 </p>
-                <p className={`text-[10px] ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                <p className={`text-sm ${isSelected ? "text-[#1C1917]/70" : "text-muted-foreground"}`}>
                   {dayLessons.length}
                 </p>
               </button>
@@ -154,13 +142,19 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
                 </div>
               );
             }
-            return dayLessons.map((lesson) => (
-              <MobileLessonCard
-                key={lesson.id}
-                lesson={lesson}
-                onEdit={() => setEditingLesson(lesson)}
-              />
-            ));
+            return dayLessons.map((lesson, index) => {
+              const prevLesson = index > 0 ? dayLessons[index - 1] : null;
+              const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+              return (
+                <div key={lesson.id}>
+                  {showSeparator && <div className="border-t-[3px] border-green-500 mb-2" />}
+                  <MobileLessonCard
+                    lesson={lesson}
+                    onEdit={() => setEditingLesson(lesson)}
+                  />
+                </div>
+              );
+            });
           })()}
         </div>
       </div>
@@ -172,8 +166,8 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
           const date = new Date(dateStr + "T00:00:00");
           return (
             <div key={dateStr} className="space-y-2">
-              <div className="rounded-lg bg-primary/10 py-2 text-center">
-                <p className="text-sm font-bold text-primary">
+              <div className="rounded-lg bg-secondary py-2 text-center">
+                <p className="text-sm font-bold text-[#1C1917]">
                   {DAYS_SHORT[dayIndex]}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -186,47 +180,54 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
                     אין שיעורים
                   </div>
                 ) : (
-                  dayLessons.map((lesson) => (
-                    <div
-                      key={lesson.id}
-                      onClick={() => setEditingLesson(lesson)}
-                      className={`cursor-pointer rounded-lg border p-3 transition-shadow hover:shadow-md hover:border-primary/30 ${getLessonBorderClass(lesson)}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-primary">
-                          {formatTime(lesson.start_time)}
-                        </span>
-                        <span
-                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            lesson.status === "completed"
-                              ? "bg-green-50 text-green-700"
-                              : lesson.status === "cancelled"
-                                ? "bg-red-50 text-red-700"
-                                : "bg-blue-50 text-blue-700"
-                          }`}
+                  dayLessons.map((lesson, index) => {
+                    const prevLesson = index > 0 ? dayLessons[index - 1] : null;
+                    const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+                    return (
+                      <div key={lesson.id}>
+                        {showSeparator && <div className="border-t-[3px] border-green-500 mb-2" />}
+                        <div
+                          onClick={() => setEditingLesson(lesson)}
+                          className={`cursor-pointer rounded-lg border p-3 transition-shadow hover:shadow-md hover:border-secondary/30 ${getLessonBorderClass(lesson)}`}
                         >
-                          {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
-                        </span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-[#1C1917]">
+                              {formatTime(lesson.start_time)}
+                            </span>
+                            <span
+                              className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                lesson.status === "completed"
+                                  ? "bg-green-50 text-green-700"
+                                  : lesson.status === "cancelled"
+                                    ? "bg-red-50 text-red-700"
+                                    : "bg-blue-50 text-blue-700"
+                              }`}
+                            >
+                              {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm font-bold text-[#1C1917]">
+                            {lesson.instructor?.full_name ?? (
+                              <span className="text-red-600 font-medium">ללא מדריך</span>
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs font-medium leading-tight">
+                            {lesson.location?.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {lesson.location?.street && `${lesson.location.street}, `}
+                            {lesson.location?.city}
+                          </p>
+                          <RequestBadge lesson={lesson} />
+                          {lesson.change_notes && (
+                            <p className="mt-1 text-xs text-orange-600">
+                              {lesson.change_notes}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <p className="mt-1 text-sm font-medium leading-tight">
-                        {lesson.location?.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {lesson.location?.city}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {lesson.instructor?.full_name ?? (
-                          <span className="text-red-600 font-medium">ללא מדריך</span>
-                        )}
-                      </p>
-                      <RequestBadge lesson={lesson} />
-                      {lesson.change_notes && (
-                        <p className="mt-1 text-xs text-orange-600">
-                          {lesson.change_notes}
-                        </p>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -261,37 +262,34 @@ function MobileLessonCard({
       className={`cursor-pointer rounded-lg border p-4 transition-shadow active:shadow-md ${getLessonBorderClass(lesson)}`}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="min-w-[50px] text-center">
-            <p className="text-lg font-bold text-primary">
-              {formatTime(lesson.start_time)}
-            </p>
-          </div>
-          <div>
-            <p className="font-medium">{lesson.location?.name ?? "—"}</p>
-            <p className="text-sm text-muted-foreground">
-              {lesson.location?.city}
-            </p>
-          </div>
-        </div>
-        <div className="text-end">
-          <p className="text-sm">
+        <div>
+          <p className="text-sm font-bold text-[#1C1917]">
+            {formatTime(lesson.start_time)}
+          </p>
+          <p className="mt-1 text-base font-bold text-[#1C1917]">
             {lesson.instructor?.full_name ?? (
               <span className="font-medium text-red-600">ללא מדריך</span>
             )}
           </p>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-              lesson.status === "completed"
-                ? "bg-green-50 text-green-700"
-                : lesson.status === "cancelled"
-                  ? "bg-red-50 text-red-700"
-                  : "bg-blue-50 text-blue-700"
-            }`}
-          >
-            {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
-          </span>
+          <p className="mt-1 text-sm font-medium leading-tight">
+            {lesson.location?.name ?? "—"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {lesson.location?.city}
+            {lesson.location?.street && `, ${lesson.location.street}`}
+          </p>
         </div>
+        <span
+          className={`self-start rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            lesson.status === "completed"
+              ? "bg-green-50 text-green-700"
+              : lesson.status === "cancelled"
+                ? "bg-red-50 text-red-700"
+                : "bg-blue-50 text-blue-700"
+          }`}
+        >
+          {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
+        </span>
       </div>
       <RequestBadge lesson={lesson} />
       {lesson.change_notes && (

@@ -8,6 +8,7 @@ export async function addInstructor(formData: FormData) {
   const fullName = (formData.get("full_name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();
   const address = (formData.get("address") as string)?.trim();
+  const workCities = (formData.get("work_cities") as string)?.trim();
 
   if (!fullName) {
     return { error: "יש להזין שם מלא" };
@@ -19,6 +20,7 @@ export async function addInstructor(formData: FormData) {
     full_name: fullName,
     phone: phone || null,
     address: address || null,
+    work_cities: workCities || null,
     status: "active",
   });
 
@@ -32,7 +34,7 @@ export async function addInstructor(formData: FormData) {
 
 export async function updateInstructor(
   instructorId: string,
-  data: { full_name?: string; phone?: string | null; address?: string | null }
+  data: { full_name?: string; phone?: string | null; address?: string | null; work_cities?: string | null }
 ) {
   const supabase = await createClient();
 
@@ -66,6 +68,66 @@ export async function updateInstructorStatus(
   }
 
   // Only revalidate instructors page - no need to revalidate other paths
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
+export async function getInstructorAvailability(instructorId: string) {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("instructor_availability")
+    .select("day_of_week, city")
+    .eq("instructor_id", instructorId)
+    .order("day_of_week");
+
+  return data ?? [];
+}
+
+export async function getAllAvailability() {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("instructor_availability")
+    .select("instructor_id, day_of_week, city")
+    .order("day_of_week");
+
+  return data ?? [];
+}
+
+export async function updateInstructorAvailability(
+  instructorId: string,
+  availability: { day_of_week: number; city: string }[]
+) {
+  const supabase = await createClient();
+
+  // Delete existing availability
+  const { error: deleteError } = await supabase
+    .from("instructor_availability")
+    .delete()
+    .eq("instructor_id", instructorId);
+
+  if (deleteError) {
+    return { error: "שגיאה במחיקת זמינות: " + deleteError.message };
+  }
+
+  // Insert new availability
+  if (availability.length > 0) {
+    const { error: insertError } = await supabase
+      .from("instructor_availability")
+      .insert(
+        availability.map((a) => ({
+          instructor_id: instructorId,
+          day_of_week: a.day_of_week,
+          city: a.city,
+        }))
+      );
+
+    if (insertError) {
+      return { error: "שגיאה בשמירת זמינות: " + insertError.message };
+    }
+  }
+
   revalidatePath("/instructors");
   return { success: true };
 }

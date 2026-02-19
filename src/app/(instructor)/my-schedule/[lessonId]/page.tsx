@@ -64,7 +64,7 @@ export default async function LessonDetailPage({
     <div className="space-y-4">
       <Link
         href="/my-schedule"
-        className="flex items-center gap-1 text-sm text-primary"
+        className="flex items-center gap-1 text-sm text-orange-600"
       >
         <ArrowRight size={16} />
         חזרה ללוח
@@ -72,7 +72,7 @@ export default async function LessonDetailPage({
 
       <div className="rounded-xl border border-border bg-background p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">{location?.name}</h2>
+          <h2 className="text-2xl font-bold text-[#1C1917]">{location?.name}</h2>
           <span
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               lesson.status === "completed"
@@ -93,12 +93,12 @@ export default async function LessonDetailPage({
 
         <div className="mt-4 space-y-3">
           <div className="flex items-center gap-3">
-            <Clock size={18} className="text-primary" />
+            <Clock size={18} className="text-orange-500" />
             <span className="font-medium">{formatTime(lesson.start_time)}</span>
           </div>
 
           <div className="flex items-center gap-3">
-            <MapPin size={18} className="text-primary" />
+            <MapPin size={18} className="text-orange-500" />
             <div>
               <p>{location?.city}</p>
               {location?.street && (
@@ -111,7 +111,7 @@ export default async function LessonDetailPage({
 
           {location?.age_group && (
             <div className="flex items-center gap-3">
-              <Users size={18} className="text-primary" />
+              <Users size={18} className="text-orange-500" />
               <span>גיל {location.age_group}</span>
             </div>
           )}
@@ -160,7 +160,7 @@ export default async function LessonDetailPage({
         ) : (
           <Link
             href={`/sign/${lessonId}`}
-            className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-secondary/40 bg-secondary/5 px-4 py-4 text-sm font-medium text-orange-600 transition-colors hover:bg-secondary/10"
           >
             <PenLine size={20} />
             לחץ כאן לחתימה

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format } from "date-fns";
 import { getTodayInIsrael } from "@/lib/utils/date";
@@ -107,11 +108,12 @@ export async function replicateWeekSchedule(targetDate?: string) {
 export async function updateLesson(
   lessonId: string,
   updates: {
-    instructor_id?: string;
+    instructor_id?: string | null;
     substitute_instructor_id?: string;
     status?: string;
     change_notes?: string;
     start_time?: string;
+    lesson_date?: string;
   }
 ) {
   const supabase = await createClient();
@@ -150,20 +152,37 @@ export async function updateLesson(
 export async function updateRecurringSchedule(
   recurringId: string,
   updates: {
-    instructor_id?: string;
+    instructor_id?: string | null;
     start_time?: string;
     location_id?: string;
+    day_of_week?: number;
   }
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  const { error } = await supabase
+  // Build clean updates: include null values (to clear fields), skip undefined
+  const cleanUpdates: Record<string, string | number | null> = {};
+  if (updates.instructor_id !== undefined) cleanUpdates.instructor_id = updates.instructor_id;
+  if (updates.start_time) cleanUpdates.start_time = updates.start_time;
+  if (updates.location_id) cleanUpdates.location_id = updates.location_id;
+  if (updates.day_of_week !== undefined) cleanUpdates.day_of_week = updates.day_of_week;
+
+  if (Object.keys(cleanUpdates).length === 0) {
+    return { error: "אין שינויים לשמור" };
+  }
+
+  const { error, data } = await supabase
     .from("recurring_schedule")
-    .update(updates)
-    .eq("id", recurringId);
+    .update(cleanUpdates)
+    .eq("id", recurringId)
+    .select();
 
   if (error) {
     return { error: "שגיאה בעדכון הלוח הקבוע: " + error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { error: "לא נמצא שיעור קבוע עם ID: " + recurringId };
   }
 
   revalidatePath("/schedule");
@@ -180,16 +199,25 @@ export async function applyPermanentChange(
   recurringId: string,
   _currentLessonId: string,
   updates: {
-    instructor_id?: string;
+    instructor_id?: string | null;
     start_time?: string;
   }
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
+
+  // Build clean updates: include null values (to clear fields), skip undefined
+  const cleanUpdates: Record<string, string | null> = {};
+  if (updates.instructor_id !== undefined) cleanUpdates.instructor_id = updates.instructor_id;
+  if (updates.start_time) cleanUpdates.start_time = updates.start_time;
+
+  if (Object.keys(cleanUpdates).length === 0) {
+    return { error: "אין שינויים לשמור" };
+  }
 
   // 1. Update the master schedule
   const { error: recurringError } = await supabase
     .from("recurring_schedule")
-    .update(updates)
+    .update(cleanUpdates)
     .eq("id", recurringId);
 
   if (recurringError) {
@@ -200,7 +228,7 @@ export async function applyPermanentChange(
   const today = getTodayInIsrael();
   const { error: lessonsError } = await supabase
     .from("lessons")
-    .update(updates)
+    .update(cleanUpdates)
     .eq("recurring_item_id", recurringId)
     .gte("lesson_date", today);
 
@@ -222,7 +250,7 @@ export async function applyPermanentChange(
  * Use deleteLesson() for one-time changes to a single lesson.
  */
 export async function deleteRecurringScheduleItem(recurringItemId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const today = getTodayInIsrael();
 
   // Delete all future lessons created from this recurring item

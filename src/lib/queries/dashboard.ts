@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { formatDateShort, getTodayInIsrael } from "@/lib/utils/date";
-import { startOfWeek, addDays, format } from "date-fns";
+import { formatDateShort, getTodayInIsrael, getNowInIsrael } from "@/lib/utils/date";
+import { startOfWeek, addDays, format, nextSunday, nextMonday } from "date-fns";
 
 export async function getDashboardStats() {
   const supabase = await createClient();
@@ -136,6 +136,119 @@ export async function getUnassignedLessonsThisWeek() {
     .order("start_time");
 
   return data ?? [];
+}
+
+/**
+ * Compute the end date for "upcoming" queries.
+ * Normally: today + 1 day (2 days total).
+ * On Thursday (day 4): extends to next Monday (covers Thu, Sun, Mon).
+ */
+function getUpcomingEndDate(): string {
+  const now = getNowInIsrael();
+  const dayOfWeek = now.getDay(); // 0=Sun .. 4=Thu
+  if (dayOfWeek === 4) {
+    // Thursday: extend to next Monday
+    const mon = nextMonday(now);
+    return format(mon, "yyyy-MM-dd");
+  }
+  // Default: today + 1 day
+  return format(addDays(now, 1), "yyyy-MM-dd");
+}
+
+/**
+ * Get upcoming lessons (next 2 days, extended on Thursday) with no instructor.
+ */
+export async function getUpcomingUnassignedLessons() {
+  const supabase = await createClient();
+  const today = getTodayInIsrael();
+  const endDate = getUpcomingEndDate();
+
+  const { data } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      recurring_item_id,
+      lesson_date,
+      start_time,
+      status,
+      location:locations!lessons_location_id_fkey(id, name, city, age_group)
+    `
+    )
+    .is("instructor_id", null)
+    .gte("lesson_date", today)
+    .lte("lesson_date", endDate)
+    .neq("status", "cancelled")
+    .order("lesson_date")
+    .order("start_time");
+
+  return data ?? [];
+}
+
+/**
+ * Get upcoming lessons where the assigned instructor differs from the recurring schedule instructor.
+ * This shows one-time changes / substitutions.
+ */
+export async function getUpcomingScheduleChanges() {
+  const supabase = await createClient();
+  const today = getTodayInIsrael();
+  const endDate = getUpcomingEndDate();
+
+  // Fetch lessons with their instructor AND the recurring schedule info
+  const { data: lessons } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      recurring_item_id,
+      lesson_date,
+      start_time,
+      status,
+      instructor_id,
+      instructor:instructors!lessons_instructor_id_fkey(id, full_name),
+      location:locations!lessons_location_id_fkey(id, name, city, age_group)
+    `
+    )
+    .not("recurring_item_id", "is", null)
+    .not("instructor_id", "is", null)
+    .gte("lesson_date", today)
+    .lte("lesson_date", endDate)
+    .neq("status", "cancelled")
+    .order("lesson_date")
+    .order("start_time");
+
+  if (!lessons || lessons.length === 0) return [];
+
+  // Fetch the recurring schedule entries to compare instructors
+  const recurringIds = [...new Set(lessons.map((l) => l.recurring_item_id!))];
+  const { data: recurringItems } = await supabase
+    .from("recurring_schedule")
+    .select("id, instructor_id, instructor:instructors(id, full_name)")
+    .in("id", recurringIds);
+
+  if (!recurringItems) return [];
+
+  const recurringMap = new Map(
+    recurringItems.map((r) => [r.id, r])
+  );
+
+  // Filter to only lessons where instructor changed from the recurring schedule
+  return lessons
+    .filter((lesson) => {
+      const recurring = recurringMap.get(lesson.recurring_item_id!);
+      if (!recurring) return false;
+      return lesson.instructor_id !== recurring.instructor_id;
+    })
+    .map((lesson) => {
+      const recurring = recurringMap.get(lesson.recurring_item_id!)!;
+      const recurringInstructor = Array.isArray(recurring.instructor)
+        ? recurring.instructor[0]
+        : recurring.instructor;
+      return {
+        ...lesson,
+        recurring_instructor: recurringInstructor as { id: string; full_name: string } | null,
+      };
+    });
 }
 
 /**

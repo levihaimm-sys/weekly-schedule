@@ -27,7 +27,11 @@
       "Bash(curl:*)",
       "Bash(taskkill /IM node.exe /F)",
       "Bash(netlify:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(taskkill:*)",
+      "Bash(netsh advfirewall firewall add rule:*)",
+      "Bash(npm run build:*)",
+      "Bash(git -C \"c:/Users/levih/Documents/weekly-schedule\" log --oneline -3)"
     ]
   }
 }

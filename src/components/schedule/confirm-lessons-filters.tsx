@@ -62,14 +62,14 @@ export function ConfirmLessonsFilters({
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
             hasActiveFilters
-              ? "border-primary bg-primary/10 text-primary"
+              ? "border-secondary bg-secondary/10 text-[#1C1917]"
               : "border-border bg-background text-muted-foreground hover:bg-muted"
           }`}
         >
           <Filter size={16} />
           סינון
           {hasActiveFilters && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-xs text-[#1C1917]">
               {[
                 currentFilters.garden,
                 currentFilters.city,

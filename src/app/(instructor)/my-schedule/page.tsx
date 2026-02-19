@@ -38,7 +38,7 @@ export default async function MySchedulePage({
   // Calculate week boundaries
   const baseDate = params.week ? new Date(params.week) : new Date();
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
-  const weekEnd = addDays(weekStart, 5);
+  const weekEnd = addDays(weekStart, 4);
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
   
@@ -90,7 +90,7 @@ export default async function MySchedulePage({
   }
 
   // Build days
-  const weekDates = Array.from({ length: 6 }, (_, i) => ({
+  const weekDates = Array.from({ length: 5 }, (_, i) => ({
     date: format(addDays(weekStart, i), "yyyy-MM-dd"),
     dayName: DAYS_SHORT[i],
     displayDate: format(addDays(weekStart, i), "dd/MM"),
@@ -105,7 +105,7 @@ export default async function MySchedulePage({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold">שלום, {profile.display_name}</h2>
+        <h2 className="text-2xl font-bold text-[#1C1917]">שלום, {profile.display_name}</h2>
         {isCurrentWeek && (
           <p className="text-sm text-muted-foreground">
             {DAYS_HEBREW[dayOfWeek]} | {formatDateShort(new Date())}
@@ -124,7 +124,7 @@ export default async function MySchedulePage({
 
       {/* Weekly Schedule */}
       <div className="space-y-5">
-        {weekDates.map(({ date, dayName, displayDate }, index) => {
+        {weekDates.map(({ date, dayName, displayDate }) => {
           const dayLessons = byDay[date] ?? [];
           const isToday = date === today;
 
@@ -135,8 +135,8 @@ export default async function MySchedulePage({
             <div key={date} className="space-y-3">
               {/* Day header - BOLD and COLORFUL */}
               <div
-                className={`flex items-center gap-3 rounded-2xl px-5 py-4 shadow-sm ${dayBg} ${
-                  isToday ? "ring-2 ring-foreground ring-offset-2" : ""
+                className={`flex items-center gap-3 rounded-2xl px-5 py-4 shadow-sm ${
+                  isToday ? "bg-secondary" : dayBg
                 }`}
               >
                 <span className="text-2xl font-bold text-foreground">
@@ -146,7 +146,7 @@ export default async function MySchedulePage({
                   {displayDate}
                 </span>
                 {isToday && (
-                  <span className="rounded-2xl bg-foreground px-3 py-1.5 text-xs font-bold text-background">
+                  <span className="rounded-2xl bg-white/40 px-3 py-1.5 text-xs font-bold text-foreground">
                     היום
                   </span>
                 )}
@@ -175,11 +175,9 @@ export default async function MySchedulePage({
                         {/* Lesson card - compact version */}
                         <div
                           className={`rounded-2xl bg-card p-5 shadow-sm ${
-                            isConfirmed
-                              ? "ring-2 ring-success ring-offset-1"
-                              : hasRequest
-                                ? "ring-2 ring-warning ring-offset-1"
-                                : ""
+                            hasRequest
+                              ? "ring-2 ring-warning ring-offset-1"
+                              : ""
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -216,7 +214,7 @@ export default async function MySchedulePage({
                                     ? "bg-success/20 text-success"
                                     : lesson.status === "cancelled"
                                       ? "bg-destructive/20 text-destructive"
-                                      : "bg-primary/20 text-primary"
+                                      : "bg-blue-50 text-blue-700"
                               }`}
                             >
                               {isConfirmed

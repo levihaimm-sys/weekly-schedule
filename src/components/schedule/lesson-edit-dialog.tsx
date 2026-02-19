@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Loader2, Trash2 } from "lucide-react";
 import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
+import { DAYS_HEBREW } from "@/lib/utils/constants";
 
 interface LessonData {
   id: string;
@@ -44,6 +45,8 @@ export function LessonEditDialog({
 
   const [instructorId, setInstructorId] = useState(item.instructor?.id ?? "");
   const [startTime, setStartTime] = useState(item.start_time?.slice(0, 5) ?? "");
+  const [dayOfWeek, setDayOfWeek] = useState(item.day_of_week ?? 0);
+  const [lessonDate, setLessonDate] = useState(item.lesson_date ?? "");
   const [status, setStatus] = useState(item.status ?? "scheduled");
   const [changeNotes, setChangeNotes] = useState(item.change_notes ?? "");
 
@@ -84,8 +87,9 @@ export function LessonEditDialog({
         if (mode === "recurring") {
           // Direct master schedule update
           const result = await updateRecurringSchedule(item.id, {
-            instructor_id: instructorId || undefined,
+            instructor_id: instructorId || null,
             start_time: startTime ? `${startTime}:00` : undefined,
+            day_of_week: dayOfWeek !== item.day_of_week ? dayOfWeek : undefined,
           });
           if (result.error) {
             setError(result.error);
@@ -98,7 +102,7 @@ export function LessonEditDialog({
             item.recurring_item_id!,
             item.id,
             {
-              instructor_id: instructorId || undefined,
+              instructor_id: instructorId || null,
               start_time: startTime ? `${startTime}:00` : undefined,
             }
           );
@@ -111,8 +115,9 @@ export function LessonEditDialog({
       } else {
         // Temporary change: update only this lesson instance
         const result = await updateLesson(item.id, {
-          instructor_id: instructorId || undefined,
+          instructor_id: instructorId || null,
           start_time: startTime ? `${startTime}:00` : undefined,
+          lesson_date: lessonDate || undefined,
           status,
           change_notes: changeNotes || undefined,
         });
@@ -198,9 +203,9 @@ export function LessonEditDialog({
             <button
               onClick={() => handleSave("permanent")}
               disabled={loading || !item.recurring_item_id}
-              className="w-full rounded-lg border-2 border-primary bg-primary/5 px-4 py-3 text-sm font-medium transition-colors hover:bg-primary/10 disabled:opacity-50"
+              className="w-full rounded-lg border-2 border-secondary bg-secondary/5 px-4 py-3 text-sm font-medium transition-colors hover:bg-secondary/10 disabled:opacity-50"
             >
-              <div className="font-bold text-primary">שינוי קבוע</div>
+              <div className="font-bold text-[#1C1917]">שינוי קבוע</div>
               <div className="text-xs text-muted-foreground">
                 ישנה את הלוח הקבוע ואת כל השיעורים העתידיים
               </div>
@@ -273,6 +278,37 @@ export function LessonEditDialog({
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             />
           </div>
+
+          {/* Day of week (only for recurring mode) */}
+          {mode === "recurring" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">יום</label>
+              <select
+                value={dayOfWeek}
+                onChange={(e) => setDayOfWeek(Number(e.target.value))}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              >
+                {DAYS_HEBREW.slice(0, 6).map((day, i) => (
+                  <option key={i} value={i}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Date (only for lesson mode) */}
+          {mode === "lesson" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">תאריך</label>
+              <input
+                type="date"
+                value={lessonDate}
+                onChange={(e) => setLessonDate(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              />
+            </div>
+          )}
 
           {/* Status (only for lesson mode) */}
           {mode === "lesson" && (

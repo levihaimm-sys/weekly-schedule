@@ -203,20 +203,29 @@ export default async function ConfirmLessonsPage({
                   {/* Top row: lesson info + status badge */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-sm text-foreground">
-                          {dayName} {dateStr}
-                        </span>
-                        <span className="flex items-center gap-1 text-xs font-semibold text-foreground/70">
-                          <Clock size={12} />
-                          {formatTime(lesson.start_time)}
-                        </span>
+                      <div className="flex items-start gap-4">
+                        {/* Date + Day column */}
+                        <div className="shrink-0">
+                          <span className="font-bold text-sm text-foreground block">
+                            {dateStr}
+                          </span>
+                          <span className="font-bold text-sm text-foreground">
+                            {dayName}
+                          </span>
+                        </div>
+                        {/* Time + City column */}
+                        <div className="shrink-0">
+                          <span className="flex items-center gap-1 font-bold text-sm text-foreground">
+                            <Clock size={12} />
+                            {formatTime(lesson.start_time)}
+                          </span>
+                          <div className="flex items-center gap-1 font-bold text-sm text-foreground mt-0.5">
+                            <MapPin size={11} />
+                            {lesson.location?.city}
+                          </div>
+                        </div>
                       </div>
-                      <p className="font-semibold text-base text-foreground truncate">{lesson.location?.name}</p>
-                      <div className="flex items-center gap-1 text-xs text-foreground/60 mt-0.5">
-                        <MapPin size={11} />
-                        {lesson.location?.city}
-                      </div>
+                      <p className="font-bold text-sm text-foreground truncate mt-2">{lesson.location?.name}</p>
                     </div>
 
                     <div className="shrink-0">

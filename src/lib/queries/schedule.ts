@@ -2,8 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getTodayInIsrael } from "@/lib/utils/date";
 
 export async function getRecurringSchedule(filters?: {
-  instructorId?: string;
-  city?: string;
+  instructorIds?: string[];
+  cities?: string[];
   dayOfWeek?: number;
 }) {
   const supabase = await createClient();
@@ -23,8 +23,8 @@ export async function getRecurringSchedule(filters?: {
     .order("day_of_week")
     .order("start_time");
 
-  if (filters?.instructorId) {
-    query = query.eq("instructor_id", filters.instructorId);
+  if (filters?.instructorIds && filters.instructorIds.length > 0) {
+    query = query.in("instructor_id", filters.instructorIds);
   }
   if (filters?.dayOfWeek !== undefined) {
     query = query.eq("day_of_week", filters.dayOfWeek);
@@ -32,10 +32,10 @@ export async function getRecurringSchedule(filters?: {
 
   const { data } = await query;
 
-  // Filter by city client-side (joined field)
-  if (filters?.city && data) {
+  // Filter by cities client-side (joined field)
+  if (filters?.cities && filters.cities.length > 0 && data) {
     return data.filter(
-      (item: any) => item.location?.city === filters.city
+      (item: any) => filters.cities!.includes(item.location?.city)
     );
   }
 
@@ -45,7 +45,7 @@ export async function getRecurringSchedule(filters?: {
 export async function getWeekLessons(
   weekStart: string,
   weekEnd: string,
-  filters?: { instructorId?: string; city?: string }
+  filters?: { instructorIds?: string[]; cities?: string[] }
 ) {
   const supabase = await createClient();
 
@@ -74,15 +74,15 @@ export async function getWeekLessons(
     .order("lesson_date")
     .order("start_time");
 
-  if (filters?.instructorId) {
-    query = query.eq("instructor_id", filters.instructorId);
+  if (filters?.instructorIds && filters.instructorIds.length > 0) {
+    query = query.in("instructor_id", filters.instructorIds);
   }
 
   const { data } = await query;
 
-  // Filter by city client-side (joined field)
-  if (filters?.city && data) {
-    return data.filter((item: any) => item.location?.city === filters.city);
+  // Filter by cities client-side (joined field)
+  if (filters?.cities && filters.cities.length > 0 && data) {
+    return data.filter((item: any) => filters.cities!.includes(item.location?.city));
   }
 
   return data ?? [];

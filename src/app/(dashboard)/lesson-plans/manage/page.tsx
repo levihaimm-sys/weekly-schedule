@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { BookOpen, Package, Upload } from "lucide-react";
+import { BookOpen, Package, Upload, ArrowRight } from "lucide-react";
 import { getLessonPlansByCategory } from "@/lib/queries/lesson-plans";
 
 export const dynamic = "force-dynamic";
@@ -55,9 +55,13 @@ export default async function ManageLessonPlansPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
+      <Link href="/lesson-plans" className="flex items-center gap-1 text-sm text-orange-600 hover:underline w-fit mb-4">
+        <ArrowRight size={14} />
+        חזרה לציוד
+      </Link>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">ניהול מערכי שיעור</h1>
+        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917] mb-2">ניהול מערכי שיעור</h2>
         <p className="text-gray-600">
           עריכת מערכי שיעור, הוספת ציוד ועדכון קבצי PDF
         </p>

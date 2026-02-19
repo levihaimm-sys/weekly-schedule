@@ -147,3 +147,40 @@ export async function confirmByInstructor(lessonId: string) {
 
   return { success: true };
 }
+
+/**
+ * Mark lesson as "did not happen" - instructor reports lesson didn't take place.
+ * Sets lesson status to 'cancelled' with a note.
+ */
+export async function markLessonDidNotHappen(lessonId: string) {
+  const authClient = await createClient();
+  const admin = createAdminClient();
+
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    return { error: "לא מחובר" };
+  }
+
+  // Update lesson status to cancelled
+  const { error } = await admin
+    .from("lessons")
+    .update({
+      status: "cancelled",
+      change_notes: "לא התקיים - דווח ע״י המדריכה",
+    })
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/my-schedule");
+  revalidatePath("/confirm-lessons");
+  revalidatePath("/dashboard");
+  revalidatePath("/today");
+
+  return { success: true };
+}

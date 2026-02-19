@@ -152,9 +152,9 @@ export function AssignmentsOverviewTable({
         <table className="w-full border-collapse text-sm" dir="rtl">
           <thead>
             {/* City header row */}
-            <tr className="bg-primary text-primary-foreground">
+            <tr className="bg-secondary text-[#1C1917]">
               <th
-                className="sticky right-0 z-20 border border-primary/70 bg-primary px-3 py-2 text-center font-bold"
+                className="sticky right-0 z-20 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold"
                 rowSpan={2}
               >
                 תאריך
@@ -162,18 +162,18 @@ export function AssignmentsOverviewTable({
               {instructors.map((inst) => (
                 <th
                   key={inst.id}
-                  className="border border-primary/70 px-1 py-1 text-center text-[10px] font-normal"
+                  className="border border-secondary/70 px-1 py-1 text-center text-[10px] font-normal"
                 >
                   {inst.city || "—"}
                 </th>
               ))}
             </tr>
             {/* Instructor name header row */}
-            <tr className="bg-primary/80 text-primary-foreground">
+            <tr className="bg-secondary/80 text-[#1C1917]">
               {instructors.map((inst) => (
                 <th
                   key={inst.id}
-                  className="border border-primary/60 px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap"
+                  className="border border-secondary/60 px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap"
                 >
                   {inst.name}
                 </th>
@@ -189,7 +189,7 @@ export function AssignmentsOverviewTable({
                   key={week}
                   className={
                     isCurrentWeek
-                      ? "bg-yellow-50 font-semibold"
+                      ? "bg-secondary/20 font-semibold"
                       : past
                         ? "bg-gray-50/50"
                         : "hover:bg-muted/30"
@@ -198,7 +198,7 @@ export function AssignmentsOverviewTable({
                   <td
                     className={`sticky right-0 z-10 border border-border px-3 py-2 text-center font-bold whitespace-nowrap ${
                       isCurrentWeek
-                        ? "bg-yellow-100"
+                        ? "bg-secondary/40"
                         : past
                           ? "bg-gray-100"
                           : "bg-background"
@@ -223,7 +223,7 @@ export function AssignmentsOverviewTable({
                           isEditing
                             ? "bg-primary/20 ring-2 ring-primary ring-inset"
                             : isCurrentWeek
-                              ? "bg-yellow-50 hover:bg-yellow-100"
+                              ? "bg-secondary/15 hover:bg-secondary/30"
                               : past
                                 ? ""
                                 : "hover:bg-primary/5"

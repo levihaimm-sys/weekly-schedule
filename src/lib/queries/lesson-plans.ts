@@ -3,6 +3,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { getNowInIsrael } from "@/lib/utils/date";
 import type {
   LessonPlan,
   Equipment,
@@ -25,13 +26,12 @@ export async function getInstructorCurrentWeekAssignment(
 ): Promise<WeeklyLessonAssignmentWithDetails | null> {
   const supabase = await createClient();
 
-  // Get Sunday of current week
-  const now = new Date();
+  // Get Sunday of current week (Israel timezone)
+  const now = getNowInIsrael();
   const dayOfWeek = now.getDay();
   const sunday = new Date(now);
   sunday.setDate(now.getDate() - dayOfWeek);
-  sunday.setHours(0, 0, 0, 0);
-  const weekStartDate = sunday.toISOString().split("T")[0];
+  const weekStartDate = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, "0")}-${String(sunday.getDate()).padStart(2, "0")}`;
 
   console.log("[getInstructorCurrentWeekAssignment] Query params:", {
     instructorId,
@@ -75,6 +75,46 @@ export async function getInstructorCurrentWeekAssignment(
     assignmentId: data?.id,
     lessonName: data?.lesson_plan?.name,
   });
+
+  return data as any;
+}
+
+/**
+ * Get instructor's next weekly lesson assignment
+ * Returns the lesson plan for the following week
+ */
+export async function getInstructorNextWeekAssignment(
+  instructorId: string
+): Promise<WeeklyLessonAssignmentWithDetails | null> {
+  const supabase = await createClient();
+
+  // Get Sunday of next week (Israel timezone)
+  const now = getNowInIsrael();
+  const dayOfWeek = now.getDay();
+  const nextSunday = new Date(now);
+  nextSunday.setDate(now.getDate() - dayOfWeek + 7);
+  const weekStartDate = `${nextSunday.getFullYear()}-${String(nextSunday.getMonth() + 1).padStart(2, "0")}-${String(nextSunday.getDate()).padStart(2, "0")}`;
+
+  const { data, error } = await supabase
+    .from("weekly_lesson_assignments")
+    .select(
+      `
+      id,
+      instructor_id,
+      lesson_plan_id,
+      week_start_date,
+      is_permanent_change,
+      instructor:instructors(id, full_name),
+      lesson_plan:lesson_plans(id, name, category, pdf_path, week_number)
+    `
+    )
+    .eq("instructor_id", instructorId)
+    .eq("week_start_date", weekStartDate)
+    .single();
+
+  if (error) {
+    return null;
+  }
 
   return data as any;
 }
@@ -356,23 +396,23 @@ export async function getLessonPlansByCategory(): Promise<
 export async function getAssignmentsOverview(weeksCount = 20) {
   const supabase = await createClient();
 
-  // Get Sunday of current week
-  const now = new Date();
+  // Get Sunday of current week (Israel timezone)
+  const now = getNowInIsrael();
   const dayOfWeek = now.getDay();
   const sunday = new Date(now);
   sunday.setDate(now.getDate() - dayOfWeek);
-  sunday.setHours(0, 0, 0, 0);
-  const currentWeekStart = sunday.toISOString().split("T")[0];
+  const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const currentWeekStart = formatDate(sunday);
 
   // Calculate range: a few weeks back + weeks ahead
   const weeksBack = 2;
   const rangeStart = new Date(sunday);
   rangeStart.setDate(rangeStart.getDate() - weeksBack * 7);
-  const rangeStartStr = rangeStart.toISOString().split("T")[0];
+  const rangeStartStr = formatDate(rangeStart);
 
   const rangeEnd = new Date(sunday);
   rangeEnd.setDate(rangeEnd.getDate() + (weeksCount - weeksBack) * 7);
-  const rangeEndStr = rangeEnd.toISOString().split("T")[0];
+  const rangeEndStr = formatDate(rangeEnd);
 
   // Fetch all assignments in range
   const { data: assignments, error } = await supabase

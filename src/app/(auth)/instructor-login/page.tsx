@@ -75,7 +75,7 @@ export default function InstructorLoginPage() {
       </form>
 
       <div className="mt-6 border-t border-border pt-4 text-center">
-        <a href="/login" className="text-sm text-primary hover:underline">
+        <a href="/login" className="text-sm text-orange-600 hover:underline">
           כניסת מנהלים
         </a>
       </div>

@@ -19,7 +19,7 @@ export default async function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">מיקומים</h2>
+      <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">מיקומים</h2>
 
       {Object.entries(byCity).map(([city, locs]) => (
         <div key={city}>

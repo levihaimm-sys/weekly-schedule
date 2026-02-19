@@ -13,7 +13,7 @@ export default function InstructorLayout({
       <header className="sticky top-0 z-30 border-b border-border bg-card/95 px-6 py-4 backdrop-blur shadow-sm">
         <div className="flex items-center justify-center">
           <Image
-            src="/logo.jpg"
+            src="/logo.png"
             alt="חיים בתנועה"
             width={180}
             height={60}

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAssignmentsOverview, getLessonPlansByCategory } from "@/lib/queries/lesson-plans";
 import { AssignmentsOverviewTable } from "@/components/lesson-plans/assignments-overview-table";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +43,12 @@ export default async function AssignmentsPage() {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
+      <Link href="/lesson-plans" className="flex items-center gap-1 text-sm text-orange-600 hover:underline w-fit">
+        <ArrowRight size={14} />
+        חזרה לציוד
+      </Link>
       <div>
-        <h1 className="text-2xl font-bold">הקצאות שבועיות</h1>
+        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">הקצאות שבועיות</h2>
         <p className="text-sm text-muted-foreground">
           מבט-על על חלוקת מערכי השיעור בין המדריכות. לחצי על תא לעריכה.
         </p>
