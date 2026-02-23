@@ -122,7 +122,7 @@ export function PdfViewer({ pdfPath, lessonName }: PdfViewerProps) {
       {/* PDF Display Container */}
       <div
         className="bg-background rounded-2xl border border-border overflow-auto shadow-sm"
-        style={{ height: '160vh' }}
+        style={{ height: '80vh' }}
         onContextMenu={(e) => e.preventDefault()} // Disable right-click
       >
         <Document

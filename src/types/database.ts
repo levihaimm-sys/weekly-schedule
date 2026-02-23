@@ -35,6 +35,7 @@ export interface Lesson {
   start_time: string;
   status: string;
   change_notes: string | null;
+  is_one_time_change: boolean;
   created_at: string;
 }
 

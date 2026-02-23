@@ -126,6 +126,8 @@ export async function updateLesson(
     .single();
 
   const finalUpdates: Record<string, any> = { ...updates };
+  // Mark as one-time change so the sync mechanism won't reset this lesson
+  finalUpdates.is_one_time_change = true;
   if (lesson?.instructor_absence_request && !lesson?.instructor_request_handled) {
     finalUpdates.instructor_request_handled = true;
   }
@@ -207,12 +209,13 @@ export async function updateRecurringSchedule(
       .order("lesson_date", { ascending: false })
       .limit(1);
 
-    // Delete all future lessons for this recurring item
+    // Delete all future lessons for this recurring item (skip one-time changes)
     const { error: delError } = await supabase
       .from("lessons")
       .delete()
       .eq("recurring_item_id", recurringId)
-      .gte("lesson_date", nextSunday);
+      .gte("lesson_date", nextSunday)
+      .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
     if (delError) {
       return { error: "שגיאה במחיקת שיעורים עתידיים: " + delError.message };
@@ -269,7 +272,8 @@ export async function updateRecurringSchedule(
         .from("lessons")
         .update(lessonUpdates)
         .eq("recurring_item_id", recurringId)
-        .gte("lesson_date", nextSunday);
+        .gte("lesson_date", nextSunday)
+        .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
       if (lessonsError) {
         return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
@@ -381,18 +385,138 @@ export async function deleteRecurringScheduleItem(recurringItemId: string) {
 }
 
 /**
+ * Sync future lessons with the recurring schedule.
+ * Resets any future lesson (from next week onward) that drifted from
+ * its recurring schedule entry back to the master values.
+ * Lessons marked with is_one_time_change=true are preserved.
+ *
+ * Uses admin client to bypass RLS and ensure reliability.
+ */
+export async function syncFutureWeeksWithRecurring() {
+  const admin = createAdminClient();
+  const today = getTodayInIsrael();
+  const nextSunday = format(
+    startOfWeek(addDays(new Date(today), 7), { weekStartsOn: 0 }),
+    "yyyy-MM-dd"
+  );
+
+  // 1. Get all future lessons (from next week onward) that have a recurring_item_id
+  const { data: futureLessons, error: fetchError } = await admin
+    .from("lessons")
+    .select("id, recurring_item_id, instructor_id, start_time, lesson_date, location_id, is_one_time_change")
+    .not("recurring_item_id", "is", null)
+    .gte("lesson_date", nextSunday);
+
+  if (fetchError || !futureLessons || futureLessons.length === 0) return;
+
+  // 2. Get the recurring schedule for comparison
+  const { data: recurring } = await admin
+    .from("recurring_schedule")
+    .select("id, instructor_id, start_time, day_of_week, location_id");
+
+  if (!recurring || recurring.length === 0) return;
+
+  // Build lookup: recurring_id → master values
+  const recurringMap = new Map(
+    recurring.map((r) => [r.id, {
+      instructor_id: r.instructor_id,
+      start_time: r.start_time,
+      day_of_week: r.day_of_week,
+      location_id: r.location_id,
+    }])
+  );
+
+  // 3. Find lessons that differ from their recurring entry and need reset
+  // Skip lessons marked as one-time changes (intentional overrides)
+  const resetByRecurring = new Map<string, string[]>();
+  const wrongDayLessons: Array<{ id: string; recurring_item_id: string; lesson_date: string }> = [];
+
+  for (const lesson of futureLessons) {
+    // Skip lessons explicitly marked as one-time changes
+    if (lesson.is_one_time_change) continue;
+
+    const master = recurringMap.get(lesson.recurring_item_id!);
+    if (!master) continue;
+
+    // Check if the lesson is on the wrong day of the week
+    const lessonDayOfWeek = new Date(lesson.lesson_date + "T00:00:00").getDay();
+    if (lessonDayOfWeek !== master.day_of_week) {
+      wrongDayLessons.push({
+        id: lesson.id,
+        recurring_item_id: lesson.recurring_item_id!,
+        lesson_date: lesson.lesson_date,
+      });
+      continue; // Will be handled separately (delete + recreate)
+    }
+
+    const instructorDiffers = lesson.instructor_id !== master.instructor_id;
+    const timeDiffers =
+      lesson.start_time?.slice(0, 5) !== master.start_time?.slice(0, 5);
+
+    if (instructorDiffers || timeDiffers) {
+      const rid = lesson.recurring_item_id!;
+      if (!resetByRecurring.has(rid)) resetByRecurring.set(rid, []);
+      resetByRecurring.get(rid)!.push(lesson.id);
+    }
+  }
+
+  // 4a. Fix lessons on the wrong day: delete and recreate with correct date
+  if (wrongDayLessons.length > 0) {
+    const wrongIds = wrongDayLessons.map((l) => l.id);
+    await admin.from("lessons").delete().in("id", wrongIds);
+
+    // Recreate each lesson with the correct date (same week, correct day_of_week)
+    const recreated = wrongDayLessons.map((lesson) => {
+      const master = recurringMap.get(lesson.recurring_item_id)!;
+      const lessonWeekStart = startOfWeek(new Date(lesson.lesson_date + "T00:00:00"), { weekStartsOn: 0 });
+      const correctDate = addDays(lessonWeekStart, master.day_of_week);
+      return {
+        recurring_item_id: lesson.recurring_item_id,
+        location_id: master.location_id,
+        instructor_id: master.instructor_id,
+        lesson_date: format(correctDate, "yyyy-MM-dd"),
+        start_time: master.start_time,
+        status: "scheduled",
+      };
+    });
+
+    if (recreated.length > 0) {
+      await admin.from("lessons").insert(recreated);
+    }
+  }
+
+  // 4b. Reset each drifted lesson (correct day, wrong instructor/time) to master values
+  for (const [recurringId, lessonIds] of resetByRecurring) {
+    const master = recurringMap.get(recurringId);
+    if (!master) continue;
+
+    await admin
+      .from("lessons")
+      .update({
+        instructor_id: master.instructor_id,
+        start_time: master.start_time,
+      })
+      .in("id", lessonIds);
+  }
+
+  // 5. Clean up: clear is_one_time_change for past lessons (no longer relevant)
+  const thisWeekStart = format(
+    startOfWeek(new Date(today), { weekStartsOn: 0 }),
+    "yyyy-MM-dd"
+  );
+  await admin
+    .from("lessons")
+    .update({ is_one_time_change: false })
+    .eq("is_one_time_change", true)
+    .lt("lesson_date", thisWeekStart);
+}
+
+/**
  * Ensure lessons exist for the next N weeks (auto-replication).
  * Can be called from server components (skipRevalidate=true) or server actions.
  *
- * IMPORTANT - About Weekly Schedule:
- * - The organization's schedule repeats weekly (same lessons every week)
- * - This function creates lesson instances for multiple weeks ahead
- * - Example: If today is week 1, it creates lessons for weeks 1-8
- *
- * Duplicate Prevention:
- * - Checks if lessons exist in each week before creating (line 241: if count > 0, skip)
- * - Database constraint "unique_lesson_schedule" prevents same lesson appearing twice on same date
- * - If you see duplicates on SAME date, check if this function ran concurrently
+ * Also syncs future lessons with the recurring schedule to ensure
+ * temporary changes don't persist beyond their intended week.
  */
 export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) {
   const supabase = await createClient();
@@ -433,6 +557,9 @@ export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) 
     const { data } = await supabase.from("lessons").insert(lessons).select();
     created += data?.length ?? 0;
   }
+
+  // Sync future weeks with recurring schedule (reset drifted lessons)
+  await syncFutureWeeksWithRecurring();
 
   if (created > 0 && !skipRevalidate) {
     revalidatePath("/schedule/weekly");

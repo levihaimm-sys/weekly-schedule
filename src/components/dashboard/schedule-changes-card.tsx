@@ -165,9 +165,9 @@ export function ScheduleChangesCard({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#1C1917]">{lesson.location?.name}</p>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <span className="line-through text-red-400">{lesson.instructor?.full_name}</span>
+                      <span className="line-through text-red-400">{lesson.recurring_instructor?.full_name}</span>
                       <span>←</span>
-                      <span className="font-medium text-[#1C1917]">{lesson.recurring_instructor?.full_name}</span>
+                      <span className="font-medium text-[#1C1917]">{lesson.instructor?.full_name}</span>
                     </div>
                   </div>
                   <button

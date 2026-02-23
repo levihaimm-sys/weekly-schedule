@@ -120,7 +120,7 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
                 }`}
               >
                 <p className="text-base font-bold">{DAYS_SHORT[dayIndex]}</p>
-                <p className={`text-sm ${isSelected ? "text-[#1C1917]/70" : "text-muted-foreground"}`}>
+                <p className={`text-sm font-medium ${isSelected ? "text-[#1C1917]" : "text-[#1C1917]/80"}`}>
                   {format(date, "dd/MM")}
                 </p>
                 <p className={`text-sm ${isSelected ? "text-[#1C1917]/70" : "text-muted-foreground"}`}>
@@ -170,7 +170,7 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, cities, curre
                 <p className="text-sm font-bold text-[#1C1917]">
                   {DAYS_SHORT[dayIndex]}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm font-medium text-[#1C1917]">
                   {format(date, "dd/MM")}
                 </p>
               </div>

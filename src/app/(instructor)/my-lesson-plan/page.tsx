@@ -162,18 +162,40 @@ export default async function MyLessonPlanPage() {
         )}
       </div>
 
-      {/* Next Week Assignment */}
+      {/* Separator - Next Week */}
       {nextWeekAssignment && nextWeekPlan && (
-        <div className="rounded-3xl bg-card p-7 shadow-md space-y-4">
-          <h3 className="text-xl font-bold text-foreground">המערך הבא שלי</h3>
-          <p className="text-base font-semibold text-foreground/80">
-            {nextWeekPlan.name}
-          </p>
+        <>
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t-2 border-foreground/20" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-background px-6 py-2 text-xl font-bold text-foreground rounded-full border-2 border-foreground/20">
+                המערך לשבוע הבא
+              </span>
+            </div>
+          </div>
+
+          {/* Next Week Header */}
+          <div className="rounded-3xl bg-accent/60 p-7 shadow-md">
+            <h2 className="text-2xl font-bold text-foreground">
+              {nextWeekPlan.name}
+            </h2>
+          </div>
+
+          {/* Next Week PDF Viewer */}
+          {nextWeekPlan.pdf_path && (
+            <div>
+              <PdfViewerWrapper pdfPath={nextWeekPlan.pdf_path} lessonName={nextWeekPlan.name} />
+            </div>
+          )}
+
+          {/* Next Week Equipment */}
           {nextWeekPlan.equipment && nextWeekPlan.equipment.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Package className="w-5 h-5 text-foreground/70" />
-                <span className="text-base font-bold text-foreground">ציוד:</span>
+            <div className="rounded-3xl bg-card p-7 shadow-md">
+              <div className="flex items-center gap-3 mb-5">
+                <Package className="w-6 h-6 text-foreground" />
+                <h3 className="text-xl font-bold text-foreground">ציוד נדרש - שבוע הבא</h3>
               </div>
               <ul className="space-y-3">
                 {nextWeekPlan.equipment.map((item, idx) => (
@@ -185,7 +207,7 @@ export default async function MyLessonPlanPage() {
               </ul>
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

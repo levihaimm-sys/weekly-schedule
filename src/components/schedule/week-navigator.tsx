@@ -87,7 +87,7 @@ export function WeekNavigator({
         )}
       </div>
 
-      <span className="text-center text-xs font-semibold text-foreground/70">
+      <span className="text-center text-base font-semibold text-foreground/70">
         {relativeLabel}
       </span>
     </div>

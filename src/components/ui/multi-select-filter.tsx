@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { ChevronDown, X, Search } from "lucide-react";
 
 interface Option {
   value: string;
@@ -22,16 +22,21 @@ export function MultiSelectFilter({
   placeholder,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setSearch("");
       }
     }
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
+      // Focus search input when opened
+      setTimeout(() => searchInputRef.current?.focus(), 0);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [open]);
@@ -43,6 +48,12 @@ export function MultiSelectFilter({
       onChange([...selected, value]);
     }
   }
+
+  const filteredOptions = useMemo(() => {
+    if (!search.trim()) return options;
+    const term = search.trim().toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(term));
+  }, [options, search]);
 
   return (
     <div ref={ref} className="relative flex-1 min-w-0 sm:flex-none sm:min-w-[160px]">
@@ -76,21 +87,41 @@ export function MultiSelectFilter({
       </button>
 
       {open && (
-        <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-background shadow-lg max-h-60 overflow-y-auto">
-          {options.map((option) => (
-            <label
-              key={option.value}
-              className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(option.value)}
-                onChange={() => toggle(option.value)}
-                className="rounded accent-primary"
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
+        <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-background shadow-lg">
+          {/* Search input */}
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <Search size={14} className="text-muted-foreground shrink-0" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="חיפוש..."
+              className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-3 text-sm text-muted-foreground text-center">
+                לא נמצאו תוצאות
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(option.value)}
+                    onChange={() => toggle(option.value)}
+                    className="rounded accent-primary"
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

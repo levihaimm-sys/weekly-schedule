@@ -1,5 +1,5 @@
 import { getWeekLessons, getAllInstructors, getAllCities } from "@/lib/queries/schedule";
-import { ensureFutureWeeks } from "@/lib/actions/schedule";
+import { ensureFutureWeeks, syncFutureWeeksWithRecurring } from "@/lib/actions/schedule";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyGrid } from "@/components/schedule/weekly-grid";
@@ -14,7 +14,8 @@ export default async function WeeklySchedulePage({
 }) {
   const params = await searchParams;
 
-  // Auto-replicate 2 months ahead (fire-and-forget, don't block page render)
+  // Sync future lessons with recurring schedule, then create missing weeks
+  await syncFutureWeeksWithRecurring();
   ensureFutureWeeks(8, true);
 
   // Parse week from query or use current week

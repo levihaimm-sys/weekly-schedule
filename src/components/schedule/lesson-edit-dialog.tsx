@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2, Trash2 } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { X, Loader2, Trash2, Search, ChevronDown } from "lucide-react";
 import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
@@ -252,21 +252,11 @@ export function LessonEditDialog({
 
         <div className="mt-4 space-y-4">
           {/* Instructor */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">מדריך</label>
-            <select
-              value={instructorId}
-              onChange={(e) => setInstructorId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            >
-              <option value="">ללא מדריך</option>
-              {instructors.map((inst) => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <InstructorSearchSelect
+            instructors={instructors}
+            value={instructorId}
+            onChange={setInstructorId}
+          />
 
           {/* Time */}
           <div>
@@ -372,6 +362,103 @@ export function LessonEditDialog({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function InstructorSearchSelect({
+  instructors,
+  value,
+  onChange,
+}: {
+  instructors: { id: string; full_name: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return instructors;
+    const term = search.trim().toLowerCase();
+    return instructors.filter((i) => i.full_name.toLowerCase().includes(term));
+  }, [instructors, search]);
+
+  const selectedLabel = value
+    ? instructors.find((i) => i.id === value)?.full_name ?? ""
+    : "ללא מדריך";
+
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium">מדריך</label>
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+        >
+          <span className={value ? "" : "text-muted-foreground"}>{selectedLabel}</span>
+          <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+
+        {open && (
+          <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-background shadow-lg">
+            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+              <Search size={14} className="text-muted-foreground shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="חיפוש מדריך..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {/* No instructor option */}
+              <button
+                type="button"
+                onClick={() => { onChange(""); setOpen(false); setSearch(""); }}
+                className={`w-full px-3 py-2 text-sm text-right hover:bg-muted ${value === "" ? "bg-muted font-medium" : ""}`}
+              >
+                ללא מדריך
+              </button>
+              {filtered.length === 0 ? (
+                <div className="px-3 py-3 text-sm text-muted-foreground text-center">
+                  לא נמצאו מדריכים
+                </div>
+              ) : (
+                filtered.map((inst) => (
+                  <button
+                    key={inst.id}
+                    type="button"
+                    onClick={() => { onChange(inst.id); setOpen(false); setSearch(""); }}
+                    className={`w-full px-3 py-2 text-sm text-right hover:bg-muted ${value === inst.id ? "bg-muted font-medium" : ""}`}
+                  >
+                    {inst.full_name}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
