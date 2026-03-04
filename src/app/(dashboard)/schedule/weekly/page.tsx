@@ -1,5 +1,5 @@
 import { getWeekLessons, getAllInstructors, getAllCities, getAllLocations } from "@/lib/queries/schedule";
-import { ensureFutureWeeks, syncFutureWeeksWithRecurring } from "@/lib/actions/schedule";
+import { ensureFutureWeeks } from "@/lib/actions/schedule";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyGrid } from "@/components/schedule/weekly-grid";
@@ -14,8 +14,7 @@ export default async function WeeklySchedulePage({
 }) {
   const params = await searchParams;
 
-  // Sync future lessons with recurring schedule, then create missing weeks
-  await syncFutureWeeksWithRecurring();
+  // Create missing weeks and sync in background (non-blocking)
   ensureFutureWeeks(8, true);
 
   // Parse week from query or use current week
@@ -29,32 +28,17 @@ export default async function WeeklySchedulePage({
   const selectedInstructors = params.instructor ? params.instructor.split(",") : [];
   const changesOnly = params.changes === "1";
 
-  const filters = {
-    instructorIds: selectedInstructors.length > 0 ? selectedInstructors : undefined,
-    cities: selectedCities.length > 0 ? selectedCities : undefined,
-    changesOnly,
-  };
-
   const [lessons, instructors, cities, locations] = await Promise.all([
-    getWeekLessons(weekStartStr, weekEndStr, filters),
+    getWeekLessons(weekStartStr, weekEndStr),
     getAllInstructors(),
     getAllCities(),
     getAllLocations(),
   ]);
 
-  // Build 5-day grid (Sun-Thu)
+  // Build 5-day date list (Sun-Thu)
   const weekDates = Array.from({ length: 5 }, (_, i) =>
     format(addDays(weekStart, i), "yyyy-MM-dd")
   );
-  const byDay: Record<string, typeof lessons> = {};
-  for (const dateStr of weekDates) {
-    byDay[dateStr] = [];
-  }
-  for (const lesson of lessons) {
-    if (byDay[lesson.lesson_date]) {
-      byDay[lesson.lesson_date].push(lesson);
-    }
-  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -89,7 +73,7 @@ export default async function WeeklySchedulePage({
       ) : (
         <WeeklyGrid
           weekDates={weekDates}
-          lessonsByDay={byDay as any}
+          allLessons={lessons as any[]}
           instructors={instructors}
           locations={locations}
           cities={cities}

@@ -102,7 +102,7 @@ export function RecentChangesList({
                     )}
                     {lesson.status !== "scheduled" && (
                       <span
-                        className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                        className={`rounded-full px-1.5 py-0.5 text-sm font-medium ${
                           lesson.status === "completed"
                             ? "bg-green-50 text-green-700"
                             : lesson.status === "cancelled"

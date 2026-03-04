@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useMemo } from "react";
 import { DAYS_SHORT } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
@@ -35,25 +34,23 @@ export function ScheduleGrid({
   instructors,
   currentFilters,
 }: ScheduleGridProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [localCities, setLocalCities] = useState<string[]>(currentFilters.cities ?? []);
+  const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters.instructors ?? []);
 
-  function updateFilter(key: string, values: string[]) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (values.length > 0) {
-      params.set(key, values.join(","));
-    } else {
-      params.delete(key);
-    }
-    router.push(`/schedule?${params.toString()}`);
-  }
+  const filteredSchedule = useMemo(() => {
+    return schedule.filter((item) => {
+      if (localCities.length > 0 && !localCities.includes(item.location?.city ?? "")) return false;
+      if (localInstructors.length > 0 && !localInstructors.includes(item.instructor?.id ?? "")) return false;
+      return true;
+    });
+  }, [schedule, localCities, localInstructors]);
 
   // Group by day (Sun-Thu only, no Friday)
   const byDay: Record<number, ScheduleItem[]> = {};
   for (let d = 0; d < 5; d++) byDay[d] = [];
-  for (const item of schedule) {
+  for (const item of filteredSchedule) {
     if (byDay[item.day_of_week]) {
       byDay[item.day_of_week].push(item);
     }
@@ -65,14 +62,14 @@ export function ScheduleGrid({
       <div className="flex flex-wrap gap-2">
         <MultiSelectFilter
           options={cities.map((city) => ({ value: city, label: city }))}
-          selected={currentFilters.cities ?? []}
-          onChange={(values) => updateFilter("city", values)}
+          selected={localCities}
+          onChange={setLocalCities}
           placeholder="כל הערים"
         />
         <MultiSelectFilter
           options={instructors.map((inst) => ({ value: inst.id, label: inst.full_name }))}
-          selected={currentFilters.instructors ?? []}
-          onChange={(values) => updateFilter("instructor", values)}
+          selected={localInstructors}
+          onChange={setLocalInstructors}
           placeholder="כל המדריכים"
         />
       </div>
@@ -192,7 +189,7 @@ export function ScheduleGrid({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        סה&quot;כ {schedule.length} שיעורים קבועים
+        סה&quot;כ {filteredSchedule.length} שיעורים קבועים
       </p>
 
       {/* Edit Dialog */}

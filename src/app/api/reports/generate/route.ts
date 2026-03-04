@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { instructorId, month, year } = body;
+  const { instructorId, month, year, preview } = body;
 
   if (!instructorId || !month || !year) {
     return NextResponse.json(
@@ -97,6 +97,16 @@ export async function POST(request: NextRequest) {
     };
   });
 
+  // Return preview data as JSON if requested
+  if (preview) {
+    return NextResponse.json({
+      instructorName: instructor.full_name,
+      month,
+      year,
+      lessons: reportLessons,
+    });
+  }
+
   // Generate PDF
   const pdfBuffer = await renderToBuffer(
     React.createElement(MonthlyReportDocument, {
@@ -109,11 +119,14 @@ export async function POST(request: NextRequest) {
     }) as any
   );
 
-  // Return PDF as download
+  // Return PDF as download — use RFC 5987 encoding for Hebrew filename
+  const encodedFilename = encodeURIComponent(
+    `report-${instructor.full_name}-${month}-${year}.pdf`
+  );
   return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="report-${instructor.full_name}-${month}-${year}.pdf"`,
+      "Content-Disposition": `attachment; filename="report.pdf"; filename*=UTF-8''${encodedFilename}`,
     },
   });
   } catch (err: unknown) {

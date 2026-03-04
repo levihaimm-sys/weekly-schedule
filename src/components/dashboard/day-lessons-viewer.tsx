@@ -246,7 +246,7 @@ export function DayLessonsViewer({
                         </span>
                       )}
                       <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        className={`rounded-full px-2.5 py-1 text-sm font-medium ${
                           isConfirmed
                             ? "bg-green-100 text-green-700"
                             : lesson.status === "completed"

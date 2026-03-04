@@ -78,7 +78,9 @@ export async function getWeekLessons(
     query = query.in("instructor_id", filters.instructorIds);
   }
   if (filters?.changesOnly) {
-    query = query.eq("is_one_time_change", true);
+    query = query.or(
+      "is_one_time_change.eq.true,instructor_absence_request.eq.true,status.neq.scheduled"
+    );
   }
 
   const { data } = await query;

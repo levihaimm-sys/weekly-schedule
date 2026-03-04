@@ -15,8 +15,6 @@ export default async function SchedulePage({
 
   const [schedule, cities, instructors] = await Promise.all([
     getRecurringSchedule({
-      cities: selectedCities.length > 0 ? selectedCities : undefined,
-      instructorIds: selectedInstructors.length > 0 ? selectedInstructors : undefined,
       dayOfWeek: params.day ? parseInt(params.day) : undefined,
     }),
     getAllCities(),

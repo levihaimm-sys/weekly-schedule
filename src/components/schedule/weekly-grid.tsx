@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { DAYS_SHORT, LESSON_STATUS, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
-import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown } from "lucide-react";
-import { createManualLesson } from "@/lib/actions/schedule";
+import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
+import { createManualLesson, bulkUpdateLessons } from "@/lib/actions/schedule";
 
 interface WeeklyLesson {
   id: string;
@@ -34,22 +34,23 @@ interface WeeklyLesson {
 
 interface WeeklyGridProps {
   weekDates: string[];
-  lessonsByDay: Record<string, WeeklyLesson[]>;
+  allLessons: WeeklyLesson[];
   instructors: { id: string; full_name: string }[];
   locations: { id: string; name: string; city: string; street?: string | null }[];
   cities?: string[];
   currentFilters?: { cities?: string[]; instructors?: string[]; changesOnly?: boolean };
 }
 
-function getLessonBorderClass(lesson: WeeklyLesson) {
+function getLessonBorderClass(lesson: WeeklyLesson, selected?: boolean) {
+  if (selected) return "border-blue-400 bg-blue-50/60 ring-2 ring-blue-300";
   if (lesson.instructor_absence_request && lesson.instructor_request_handled) {
-    return "border-yellow-300 bg-yellow-50/50"; // handled
+    return "border-yellow-300 bg-yellow-50/50";
   }
   if (lesson.instructor_absence_request) {
-    return "border-red-300 bg-red-50/50"; // pending
+    return "border-red-300 bg-red-50/50";
   }
   if (!lesson.instructor) {
-    return "border-red-200 bg-red-50/30"; // no instructor
+    return "border-red-200 bg-red-50/30";
   }
   return "border-border bg-background";
 }
@@ -68,61 +69,250 @@ function RequestBadge({ lesson }: { lesson: WeeklyLesson }) {
   );
 }
 
-export function WeeklyGrid({ weekDates, lessonsByDay, instructors, locations, cities, currentFilters }: WeeklyGridProps) {
+export function WeeklyGrid({ weekDates, allLessons, instructors, locations, cities, currentFilters }: WeeklyGridProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [editingLesson, setEditingLesson] = useState<WeeklyLesson | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [addingToDate, setAddingToDate] = useState<string | null>(null);
+  const [localCities, setLocalCities] = useState<string[]>(currentFilters?.cities ?? []);
+  const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters?.instructors ?? []);
+  const [localChangesOnly, setLocalChangesOnly] = useState(currentFilters?.changesOnly ?? false);
 
-  function updateFilter(key: string, values: string[]) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (values.length > 0) {
-      params.set(key, values.join(","));
-    } else {
-      params.delete(key);
-    }
-    router.push(`/schedule/weekly?${params.toString()}`);
+  // Multi-select state
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"instructor" | "location" | "status" | "time" | "notes" | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkInstructorId, setBulkInstructorId] = useState("");
+  const [bulkLocationId, setBulkLocationId] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("cancelled");
+  const [bulkTime, setBulkTime] = useState("");
+  const [bulkNotes, setBulkNotes] = useState("");
+
+  function toggleSelectMode() {
+    setSelectMode((prev) => !prev);
+    setSelectedIds(new Set());
+    setBulkAction(null);
   }
 
-  function toggleChanges() {
-    const params = new URLSearchParams(searchParams.toString());
-    if (currentFilters?.changesOnly) {
-      params.delete("changes");
-    } else {
-      params.set("changes", "1");
-    }
-    router.push(`/schedule/weekly?${params.toString()}`);
+  function toggleLesson(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setBulkAction(null);
+  }
+
+  function toggleDay(dateStr: string) {
+    const dayIds = (lessonsByDay[dateStr] ?? []).map((l) => l.id);
+    const allSelected = dayIds.length > 0 && dayIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        dayIds.forEach((id) => next.delete(id));
+      } else {
+        dayIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  async function executeBulkAction() {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    const ids = Array.from(selectedIds);
+
+    let updates: Parameters<typeof bulkUpdateLessons>[1] = {};
+    if (bulkAction === "instructor") {
+      updates = { instructor_id: bulkInstructorId || null };
+    } else if (bulkAction === "location") {
+      if (!bulkLocationId) { setBulkLoading(false); return; }
+      updates = { location_id: bulkLocationId };
+    } else if (bulkAction === "status") {
+      updates = { status: bulkStatus };
+    } else if (bulkAction === "time") {
+      if (!bulkTime) { setBulkLoading(false); return; }
+      updates = { start_time: `${bulkTime}:00` };
+    } else if (bulkAction === "notes") {
+      updates = { change_notes: bulkNotes };
+    }
+
+    const result = await bulkUpdateLessons(ids, updates);
+    setBulkLoading(false);
+    if (!result.error) {
+      clearSelection();
+      setSelectMode(false);
+      router.refresh();
+    }
+  }
+
+  const lessonsByDay = useMemo(() => {
+    let filtered = allLessons;
+    if (localCities.length > 0) {
+      filtered = filtered.filter((l) => localCities.includes(l.location?.city ?? ""));
+    }
+    if (localInstructors.length > 0) {
+      filtered = filtered.filter((l) => localInstructors.includes(l.instructor?.id ?? ""));
+    }
+    if (localChangesOnly) {
+      filtered = filtered.filter(
+        (l) => l.change_notes || l.instructor_absence_request || l.status !== "scheduled"
+      );
+    }
+    const byDay: Record<string, WeeklyLesson[]> = {};
+    for (const dateStr of weekDates) byDay[dateStr] = [];
+    for (const lesson of filtered) {
+      if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
+    }
+    return byDay;
+  }, [allLessons, weekDates, localCities, localInstructors, localChangesOnly]);
 
   return (
     <>
       {/* Filters */}
       {cities && cities.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <MultiSelectFilter
             options={cities.map((city) => ({ value: city, label: city }))}
-            selected={currentFilters?.cities ?? []}
-            onChange={(values) => updateFilter("city", values)}
+            selected={localCities}
+            onChange={setLocalCities}
             placeholder="כל הערים"
           />
           <MultiSelectFilter
             options={instructors.map((inst) => ({ value: inst.id, label: inst.full_name }))}
-            selected={currentFilters?.instructors ?? []}
-            onChange={(values) => updateFilter("instructor", values)}
+            selected={localInstructors}
+            onChange={setLocalInstructors}
             placeholder="כל המדריכים"
           />
           <button
             type="button"
-            onClick={toggleChanges}
+            onClick={() => setLocalChangesOnly((prev) => !prev)}
             className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              currentFilters?.changesOnly
+              localChangesOnly
                 ? "border-orange-300 bg-orange-50 text-orange-700"
                 : "border-border bg-background hover:bg-muted"
             }`}
           >
             שינויים
           </button>
+          {/* Multi-select toggle */}
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectMode
+                ? "border-blue-400 bg-blue-50 text-blue-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            <MousePointerClick size={14} />
+            בחירה מרובה
+          </button>
+        </div>
+      )}
+
+      {/* Bulk action bar */}
+      {selectMode && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-blue-700">
+            {selectedIds.size} שיעורים נבחרו
+          </span>
+          <div className="flex flex-wrap gap-2 mr-auto">
+            {selectedIds.size > 0 && (
+              <>
+                {(["instructor", "location", "status", "time", "notes"] as const).map((action) => (
+                  <button
+                    key={action}
+                    onClick={() => setBulkAction(action)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      bulkAction === action
+                        ? "border-blue-400 bg-blue-100 text-blue-700"
+                        : "border-border bg-background hover:bg-muted"
+                    }`}
+                  >
+                    {{ instructor: "שנה מדריך", location: "שנה מיקום", status: "שנה סטטוס", time: "שנה שעה", notes: "הערות" }[action]}
+                  </button>
+                ))}
+                <button
+                  onClick={clearSelection}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                >
+                  נקה בחירה
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Bulk action controls */}
+          {bulkAction === "instructor" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <div className="flex-1">
+                <InstructorSearchSelect instructors={instructors} value={bulkInstructorId} onChange={setBulkInstructorId} />
+              </div>
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "location" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <div className="flex-1">
+                <LocationSearchSelect locations={locations} value={bulkLocationId} onChange={setBulkLocationId} />
+              </div>
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} disabled={!bulkLocationId} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "status" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="scheduled">מתוכנן</option>
+                <option value="completed">הושלם</option>
+                <option value="cancelled">בוטל</option>
+                <option value="substitute">מחליף</option>
+              </select>
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "time" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="time"
+                value={bulkTime}
+                onChange={(e) => setBulkTime(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} disabled={!bulkTime} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "notes" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="text"
+                value={bulkNotes}
+                onChange={(e) => setBulkNotes(e.target.value)}
+                placeholder="הערה לשיעורים..."
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
         </div>
       )}
 
@@ -159,8 +349,22 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, locations, ci
           {(() => {
             const dateStr = weekDates[selectedDay];
             const dayLessons = smartSortLessons(lessonsByDay[dateStr] ?? []);
+            const allDaySelected = dayLessons.length > 0 && dayLessons.every((l) => selectedIds.has(l.id));
             return (
               <>
+                {selectMode && dayLessons.length > 0 && (
+                  <button
+                    onClick={() => toggleDay(dateStr)}
+                    className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      allDaySelected
+                        ? "border-blue-400 bg-blue-50 text-blue-700"
+                        : "border-border bg-background hover:bg-muted"
+                    }`}
+                  >
+                    {allDaySelected ? <CheckSquare size={15} /> : <Square size={15} />}
+                    {allDaySelected ? "בטל בחירת יום" : "בחר את כל היום"}
+                  </button>
+                )}
                 {dayLessons.length === 0 ? (
                   <div className="py-8 text-center text-muted-foreground">
                     אין שיעורים ליום זה
@@ -169,12 +373,18 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, locations, ci
                   dayLessons.map((lesson, index) => {
                     const prevLesson = index > 0 ? dayLessons[index - 1] : null;
                     const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+                    const isSelected = selectedIds.has(lesson.id);
                     return (
                       <div key={lesson.id}>
                         {showSeparator && <div className="border-t-[3px] border-green-500 mb-2" />}
                         <MobileLessonCard
                           lesson={lesson}
-                          onEdit={() => setEditingLesson(lesson)}
+                          onEdit={() => {
+                            if (selectMode) toggleLesson(lesson.id);
+                            else setEditingLesson(lesson);
+                          }}
+                          selectMode={selectMode}
+                          selected={isSelected}
                         />
                       </div>
                     );
@@ -207,13 +417,28 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, locations, ci
                 <p className="text-sm font-medium text-[#1C1917]">
                   {format(date, "dd/MM")}
                 </p>
-                <button
-                  onClick={() => setAddingToDate(dateStr)}
-                  title="הוסף שיעור"
-                  className="absolute top-1 left-1 rounded p-0.5 text-[#1C1917]/50 hover:bg-black/10 hover:text-[#1C1917] transition-colors"
-                >
-                  <Plus size={15} />
-                </button>
+                {!selectMode && (
+                  <button
+                    onClick={() => setAddingToDate(dateStr)}
+                    title="הוסף שיעור"
+                    className="absolute top-1 left-1 rounded p-0.5 text-[#1C1917]/50 hover:bg-black/10 hover:text-[#1C1917] transition-colors"
+                  >
+                    <Plus size={15} />
+                  </button>
+                )}
+                {selectMode && (lessonsByDay[dateStr] ?? []).length > 0 && (() => {
+                  const dayIds = (lessonsByDay[dateStr] ?? []).map((l) => l.id);
+                  const allSelected = dayIds.every((id) => selectedIds.has(id));
+                  return (
+                    <button
+                      onClick={() => toggleDay(dateStr)}
+                      title={allSelected ? "בטל בחירת יום" : "בחר יום"}
+                      className="absolute top-1 left-1 rounded p-0.5 text-blue-600 hover:bg-black/10 transition-colors"
+                    >
+                      {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
+                    </button>
+                  );
+                })()}
               </div>
               <div className="space-y-2">
                 {dayLessons.length === 0 ? (
@@ -227,28 +452,39 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, locations, ci
                   dayLessons.map((lesson, index) => {
                     const prevLesson = index > 0 ? dayLessons[index - 1] : null;
                     const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+                    const isSelected = selectedIds.has(lesson.id);
                     return (
                       <div key={lesson.id}>
                         {showSeparator && <div className="border-t-[3px] border-green-500 mb-2" />}
                         <div
-                          onClick={() => setEditingLesson(lesson)}
-                          className={`cursor-pointer rounded-lg border p-3 transition-shadow hover:shadow-md hover:border-secondary/30 ${getLessonBorderClass(lesson)}`}
+                          onClick={() => {
+                            if (selectMode) toggleLesson(lesson.id);
+                            else setEditingLesson(lesson);
+                          }}
+                          className={`cursor-pointer rounded-lg border p-3 transition-shadow hover:shadow-md hover:border-secondary/30 ${getLessonBorderClass(lesson, isSelected)}`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-bold text-[#1C1917]">
                               {formatTime(lesson.start_time)}
                             </span>
-                            <span
-                              className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                lesson.status === "completed"
-                                  ? "bg-green-50 text-green-700"
-                                  : lesson.status === "cancelled"
-                                    ? "bg-red-50 text-red-700"
-                                    : "bg-blue-50 text-blue-700"
-                              }`}
-                            >
-                              {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                  lesson.status === "completed"
+                                    ? "bg-green-50 text-green-700"
+                                    : lesson.status === "cancelled"
+                                      ? "bg-red-50 text-red-700"
+                                      : "bg-blue-50 text-blue-700"
+                                }`}
+                              >
+                                {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
+                              </span>
+                              {selectMode && (
+                                isSelected
+                                  ? <CheckSquare size={14} className="text-blue-600 shrink-0" />
+                                  : <Square size={14} className="text-muted-foreground shrink-0" />
+                              )}
+                            </div>
                           </div>
                           <p className="mt-1 text-sm font-bold text-[#1C1917]">
                             {lesson.instructor?.full_name ?? (
@@ -303,17 +539,42 @@ export function WeeklyGrid({ weekDates, lessonsByDay, instructors, locations, ci
   );
 }
 
+function BulkApplyButton({ loading, onClick, disabled }: { loading: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading || disabled}
+      className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shrink-0"
+    >
+      {loading && <Loader2 size={13} className="animate-spin" />}
+      החל
+    </button>
+  );
+}
+
+function BulkCancelButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
+      <X size={14} />
+    </button>
+  );
+}
+
 function MobileLessonCard({
   lesson,
   onEdit,
+  selectMode,
+  selected,
 }: {
   lesson: WeeklyLesson;
   onEdit: () => void;
+  selectMode?: boolean;
+  selected?: boolean;
 }) {
   return (
     <div
       onClick={onEdit}
-      className={`cursor-pointer rounded-lg border p-4 transition-shadow active:shadow-md ${getLessonBorderClass(lesson)}`}
+      className={`cursor-pointer rounded-lg border p-4 transition-shadow active:shadow-md ${getLessonBorderClass(lesson, selected)}`}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -333,17 +594,24 @@ function MobileLessonCard({
             {lesson.location?.street && `, ${lesson.location.street}`}
           </p>
         </div>
-        <span
-          className={`self-start rounded-full px-2 py-0.5 text-[10px] font-medium ${
-            lesson.status === "completed"
-              ? "bg-green-50 text-green-700"
-              : lesson.status === "cancelled"
-                ? "bg-red-50 text-red-700"
-                : "bg-blue-50 text-blue-700"
-          }`}
-        >
-          {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
-        </span>
+        <div className="flex items-center gap-2 self-start">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              lesson.status === "completed"
+                ? "bg-green-50 text-green-700"
+                : lesson.status === "cancelled"
+                  ? "bg-red-50 text-red-700"
+                  : "bg-blue-50 text-blue-700"
+            }`}
+          >
+            {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
+          </span>
+          {selectMode && (
+            selected
+              ? <CheckSquare size={18} className="text-blue-600 shrink-0" />
+              : <Square size={18} className="text-muted-foreground shrink-0" />
+          )}
+        </div>
       </div>
       <RequestBadge lesson={lesson} />
       {lesson.change_notes && (

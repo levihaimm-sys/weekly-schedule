@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { LocationReportDocument } from "@/lib/pdf/report-template";
+import { CityReportDocument } from "@/lib/pdf/report-template";
 import { NextRequest, NextResponse } from "next/server";
 import React from "react";
 
@@ -14,46 +14,38 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { locationId, month, year } = body;
+    const { city, month, year, preview } = body;
 
-    if (!locationId || !month || !year) {
-      return NextResponse.json({ error: "Missing locationId, month, or year" }, { status: 400 });
-    }
-
-    const { data: location } = await supabase
-      .from("locations")
-      .select("id, name, city")
-      .eq("id", locationId)
-      .single();
-
-    if (!location) {
-      return NextResponse.json({ error: "Location not found" }, { status: 404 });
+    if (!city || !month || !year) {
+      return NextResponse.json({ error: "Missing city, month, or year" }, { status: 400 });
     }
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, "0")}-${lastDay}`;
 
-    const { data: lessons } = await supabase
+    const { data: allLessons } = await supabase
       .from("lessons")
       .select(`
         id,
         lesson_date,
         start_time,
         status,
-        instructor:instructors!lessons_instructor_id_fkey(full_name)
+        instructor:instructors!lessons_instructor_id_fkey(full_name),
+        location:locations!lessons_location_id_fkey(name, city)
       `)
-      .eq("location_id", locationId)
       .gte("lesson_date", startDate)
       .lte("lesson_date", endDate)
       .order("lesson_date")
       .order("start_time");
 
-    if (!lessons || lessons.length === 0) {
+    const lessons = (allLessons ?? []).filter((l: any) => l.location?.city === city);
+
+    if (lessons.length === 0) {
       return NextResponse.json({ error: "אין שיעורים לתקופה זו" }, { status: 404 });
     }
 
-    const lessonIds = lessons.map((l) => l.id);
+    const lessonIds = lessons.map((l: any) => l.id);
     const { data: signatures } = await supabase
       .from("signatures")
       .select("lesson_id, signer_name, signer_role, signature_url")
@@ -68,6 +60,7 @@ export async function POST(request: NextRequest) {
         date: lessonDate.toLocaleDateString("he-IL"),
         dayOfWeek: lessonDate.getDay(),
         time: lesson.start_time.slice(0, 5),
+        locationName: lesson.location?.name ?? "—",
         instructorName: lesson.instructor?.full_name ?? "—",
         status: lesson.status,
         signatureUrl: sig?.signature_url ?? null,
@@ -76,22 +69,21 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    if (preview) {
+      return NextResponse.json({ city, month, year, lessons: reportLessons });
+    }
+
     const pdfBuffer = await renderToBuffer(
-      React.createElement(LocationReportDocument, {
-        data: {
-          locationName: location.name,
-          city: location.city,
-          month,
-          year,
-          lessons: reportLessons,
-        },
+      React.createElement(CityReportDocument, {
+        data: { city, month, year, lessons: reportLessons },
       }) as any
     );
 
+    const encodedFilename = encodeURIComponent(`report-${city}-${month}-${year}.pdf`);
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="report-${location.name}-${month}-${year}.pdf"`,
+        "Content-Disposition": `attachment; filename="report.pdf"; filename*=UTF-8''${encodedFilename}`,
       },
     });
   } catch (err: unknown) {

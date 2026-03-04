@@ -674,6 +674,39 @@ export async function unmarkChangeAsSeen(lessonId: string) {
 }
 
 /**
+ * Bulk update multiple lessons at once (for multi-select actions).
+ */
+export async function bulkUpdateLessons(
+  lessonIds: string[],
+  updates: {
+    instructor_id?: string | null;
+    status?: string;
+    change_notes?: string;
+    location_id?: string;
+    start_time?: string;
+  }
+) {
+  const supabase = await createClient();
+
+  const finalUpdates: Record<string, any> = { ...updates, is_one_time_change: true };
+
+  const { error } = await supabase
+    .from("lessons")
+    .update(finalUpdates)
+    .in("id", lessonIds);
+
+  if (error) {
+    return { error: "שגיאה בעדכון שיעורים: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
+/**
  * Admin clears an instructor request completely (removes it).
  */
 export async function clearInstructorRequest(lessonId: string) {

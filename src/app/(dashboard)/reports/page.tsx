@@ -1,12 +1,12 @@
-import { getAllInstructors, getAllLocations } from "@/lib/queries/schedule";
+import { getAllInstructors, getAllCities } from "@/lib/queries/schedule";
 import { FileText, MapPin } from "lucide-react";
 import { ReportForm } from "@/components/reports/report-form";
 import { LocationReportForm } from "@/components/reports/location-report-form";
 
 export default async function ReportsPage() {
-  const [instructors, locations] = await Promise.all([
+  const [instructors, cities] = await Promise.all([
     getAllInstructors(),
-    getAllLocations(),
+    getAllCities(),
   ]);
 
   return (
@@ -24,9 +24,9 @@ export default async function ReportsPage() {
       <div className="rounded-xl border border-border bg-background p-6">
         <div className="mb-4 flex items-center gap-3">
           <MapPin className="text-blue-500" size={24} />
-          <h3 className="text-lg font-semibold">דוח לקוח (גן)</h3>
+          <h3 className="text-lg font-semibold">דוח עיר</h3>
         </div>
-        <LocationReportForm locations={locations} />
+        <LocationReportForm cities={cities} />
       </div>
     </div>
   );
