@@ -1,15 +1,16 @@
 import { getAllTasks, getAdminProfiles } from "@/lib/queries/tasks";
-import { getUpcomingUnassignedLessons, getUpcomingScheduleChanges } from "@/lib/queries/dashboard";
+import { getUpcomingUnassignedLessons, getUpcomingScheduleChanges, getInstructorRequests } from "@/lib/queries/dashboard";
 import { getAllInstructors } from "@/lib/queries/schedule";
 import { TaskManager } from "@/components/tasks/task-manager";
-import { UnassignedLessonsCard } from "@/components/dashboard/unassigned-lessons-card";
+import { UrgentAlertsCard } from "@/components/dashboard/unassigned-lessons-card";
 import { ScheduleChangesCard } from "@/components/dashboard/schedule-changes-card";
 
 export default async function DashboardPage() {
-  const [tasks, admins, unassigned, scheduleChanges, instructors] = await Promise.all([
+  const [tasks, admins, unassigned, absenceRequests, scheduleChanges, instructors] = await Promise.all([
     getAllTasks(),
     getAdminProfiles(),
     getUpcomingUnassignedLessons(),
+    getInstructorRequests(),
     getUpcomingScheduleChanges(),
     getAllInstructors(),
   ]);
@@ -19,8 +20,8 @@ export default async function DashboardPage() {
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">דשבורד</h2>
       <TaskManager tasks={tasks} admins={admins} />
 
-      <UnassignedLessonsCard lessons={unassigned} instructors={instructors} />
-      <ScheduleChangesCard changes={scheduleChanges} instructors={instructors} />
+      <UrgentAlertsCard lessons={unassigned as any} absenceRequests={absenceRequests as any} instructors={instructors} />
+      <ScheduleChangesCard changes={scheduleChanges as any} instructors={instructors} />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { href: "/lesson-plans", label: "ציוד", icon: Package },
   { href: "/lesson-plans/manage", label: "ניהול מערכי שיעור", icon: BookOpen },
   { href: "/reports", label: "דוחות", icon: FileText },
+  { href: "/schedule/weekly-overview", label: "תצוגת פלאפון שבועית", icon: LayoutGrid },
 ];
 
 export function AdminSidebar() {
@@ -91,7 +93,11 @@ export function AdminSidebar() {
                     pathname === "/equipment-distribution"
                   : item.href === "/lesson-plans/manage"
                     ? pathname.startsWith("/lesson-plans/manage")
-                    : pathname === item.href || pathname.startsWith(item.href + "/");
+                    : item.href === "/schedule/weekly-overview"
+                      ? pathname.startsWith("/schedule/weekly-overview")
+                      : item.href === "/schedule/weekly"
+                        ? pathname.startsWith("/schedule/weekly") && !pathname.startsWith("/schedule/weekly-overview")
+                        : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}

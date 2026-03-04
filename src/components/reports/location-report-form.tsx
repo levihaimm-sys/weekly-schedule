@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
-interface ReportFormProps {
-  instructors: { id: string; full_name: string }[];
+interface LocationReportFormProps {
+  locations: { id: string; name: string; city: string }[];
 }
 
 const MONTHS = [
@@ -12,7 +12,7 @@ const MONTHS = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
-export function ReportForm({ instructors }: ReportFormProps) {
+export function LocationReportForm({ locations }: LocationReportFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,21 +25,21 @@ export function ReportForm({ instructors }: ReportFormProps) {
     setError(null);
 
     const formData = new FormData(e.currentTarget);
-    const instructorId = formData.get("instructor") as string;
+    const locationId = formData.get("location") as string;
     const month = parseInt(formData.get("month") as string);
     const year = parseInt(formData.get("year") as string);
 
-    if (!instructorId) {
-      setError("בחר מדריך");
+    if (!locationId) {
+      setError("בחר גן / לקוח");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch("/api/reports/generate", {
+      const response = await fetch("/api/reports/generate-location", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instructorId, month, year }),
+        body: JSON.stringify({ locationId, month, year }),
       });
 
       if (!response.ok) {
@@ -55,12 +55,11 @@ export function ReportForm({ instructors }: ReportFormProps) {
         return;
       }
 
-      // Download the PDF
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `report-${month}-${year}.pdf`;
+      a.download = `report-location-${month}-${year}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -76,16 +75,16 @@ export function ReportForm({ instructors }: ReportFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-sm font-medium">מדריך</label>
+          <label className="mb-1 block text-sm font-medium">גן / לקוח</label>
           <select
-            name="instructor"
+            name="location"
             className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             required
           >
-            <option value="">בחר מדריך...</option>
-            {instructors.map((inst) => (
-              <option key={inst.id} value={inst.id}>
-                {inst.full_name}
+            <option value="">בחר גן...</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name} — {loc.city}
               </option>
             ))}
           </select>
@@ -98,9 +97,7 @@ export function ReportForm({ instructors }: ReportFormProps) {
             className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
           >
             {MONTHS.map((name, i) => (
-              <option key={i} value={i + 1}>
-                {name}
-              </option>
+              <option key={i} value={i + 1}>{name}</option>
             ))}
           </select>
         </div>
@@ -124,11 +121,7 @@ export function ReportForm({ instructors }: ReportFormProps) {
         disabled={loading}
         className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
-        {loading ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : (
-          <Download size={16} />
-        )}
+        {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
         {loading ? "מייצר דוח..." : "צור והורד PDF"}
       </button>
     </form>

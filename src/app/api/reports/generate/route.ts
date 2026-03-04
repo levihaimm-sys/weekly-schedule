@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import React from "react";
 
 export async function POST(request: NextRequest) {
+  try {
   const supabase = await createClient();
 
   const {
@@ -115,4 +116,9 @@ export async function POST(request: NextRequest) {
       "Content-Disposition": `attachment; filename="report-${instructor.full_name}-${month}-${year}.pdf"`,
     },
   });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "שגיאה לא ידועה";
+    console.error("[reports/generate] error:", err);
+    return NextResponse.json({ error: `שגיאה ביצירת הדוח: ${message}` }, { status: 500 });
+  }
 }

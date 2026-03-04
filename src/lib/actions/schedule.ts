@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format } from "date-fns";
 import { getTodayInIsrael } from "@/lib/utils/date";
 
+
 /**
  * Replicates the master schedule (recurring_schedule) into concrete
  * lesson instances for a given week. Idempotent - skips if lessons
@@ -596,6 +597,41 @@ export async function submitInstructorRequest(
   revalidatePath("/dashboard");
   revalidatePath("/my-schedule");
   revalidatePath("/confirm-lessons");
+
+  return { success: true };
+}
+
+/**
+ * Create a one-time manual lesson (not linked to recurring schedule).
+ */
+export async function createManualLesson(data: {
+  instructor_id?: string | null;
+  location_id: string;
+  lesson_date: string;
+  start_time: string;
+  status?: string;
+  change_notes?: string;
+}) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("lessons").insert({
+    instructor_id: data.instructor_id || null,
+    location_id: data.location_id,
+    lesson_date: data.lesson_date,
+    start_time: data.start_time.length === 5 ? `${data.start_time}:00` : data.start_time,
+    status: data.status ?? "scheduled",
+    change_notes: data.change_notes || null,
+    is_one_time_change: true,
+    recurring_item_id: null,
+  });
+
+  if (error) {
+    return { error: "שגיאה ביצירת השיעור: " + error.message };
+  }
+
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/dashboard");
 
   return { success: true };
 }

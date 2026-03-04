@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { DAYS_HEBREW, DAYS_SHORT, LESSON_STATUS, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
+import { DAYS_HEBREW, DAYS_SHORT, LESSON_STATUS } from "@/lib/utils/constants";
 import { formatTime, formatDateShort, getTodayInIsrael, getNowInIsrael } from "@/lib/utils/date";
 import { MapPin, Clock } from "lucide-react";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { redirect } from "next/navigation";
+import { AbsenceRequestButton } from "@/components/instructor/absence-request-button";
 
 export const dynamic = "force-dynamic";
 
@@ -167,9 +168,6 @@ export default async function MySchedulePage({
                 <div className="space-y-3">
                   {dayLessons.map((lesson: any) => {
                     const hasRequest = lesson.instructor_absence_request;
-                    const requestType = lesson.instructor_request_type as
-                      | keyof typeof INSTRUCTOR_REQUEST_TYPES
-                      | null;
                     const isConfirmed = !!sigMap[lesson.id];
 
                     return (
@@ -235,21 +233,12 @@ export default async function MySchedulePage({
                             </div>
                           )}
 
-                          {hasRequest && (
-                            <div className="mt-3 rounded-xl bg-warning/10 px-3 py-2">
-                              <span className="text-sm font-bold text-foreground">
-                                📢 {requestType
-                                  ? INSTRUCTOR_REQUEST_TYPES[requestType]
-                                  : "בקשה"}{" "}
-                                נשלחה
-                              </span>
-                              {lesson.instructor_notes && (
-                                <span className="text-sm font-medium text-foreground/80">
-                                  {" "}- {lesson.instructor_notes}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <AbsenceRequestButton
+                            lessonId={lesson.id}
+                            hasRequest={hasRequest}
+                            requestType={lesson.instructor_request_type}
+                            notes={lesson.instructor_notes}
+                          />
                         </div>
                       </div>
                     );

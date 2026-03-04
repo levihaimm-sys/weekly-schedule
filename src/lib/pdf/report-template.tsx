@@ -148,6 +148,100 @@ function statusToHebrew(status: string) {
   return map[status] ?? status;
 }
 
+// ─── Location Report ────────────────────────────────────────────────────────
+
+interface LocationLessonRow {
+  date: string;
+  dayOfWeek: number;
+  time: string;
+  instructorName: string;
+  status: string;
+  signatureUrl?: string | null;
+  signerName?: string | null;
+  signerRole?: string | null;
+}
+
+interface LocationReportData {
+  locationName: string;
+  city: string;
+  month: number;
+  year: number;
+  lessons: LocationLessonRow[];
+}
+
+export function LocationReportDocument({ data }: { data: LocationReportData }) {
+  const completed = data.lessons.filter((l) => l.status === "completed").length;
+  const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.title}>חיים בתנועה - דוח לקוח חודשי</Text>
+          <Text style={styles.subtitle}>
+            {data.locationName} — {data.city} | {MONTHS_HEBREW[data.month - 1]} {data.year}
+          </Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.table}>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderText, styles.colDate]}>תאריך</Text>
+            <Text style={[styles.tableHeaderText, styles.colDay]}>יום</Text>
+            <Text style={[styles.tableHeaderText, styles.colTime]}>שעה</Text>
+            <Text style={[styles.tableHeaderText, { width: "30%" }]}>מדריך</Text>
+            <Text style={[styles.tableHeaderText, styles.colStatus]}>סטטוס</Text>
+            <Text style={[styles.tableHeaderText, styles.colSignature]}>אישור</Text>
+          </View>
+
+          {data.lessons.map((lesson, i) => (
+            <View
+              key={i}
+              style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}
+            >
+              <Text style={[styles.cell, styles.colDate]}>{lesson.date}</Text>
+              <Text style={[styles.cell, styles.colDay]}>{HEBREW_DAYS[lesson.dayOfWeek]}</Text>
+              <Text style={[styles.cell, styles.colTime]}>{lesson.time}</Text>
+              <Text style={[styles.cell, { width: "30%" }]}>{lesson.instructorName}</Text>
+              <Text style={[styles.cell, styles.colStatus]}>{statusToHebrew(lesson.status)}</Text>
+              <View style={[styles.colSignature, { alignItems: "center" }]}>
+                {lesson.signerRole === "teacher" ? (
+                  <View style={{ alignItems: "center" }}>
+                    {lesson.signatureUrl ? (
+                      <Image src={lesson.signatureUrl} style={styles.signatureImage} />
+                    ) : null}
+                    <Text style={[styles.cell, { fontSize: 7, color: "#666" }]}>
+                      {`גננת: ${lesson.signerName}`}
+                    </Text>
+                  </View>
+                ) : lesson.signerRole === "instructor" ? (
+                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"\u2713"} מדריכה</Text>
+                ) : (
+                  <Text style={[styles.cell, { color: "#999" }]}>—</Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.summary}>
+          <Text style={styles.summaryText}>
+            סה&quot;כ שיעורים: {data.lessons.length} | הושלמו: {completed} | בוטלו: {cancelled}
+          </Text>
+        </View>
+
+        <Text style={styles.footer}>
+          הופק אוטומטית על ידי מערכת חיים בתנועה |{" "}
+          {new Date().toLocaleDateString("he-IL")}
+        </Text>
+      </Page>
+    </Document>
+  );
+}
+
+// ─── Instructor Report ───────────────────────────────────────────────────────
+
 export function MonthlyReportDocument({ data }: { data: ReportData }) {
   const completed = data.lessons.filter((l) => l.status === "completed").length;
   const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;

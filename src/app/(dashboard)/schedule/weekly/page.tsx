@@ -1,4 +1,4 @@
-import { getWeekLessons, getAllInstructors, getAllCities } from "@/lib/queries/schedule";
+import { getWeekLessons, getAllInstructors, getAllCities, getAllLocations } from "@/lib/queries/schedule";
 import { ensureFutureWeeks, syncFutureWeeksWithRecurring } from "@/lib/actions/schedule";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function WeeklySchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; city?: string; instructor?: string }>;
+  searchParams: Promise<{ week?: string; city?: string; instructor?: string; changes?: string }>;
 }) {
   const params = await searchParams;
 
@@ -27,16 +27,19 @@ export default async function WeeklySchedulePage({
 
   const selectedCities = params.city ? params.city.split(",") : [];
   const selectedInstructors = params.instructor ? params.instructor.split(",") : [];
+  const changesOnly = params.changes === "1";
 
   const filters = {
     instructorIds: selectedInstructors.length > 0 ? selectedInstructors : undefined,
     cities: selectedCities.length > 0 ? selectedCities : undefined,
+    changesOnly,
   };
 
-  const [lessons, instructors, cities] = await Promise.all([
+  const [lessons, instructors, cities, locations] = await Promise.all([
     getWeekLessons(weekStartStr, weekEndStr, filters),
     getAllInstructors(),
     getAllCities(),
+    getAllLocations(),
   ]);
 
   // Build 5-day grid (Sun-Thu)
@@ -88,8 +91,9 @@ export default async function WeeklySchedulePage({
           weekDates={weekDates}
           lessonsByDay={byDay as any}
           instructors={instructors}
+          locations={locations}
           cities={cities}
-          currentFilters={{ cities: selectedCities, instructors: selectedInstructors }}
+          currentFilters={{ cities: selectedCities, instructors: selectedInstructors, changesOnly }}
         />
       )}
 

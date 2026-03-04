@@ -94,6 +94,35 @@ export async function updateTask(taskId: string, formData: FormData) {
   return { success: true };
 }
 
+/**
+ * Auto-create an urgent task (used by system triggers).
+ * Assigns to the first admin profile found.
+ */
+export async function createAutoTask(description: string, dueDate?: string) {
+  const supabase = await createClient();
+
+  // Find first admin to assign to (also used as created_by)
+  const { data: admin } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin")
+    .limit(1)
+    .single();
+
+  if (!admin) return;
+
+  await supabase.from("tasks").insert({
+    description,
+    urgency: "urgent",
+    assigned_to: admin.id,
+    created_by: admin.id,
+    due_date: dueDate ?? null,
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath("/dashboard");
+}
+
 export async function deleteTask(taskId: string) {
   const supabase = await createClient();
 

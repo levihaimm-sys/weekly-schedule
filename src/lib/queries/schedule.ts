@@ -45,7 +45,7 @@ export async function getRecurringSchedule(filters?: {
 export async function getWeekLessons(
   weekStart: string,
   weekEnd: string,
-  filters?: { instructorIds?: string[]; cities?: string[] }
+  filters?: { instructorIds?: string[]; cities?: string[]; changesOnly?: boolean }
 ) {
   const supabase = await createClient();
 
@@ -76,6 +76,9 @@ export async function getWeekLessons(
 
   if (filters?.instructorIds && filters.instructorIds.length > 0) {
     query = query.in("instructor_id", filters.instructorIds);
+  }
+  if (filters?.changesOnly) {
+    query = query.eq("is_one_time_change", true);
   }
 
   const { data } = await query;
@@ -135,6 +138,18 @@ export async function getAllCities() {
 
   const unique = [...new Set(data?.map((d) => d.city).filter(Boolean))];
   return unique;
+}
+
+export async function getAllLocations() {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("locations")
+    .select("id, name, city, street")
+    .order("city")
+    .order("name");
+
+  return data ?? [];
 }
 
 export async function getAllInstructors() {

@@ -46,10 +46,17 @@ export function InstructorReportButton({ lessonId }: { lessonId: string }) {
   const [isPending, startTransition] = useTransition();
   const [notes, setNotes] = useState("");
   const [optimisticDone, setOptimisticDone] = useOptimistic(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   function handleSubmit() {
     if (!selectedType) return;
-    
+
+    if (selectedType === "absence" && !notes.trim()) {
+      setValidationError("חובה לכתוב סיבת העדרות");
+      return;
+    }
+    setValidationError(null);
+
     startTransition(async () => {
       // Show success immediately
       setOptimisticDone(true);
@@ -102,15 +109,25 @@ export function InstructorReportButton({ lessonId }: { lessonId: string }) {
       <input
         type="text"
         value={notes}
-        onChange={(e) => setNotes(e.target.value)}
+        onChange={(e) => {
+          setNotes(e.target.value);
+          if (validationError) setValidationError(null);
+        }}
         placeholder={
-          selectedType === "lateness"
-            ? "כמה זמן איחור צפוי?"
-            : "הערה (אופציונלי)..."
+          selectedType === "absence"
+            ? "סיבת העדרות (חובה)"
+            : selectedType === "lateness"
+              ? "כמה זמן איחור צפוי?"
+              : "הערה (אופציונלי)..."
         }
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        className={`w-full rounded-lg border bg-background px-3 py-2 text-sm ${
+          validationError ? "border-red-400" : "border-border"
+        }`}
         autoFocus
       />
+      {validationError && (
+        <p className="text-xs text-red-600">{validationError}</p>
+      )}
       <div className="flex gap-2">
         <button
           onClick={handleSubmit}

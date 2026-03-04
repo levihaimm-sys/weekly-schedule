@@ -17,6 +17,7 @@ import {
   Filter,
   MapPin,
   Search,
+  LogIn,
 } from "lucide-react";
 import { INSTRUCTOR_STATUS, InstructorStatusType } from "@/lib/utils/constants";
 
@@ -32,10 +33,25 @@ interface Instructor {
 
 interface InstructorManagerProps {
   instructors: Instructor[];
+  lastLoginMap: Record<string, string | null>;
+}
+
+function formatLastLogin(dateStr: string | null | undefined): string {
+  if (!dateStr) return "לא התחבר";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "היום";
+  if (diffDays === 1) return "אתמול";
+  if (diffDays < 7) return `לפני ${diffDays} ימים`;
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  return `${day}/${month}`;
 }
 
 export function InstructorManager({
   instructors,
+  lastLoginMap,
 }: InstructorManagerProps) {
   const router = useRouter();
   const [selectedStatuses, setSelectedStatuses] = useState<Set<InstructorStatusType>>(
@@ -355,7 +371,13 @@ export function InstructorManager({
                             {instructor.work_cities}
                           </span>
                         )}
-                        {!instructor.phone && !instructor.address && !instructor.work_cities && (
+                        <span className={`flex items-center gap-1 text-xs ${
+                          lastLoginMap[instructor.id] ? "text-muted-foreground" : "text-red-500"
+                        }`}>
+                          <LogIn size={12} />
+                          {formatLastLogin(lastLoginMap[instructor.id])}
+                        </span>
+                        {!instructor.phone && !instructor.address && !instructor.work_cities && !lastLoginMap[instructor.id] && (
                           <span className="text-xs text-muted-foreground/60">
                             ללא פרטים נוספים
                           </span>

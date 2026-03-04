@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { format, addDays, subDays, startOfWeek, differenceInWeeks } from "date-fns";
+import { format, addDays, subDays, startOfWeek } from "date-fns";
 
 interface WeekNavigatorProps {
   weekStartStr: string;
@@ -41,8 +41,10 @@ export function WeekNavigator({
   const isCurrentWeek =
     format(currentWeekStart, "yyyy-MM-dd") === weekStartStr;
 
-  // Calculate relative week label
-  const weekDiff = differenceInWeeks(start, currentWeekStart);
+  // Calculate relative week label (timezone-safe: compare formatted date strings)
+  const currentWeekStartStr = format(currentWeekStart, "yyyy-MM-dd");
+  const diffMs = new Date(weekStartStr).getTime() - new Date(currentWeekStartStr).getTime();
+  const weekDiff = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
   function getRelativeWeekLabel(diff: number): string {
     if (diff === 0) return "השבוע";
     if (diff === 1) return "שבוע הבא";
