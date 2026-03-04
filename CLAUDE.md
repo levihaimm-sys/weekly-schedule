@@ -1,3 +1,5 @@
+IMPORTANT: Read this entire file before doing anything else
+
 # Weekly Schedule App
 
 # Project Instructions

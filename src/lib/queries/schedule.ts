@@ -1,4 +1,6 @@
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getTodayInIsrael } from "@/lib/utils/date";
 
 export async function getRecurringSchedule(filters?: {
@@ -130,38 +132,41 @@ export async function getRecentChanges() {
   return data ?? [];
 }
 
-export async function getAllCities() {
-  const supabase = await createClient();
+export const getAllCities = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase.from("locations").select("city").order("city");
+    const unique = [...new Set(data?.map((d) => d.city).filter(Boolean))];
+    return unique;
+  },
+  ["all-cities"],
+  { revalidate: 300 }
+);
 
-  const { data } = await supabase
-    .from("locations")
-    .select("city")
-    .order("city");
+export const getAllLocations = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("locations")
+      .select("id, name, city, street")
+      .order("city")
+      .order("name");
+    return data ?? [];
+  },
+  ["all-locations"],
+  { revalidate: 300 }
+);
 
-  const unique = [...new Set(data?.map((d) => d.city).filter(Boolean))];
-  return unique;
-}
-
-export async function getAllLocations() {
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("locations")
-    .select("id, name, city, street")
-    .order("city")
-    .order("name");
-
-  return data ?? [];
-}
-
-export async function getAllInstructors() {
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("instructors")
-    .select("id, full_name")
-    .eq("is_active", true)
-    .order("full_name");
-
-  return data ?? [];
-}
+export const getAllInstructors = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("instructors")
+      .select("id, full_name")
+      .eq("is_active", true)
+      .order("full_name");
+    return data ?? [];
+  },
+  ["all-instructors"],
+  { revalidate: 120 }
+);
