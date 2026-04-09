@@ -189,8 +189,8 @@ export function AssignmentsOverviewTable({
       const rows = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCSVLine(lines[i]);
-        const date = cols[0]?.trim();
-        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+        const date = normalizeDate(cols[0]?.trim());
+        if (!date) continue;
 
         const assignments = instructorNames.map((name, idx) => ({
           instructorName: name.trim(),
@@ -217,6 +217,19 @@ export function AssignmentsOverviewTable({
       // Reset file input so same file can be re-imported
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  // Accepts YYYY-MM-DD, DD/MM/YYYY, or DD/MM/YY → returns YYYY-MM-DD or null
+  function normalizeDate(raw: string | undefined): string | null {
+    if (!raw) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (slashMatch) {
+      const [, d, m, y] = slashMatch;
+      const year = y.length === 2 ? `20${y}` : y;
+      return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+    return null;
   }
 
   function parseCSVLine(line: string): string[] {
