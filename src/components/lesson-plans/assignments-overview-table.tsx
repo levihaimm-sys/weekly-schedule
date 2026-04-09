@@ -52,7 +52,7 @@ export function AssignmentsOverviewTable({
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [replaceMode, setReplaceMode] = useState(false);
+  const [replaceMode, setReplaceMode] = useState(true);
   const [importResult, setImportResult] = useState<{
     created: number;
     updated: number;

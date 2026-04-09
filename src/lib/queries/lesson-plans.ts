@@ -393,7 +393,7 @@ export async function getLessonPlansByCategory(): Promise<
  * Get assignments overview across multiple weeks for the bird's-eye table.
  * Returns all assignments with instructor, lesson plan, and instructor's city.
  */
-export async function getAssignmentsOverview(weeksCount = 20) {
+export async function getAssignmentsOverview() {
   const supabase = await createClient();
 
   // Get Sunday of current week (Israel timezone)
@@ -404,17 +404,7 @@ export async function getAssignmentsOverview(weeksCount = 20) {
   const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const currentWeekStart = formatDate(sunday);
 
-  // Calculate range: a few weeks back + weeks ahead
-  const weeksBack = 2;
-  const rangeStart = new Date(sunday);
-  rangeStart.setDate(rangeStart.getDate() - weeksBack * 7);
-  const rangeStartStr = formatDate(rangeStart);
-
-  const rangeEnd = new Date(sunday);
-  rangeEnd.setDate(rangeEnd.getDate() + (weeksCount - weeksBack) * 7);
-  const rangeEndStr = formatDate(rangeEnd);
-
-  // Fetch all assignments in range
+  // Fetch ALL assignments — no date range restriction
   const { data: assignments, error } = await supabase
     .from("weekly_lesson_assignments")
     .select(
@@ -424,8 +414,7 @@ export async function getAssignmentsOverview(weeksCount = 20) {
       lesson_plan:lesson_plans(id, name, category, pdf_path, week_number)
     `
     )
-    .gte("week_start_date", rangeStartStr)
-    .lte("week_start_date", rangeEndStr);
+    .order("week_start_date");
 
   if (error) {
     console.error("Error fetching assignments overview:", error, JSON.stringify(error));
