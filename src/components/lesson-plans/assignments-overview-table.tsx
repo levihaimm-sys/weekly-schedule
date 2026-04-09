@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { X, Plus } from "lucide-react";
+import { X, Download, Upload } from "lucide-react";
 import { updateWeeklyAssignment, createWeeklyAssignment } from "@/lib/actions/equipment";
 import type { LessonPlan } from "@/types/database";
 
@@ -50,6 +50,15 @@ export function AssignmentsOverviewTable({
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    created: number;
+    updated: number;
+    skipped: number;
+    unknownInstructors: string[];
+    unknownLessonPlans: string[];
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
   const instructors = useMemo(() => {
@@ -135,6 +144,105 @@ export function AssignmentsOverviewTable({
     }
   }
 
+  function handleExport() {
+    const header = ["תאריך", ...instructors.map((i) => i.name)];
+    const csvRows = [header.join(",")];
+
+    for (const week of weeks) {
+      const row = [week];
+      for (const inst of instructors) {
+        const name = assignmentMap[week]?.[inst.id]?.lesson_plan?.name ?? "";
+        // Wrap in quotes to handle commas inside names
+        row.push(`"${name.replace(/"/g, '""')}"`);
+      }
+      csvRows.push(row.join(","));
+    }
+
+    const csv = "\uFEFF" + csvRows.join("\n"); // BOM for Excel Hebrew support
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `assignments-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const text = await file.text();
+      // Strip BOM if present
+      const content = text.startsWith("\uFEFF") ? text.slice(1) : text;
+      const lines = content.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) return;
+
+      // Parse header: first column is date, rest are instructor names
+      const headerCols = parseCSVLine(lines[0]);
+      const instructorNames = headerCols.slice(1);
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        const date = cols[0]?.trim();
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+
+        const assignments = instructorNames.map((name, idx) => ({
+          instructorName: name.trim(),
+          lessonPlanName: (cols[idx + 1] ?? "").trim(),
+        }));
+
+        rows.push({ date, assignments });
+      }
+
+      const res = await fetch("/api/lesson-plans/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+
+      const result = await res.json();
+      setImportResult(result);
+
+      if (result.created > 0 || result.updated > 0) {
+        startTransition(() => router.refresh());
+      }
+    } finally {
+      setImporting(false);
+      // Reset file input so same file can be re-imported
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        result.push(current);
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current);
+    return result;
+  }
+
   if (instructors.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
@@ -148,6 +256,54 @@ export function AssignmentsOverviewTable({
 
   return (
     <>
+      {/* Export / Import toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          <Download size={15} />
+          ייצוא CSV
+        </button>
+
+        <label
+          className={`flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+            importing ? "opacity-50 cursor-not-allowed" : "hover:bg-muted"
+          }`}
+        >
+          <Upload size={15} />
+          {importing ? "מייבא..." : "ייבוא CSV"}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            disabled={importing}
+            onChange={handleImport}
+          />
+        </label>
+
+        {importResult && (
+          <div
+            className={`rounded-lg border px-3 py-2 text-sm ${
+              importResult.unknownInstructors.length > 0 || importResult.unknownLessonPlans.length > 0
+                ? "border-yellow-300 bg-yellow-50 text-yellow-800"
+                : "border-green-300 bg-green-50 text-green-800"
+            }`}
+          >
+            <span>
+              נוצרו: {importResult.created} | עודכנו: {importResult.updated} | דולגו: {importResult.skipped}
+            </span>
+            {importResult.unknownInstructors.length > 0 && (
+              <div className="mt-1 text-xs">מדריכות לא מזוהות: {importResult.unknownInstructors.join(", ")}</div>
+            )}
+            {importResult.unknownLessonPlans.length > 0 && (
+              <div className="mt-1 text-xs">מערכי שיעור לא מזוהים: {importResult.unknownLessonPlans.join(", ")}</div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full border-collapse text-sm" dir="rtl">
           <thead>
