@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
 import { updateWeeklyAssignment, createWeeklyAssignment } from "@/lib/actions/equipment";
+import { updateRotationOrders } from "@/lib/actions/instructors";
 import type { LessonPlan } from "@/types/database";
 
 interface Assignment {
@@ -51,13 +52,19 @@ export function AssignmentsOverviewTable({
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [replaceMode, setReplaceMode] = useState(false);
   const [importResult, setImportResult] = useState<{
     created: number;
     updated: number;
+    deleted: number;
     skipped: number;
     unknownInstructors: string[];
     unknownLessonPlans: string[];
+    instructorsWithoutOrder: { name: string; id: string }[];
   } | null>(null);
+  const [rotationDialog, setRotationDialog] = useState<{ name: string; id: string }[]>([]);
+  const [rotationInputs, setRotationInputs] = useState<Record<string, string>>({});
+  const [savingRotation, setSavingRotation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
@@ -203,11 +210,18 @@ export function AssignmentsOverviewTable({
       const res = await fetch("/api/lesson-plans/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows }),
+        body: JSON.stringify({ rows, replace: replaceMode }),
       });
 
       const result = await res.json();
       setImportResult(result);
+
+      if (result.instructorsWithoutOrder?.length > 0) {
+        setRotationDialog(result.instructorsWithoutOrder);
+        setRotationInputs(
+          Object.fromEntries(result.instructorsWithoutOrder.map((i: { name: string; id: string }) => [i.id, ""]))
+        );
+      }
 
       if (result.created > 0 || result.updated > 0) {
         startTransition(() => router.refresh());
@@ -216,6 +230,25 @@ export function AssignmentsOverviewTable({
       setImporting(false);
       // Reset file input so same file can be re-imported
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleSaveRotation() {
+    const updates = rotationDialog
+      .map((inst) => ({
+        id: inst.id,
+        rotation_order: parseInt(rotationInputs[inst.id] ?? "", 10),
+      }))
+      .filter((u) => !isNaN(u.rotation_order));
+
+    if (updates.length === 0) return;
+    setSavingRotation(true);
+    try {
+      await updateRotationOrders(updates);
+      setRotationDialog([]);
+      startTransition(() => router.refresh());
+    } finally {
+      setSavingRotation(false);
     }
   }
 
@@ -296,6 +329,18 @@ export function AssignmentsOverviewTable({
           />
         </label>
 
+        <label className="flex items-center gap-2 cursor-pointer text-sm select-none">
+          <input
+            type="checkbox"
+            checked={replaceMode}
+            onChange={(e) => setReplaceMode(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <span className={replaceMode ? "font-medium text-red-600" : "text-muted-foreground"}>
+            מחק והחלף (מוחק נתונים קיימים לפני ייבוא)
+          </span>
+        </label>
+
         {importResult && (
           <div
             className={`rounded-lg border px-3 py-2 text-sm ${
@@ -305,7 +350,9 @@ export function AssignmentsOverviewTable({
             }`}
           >
             <span>
-              נוצרו: {importResult.created} | עודכנו: {importResult.updated} | דולגו: {importResult.skipped}
+              נוצרו: {importResult.created} | עודכנו: {importResult.updated}
+              {importResult.deleted > 0 && ` | נמחקו: ${importResult.deleted}`}
+              {" "}| דולגו: {importResult.skipped}
             </span>
             {importResult.unknownInstructors.length > 0 && (
               <div className="mt-1 text-xs">מדריכות לא מזוהות: {importResult.unknownInstructors.join(", ")}</div>
@@ -408,6 +455,52 @@ export function AssignmentsOverviewTable({
           </tbody>
         </table>
       </div>
+
+      {/* Rotation Order Dialog — shown after import when instructors have no rotation_order */}
+      {rotationDialog.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl" dir="rtl">
+            <h3 className="text-lg font-bold mb-2">מדריכות חדשות בטבלה</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              המדריכות הבאות קיימות במערכת אך לא מוגדרות בטבלת ההקצאות.
+              הגדר מיקום לכל אחת כדי שתופיע בטבלה (1 = ראשונה).
+            </p>
+            <div className="space-y-3 mb-6">
+              {rotationDialog.map((inst) => (
+                <div key={inst.id} className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-sm">{inst.name}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="מיקום"
+                    value={rotationInputs[inst.id] ?? ""}
+                    onChange={(e) =>
+                      setRotationInputs((prev) => ({ ...prev, [inst.id]: e.target.value }))
+                    }
+                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-center"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveRotation}
+                disabled={savingRotation}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {savingRotation ? "שומר..." : "שמור והוסף לטבלה"}
+              </button>
+              <button
+                onClick={() => setRotationDialog([])}
+                disabled={savingRotation}
+                className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
+              >
+                דלג
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       {editingCell && (

@@ -34,7 +34,7 @@ export async function addInstructor(formData: FormData) {
 
 export async function updateInstructor(
   instructorId: string,
-  data: { full_name?: string; phone?: string | null; address?: string | null; work_cities?: string | null }
+  data: { full_name?: string; phone?: string | null; address?: string | null; work_cities?: string | null; rotation_order?: number | null }
 ) {
   const supabase = await createClient();
 
@@ -128,6 +128,20 @@ export async function updateInstructorAvailability(
     }
   }
 
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
+export async function updateRotationOrders(
+  updates: { id: string; rotation_order: number }[]
+) {
+  const supabase = await createClient();
+
+  for (const { id, rotation_order } of updates) {
+    await supabase.from("instructors").update({ rotation_order }).eq("id", id);
+  }
+
+  revalidatePath("/lesson-plans/assignments");
   revalidatePath("/instructors");
   return { success: true };
 }

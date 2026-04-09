@@ -29,6 +29,7 @@ interface Instructor {
   status: InstructorStatusType;
   address: string | null;
   work_cities: string | null;
+  rotation_order: number | null;
 }
 
 interface InstructorManagerProps {
@@ -63,6 +64,7 @@ export function InstructorManager({
   const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editWorkCities, setEditWorkCities] = useState("");
+  const [editRotationOrder, setEditRotationOrder] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -115,11 +117,15 @@ export function InstructorManager({
 
   async function handleSaveEdit(id: string) {
     startTransition(async () => {
+      const rotationOrderValue = editRotationOrder.trim()
+        ? parseInt(editRotationOrder.trim(), 10)
+        : null;
       await updateInstructor(id, {
         full_name: editName.trim() || undefined,
         phone: editPhone.trim() || null,
         address: editAddress.trim() || null,
         work_cities: editWorkCities.trim() || null,
+        rotation_order: isNaN(rotationOrderValue as number) ? null : rotationOrderValue,
       });
       setEditingId(null);
       router.refresh();
@@ -132,6 +138,7 @@ export function InstructorManager({
     setEditPhone(instructor.phone ?? "");
     setEditAddress(instructor.address ?? "");
     setEditWorkCities(instructor.work_cities ?? "");
+    setEditRotationOrder(instructor.rotation_order?.toString() ?? "");
   }
 
   const statusColors = {
@@ -328,6 +335,18 @@ export function InstructorManager({
                         placeholder="ערים לעבודה (טקסט חופשי)"
                         className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
                       />
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-muted-foreground whitespace-nowrap">סדר בטבלת הקצאות:</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={editRotationOrder}
+                          onChange={(e) => setEditRotationOrder(e.target.value)}
+                          placeholder="—"
+                          className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                        />
+                        <span className="text-xs text-muted-foreground">(ריק = לא מופיע בטבלה)</span>
+                      </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleSaveEdit(instructor.id)}
@@ -377,6 +396,11 @@ export function InstructorManager({
                           <LogIn size={12} />
                           {formatLastLogin(lastLoginMap[instructor.id])}
                         </span>
+                        {instructor.rotation_order != null ? (
+                          <span className="text-xs text-blue-600">טבלת הקצאות: #{instructor.rotation_order}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">לא בטבלת הקצאות</span>
+                        )}
                         {!instructor.phone && !instructor.address && !instructor.work_cities && !lastLoginMap[instructor.id] && (
                           <span className="text-xs text-muted-foreground/60">
                             ללא פרטים נוספים
