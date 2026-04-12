@@ -10,8 +10,8 @@
   "lang": "he",
   "icons": [
     {
-      "src": "/logo.png",
-      "sizes": "any",
+      "src": "/pwa-icon.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
