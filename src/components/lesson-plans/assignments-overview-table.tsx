@@ -65,6 +65,7 @@ export function AssignmentsOverviewTable({
   const [rotationDialog, setRotationDialog] = useState<{ name: string; id: string }[]>([]);
   const [rotationInputs, setRotationInputs] = useState<Record<string, string>>({});
   const [savingRotation, setSavingRotation] = useState(false);
+  const [rotationError, setRotationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
@@ -223,8 +224,11 @@ export function AssignmentsOverviewTable({
         );
       }
 
-      if (result.created > 0 || result.updated > 0) {
-        startTransition(() => router.refresh());
+      if (result.created > 0 || result.updated > 0 || result.deleted > 0) {
+        // Delay refresh so the success message is visible before re-render
+        setTimeout(() => {
+          startTransition(() => router.refresh());
+        }, 2000);
       }
     } finally {
       setImporting(false);
@@ -241,7 +245,11 @@ export function AssignmentsOverviewTable({
       }))
       .filter((u) => !isNaN(u.rotation_order));
 
-    if (updates.length === 0) return;
+    if (updates.length === 0) {
+      setRotationError("יש להזין מיקום לפחות למדריכה אחת");
+      return;
+    }
+    setRotationError(null);
     setSavingRotation(true);
     try {
       await updateRotationOrders(updates);
@@ -414,7 +422,7 @@ export function AssignmentsOverviewTable({
                   <td
                     className={`sticky right-0 z-10 border border-border px-3 py-2 text-center font-bold whitespace-nowrap ${
                       isCurrentWeek
-                        ? "bg-secondary/40"
+                        ? "bg-amber-200 text-amber-900"
                         : past
                           ? "bg-gray-100"
                           : "bg-background"
@@ -439,7 +447,7 @@ export function AssignmentsOverviewTable({
                           isEditing
                             ? "bg-primary/20 ring-2 ring-primary ring-inset"
                             : isCurrentWeek
-                              ? "bg-secondary/15 hover:bg-secondary/30"
+                              ? "bg-amber-50 hover:bg-amber-100"
                               : past
                                 ? ""
                                 : "hover:bg-primary/5"
@@ -482,6 +490,9 @@ export function AssignmentsOverviewTable({
                 </div>
               ))}
             </div>
+            {rotationError && (
+              <p className="text-sm text-red-600 mb-3">{rotationError}</p>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={handleSaveRotation}
@@ -491,7 +502,7 @@ export function AssignmentsOverviewTable({
                 {savingRotation ? "שומר..." : "שמור והוסף לטבלה"}
               </button>
               <button
-                onClick={() => setRotationDialog([])}
+                onClick={() => { setRotationDialog([]); setRotationError(null); }}
                 disabled={savingRotation}
                 className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
               >
