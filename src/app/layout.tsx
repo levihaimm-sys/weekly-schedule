@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "חיים בתנועה - ניהול פעילויות",
   description: "מערכת ניהול פעילויות ספורט ונוכחות לעמותת חיים בתנועה",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
