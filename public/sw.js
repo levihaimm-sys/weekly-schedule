@@ -1,16 +1,6 @@
 const CACHE = "haim-v1";
 
-const PRECACHE = [
-  "/",
-  "/today",
-  "/my-schedule",
-  "/sign",
-];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE))
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
