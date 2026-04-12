@@ -158,7 +158,12 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       filtered = filtered.filter((l) => localCities.includes(l.location?.city ?? ""));
     }
     if (localInstructors.length > 0) {
-      filtered = filtered.filter((l) => localInstructors.includes(l.instructor?.id ?? ""));
+      const wantNoInstructor = localInstructors.includes("__no_instructor__");
+      const instructorIds = localInstructors.filter((id) => id !== "__no_instructor__");
+      filtered = filtered.filter((l) => {
+        if (wantNoInstructor && !l.instructor) return true;
+        return instructorIds.includes(l.instructor?.id ?? "");
+      });
     }
     if (localChangesOnly) {
       filtered = filtered.filter(
@@ -185,7 +190,10 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             placeholder="כל הערים"
           />
           <MultiSelectFilter
-            options={instructors.map((inst) => ({ value: inst.id, label: inst.full_name }))}
+            options={[
+              { value: "__no_instructor__", label: "ללא מדריך" },
+              ...instructors.map((inst) => ({ value: inst.id, label: inst.full_name })),
+            ]}
             selected={localInstructors}
             onChange={setLocalInstructors}
             placeholder="כל המדריכים"

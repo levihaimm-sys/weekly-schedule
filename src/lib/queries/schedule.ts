@@ -163,7 +163,7 @@ export const getAllInstructors = unstable_cache(
     const { data } = await supabase
       .from("instructors")
       .select("id, full_name")
-      .eq("is_active", true)
+      .in("status", ["active", "substitute"])
       .order("full_name");
     return data ?? [];
   },
