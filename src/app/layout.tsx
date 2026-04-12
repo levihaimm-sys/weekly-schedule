@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
+import { PWARegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -39,11 +40,7 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <body className={`${heebo.variable} font-sans antialiased`}>
         {children}
-        <script dangerouslySetInnerHTML={{ __html: `
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-          }
-        `}} />
+        <PWARegister />
       </body>
     </html>
   );
