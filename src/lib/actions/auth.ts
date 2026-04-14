@@ -137,7 +137,17 @@ export async function loginAsInstructor(formData: FormData) {
           phone: instructor.phone,
         })
       );
-    } else if (createError && !createError.message?.includes("already been registered")) {
+    } else if (createError?.message?.includes("already been registered")) {
+      // User already exists — sync password to current phone in case it changed
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("instructor_id", instructor.id)
+        .single();
+      if (profile?.id) {
+        await admin.auth.admin.updateUserById(profile.id, { password: phone });
+      }
+    } else if (createError) {
       return { error: "שגיאה ביצירת חשבון: " + createError.message };
     }
 

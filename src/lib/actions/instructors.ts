@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { InstructorStatusType } from "@/lib/utils/constants";
 
@@ -16,16 +17,44 @@ export async function addInstructor(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.from("instructors").insert({
-    full_name: fullName,
-    phone: phone || null,
-    address: address || null,
-    work_cities: workCities || null,
-    status: "active",
-  });
+  const { data: newInstructor, error } = await supabase
+    .from("instructors")
+    .insert({
+      full_name: fullName,
+      phone: phone || null,
+      address: address || null,
+      work_cities: workCities || null,
+      status: "active",
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    return { error: "שגיאה בהוספה: " + error.message };
+  if (error || !newInstructor) {
+    return { error: "שגיאה בהוספה: " + error?.message };
+  }
+
+  // Auto-create auth user so instructor can log in immediately
+  if (phone) {
+    const admin = createAdminClient();
+    const fakeEmail = `instructor-${newInstructor.id}@app.local`;
+
+    const { data: authUser, error: authError } = await admin.auth.admin.createUser({
+      email: fakeEmail,
+      password: phone,
+      email_confirm: true,
+    });
+
+    if (authUser?.user) {
+      await admin.from("profiles").insert({
+        id: authUser.user.id,
+        role: "instructor",
+        instructor_id: newInstructor.id,
+        display_name: fullName,
+        phone,
+      });
+    } else if (authError) {
+      console.error("[addInstructor] Auth user creation failed:", authError.message);
+    }
   }
 
   revalidatePath("/instructors");
@@ -45,6 +74,19 @@ export async function updateInstructor(
 
   if (error) {
     return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  // If phone changed, sync the auth user's password
+  if (data.phone) {
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("instructor_id", instructorId)
+      .single();
+    if (profile?.id) {
+      await admin.auth.admin.updateUserById(profile.id, { password: data.phone });
+    }
   }
 
   revalidatePath("/instructors");
@@ -144,6 +186,51 @@ export async function updateRotationOrders(
   revalidatePath("/lesson-plans/assignments");
   revalidatePath("/instructors");
   return { success: true };
+}
+
+export async function syncInstructorAuthUsers(
+  instructorIds: string[]
+): Promise<{ synced: number; errors: string[] }> {
+  const admin = createAdminClient();
+  const supabase = await createClient();
+
+  // Get instructors with phone numbers
+  const { data: instructors } = await supabase
+    .from("instructors")
+    .select("id, full_name, phone")
+    .in("id", instructorIds)
+    .not("phone", "is", null);
+
+  if (!instructors || instructors.length === 0) return { synced: 0, errors: [] };
+
+  let synced = 0;
+  const errors: string[] = [];
+
+  for (const instructor of instructors) {
+    const fakeEmail = `instructor-${instructor.id}@app.local`;
+    const { data: authUser, error: authError } = await admin.auth.admin.createUser({
+      email: fakeEmail,
+      password: instructor.phone!,
+      email_confirm: true,
+    });
+
+    if (authUser?.user) {
+      await admin.from("profiles").insert({
+        id: authUser.user.id,
+        role: "instructor",
+        instructor_id: instructor.id,
+        display_name: instructor.full_name,
+        phone: instructor.phone,
+      });
+      synced++;
+    } else if (authError?.message?.includes("already been registered")) {
+      // Already exists, skip
+    } else if (authError) {
+      errors.push(`${instructor.full_name}: ${authError.message}`);
+    }
+  }
+
+  return { synced, errors };
 }
 
 export async function toggleInstructorActive(
