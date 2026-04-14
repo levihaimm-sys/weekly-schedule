@@ -81,6 +81,10 @@ async function retryWithBackoff<T>(
  * Instructor login via name + phone number.
  * Auto-creates Supabase Auth user + profile if first login.
  */
+function normalizePhone(p: string): string {
+  return p.replace(/\D/g, "");
+}
+
 export async function loginAsInstructor(formData: FormData) {
   const fullName = (formData.get("name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();
@@ -90,18 +94,22 @@ export async function loginAsInstructor(formData: FormData) {
   }
 
   try {
-    // Look up instructor by phone using admin client with retry
     const admin = createAdminClient();
-    const { data: instructor } = await retryWithBackoff(async () => {
-      const result = await admin
-        .from("instructors")
-        .select("id, full_name, phone")
-        .eq("phone", phone)
-        .single();
-      
-      if (result.error) throw result.error;
-      return result;
-    });
+
+    // Fetch all instructors with phones and match by normalized digits
+    const { data: allInstructors, error: fetchError } = await admin
+      .from("instructors")
+      .select("id, full_name, phone")
+      .not("phone", "is", null);
+
+    if (fetchError) {
+      return { error: "שגיאה בשאילתת מדריכים: " + fetchError.message };
+    }
+
+    const normalizedInput = normalizePhone(phone);
+    const instructor = allInstructors?.find(
+      (i) => normalizePhone(i.phone || "") === normalizedInput
+    );
 
     if (!instructor) {
       return { error: "מספר טלפון לא נמצא במערכת" };
@@ -172,12 +180,11 @@ export async function loginAsInstructor(formData: FormData) {
     }
     
     console.error("[loginAsInstructor] Error:", e);
-    
-    // Return user-friendly error
+
     if (e?.message?.includes("fetch failed") || e?.code === "ECONNRESET") {
       return { error: "בעיית תקשורת עם השרת. אנא נסה שוב." };
     }
-    
-    return { error: "שגיאה בהתחברות. אנא נסה שוב." };
+
+    return { error: "שגיאה בהתחברות: " + (e?.message || "שגיאה לא ידועה") };
   }
 }
