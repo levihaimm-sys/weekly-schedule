@@ -115,11 +115,13 @@ export async function loginAsInstructor(formData: FormData) {
       return { error: "מספר טלפון לא נמצא במערכת" };
     }
 
-    // Loose name check: DB name contained in input, or input contained in DB name
-    const dbName = instructor.full_name.trim();
-    const inputName = fullName.trim();
+    // Normalize names: strip invisible unicode chars (RTL marks, ZWNBSP, etc.) and collapse whitespace
+    const normalizeName = (s: string) =>
+      s.replace(/[\u200b-\u200f\u202a-\u202e\u00a0\ufeff]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+    const dbName = normalizeName(instructor.full_name);
+    const inputName = normalizeName(fullName);
     if (!dbName.includes(inputName) && !inputName.includes(dbName)) {
-      return { error: "השם אינו תואם למספר הטלפון" };
+      return { error: "השם אינו תואם למספר הטלפון: נא להזין בדיוק כפי שמופיע במערכת" };
     }
 
     // Deterministic email for this instructor
