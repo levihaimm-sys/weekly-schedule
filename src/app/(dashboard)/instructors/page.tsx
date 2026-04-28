@@ -9,7 +9,7 @@ export default async function InstructorsPage() {
   const [{ data: instructors }, { data: profiles }, { data: authData }] = await Promise.all([
     supabase
       .from("instructors")
-      .select("id, full_name, phone, email, status, address, work_cities, rotation_order")
+      .select("id, full_name, phone, email, status, address, work_cities, rotation_order, employment_type, clients, id_photo_url, contract_url, monthly_report_link, whatsapp_added")
       .order("full_name"),
     supabase
       .from("profiles")

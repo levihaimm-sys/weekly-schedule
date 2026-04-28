@@ -4,36 +4,26 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addInstructor,
-  updateInstructorStatus,
-  updateInstructor,
+  syncInstructorAuthUsers,
 } from "@/lib/actions/instructors";
 import {
-  Users,
   Plus,
-  Phone,
-  Pencil,
-  Check,
   Loader2,
   Filter,
-  MapPin,
   Search,
-  LogIn,
+  RefreshCw,
+  Check,
+  FileText,
+  ScrollText,
+  MessageCircle,
+  Smartphone,
+  Link,
 } from "lucide-react";
-import { INSTRUCTOR_STATUS, InstructorStatusType } from "@/lib/utils/constants";
-
-interface Instructor {
-  id: string;
-  full_name: string;
-  phone: string | null;
-  email: string | null;
-  status: InstructorStatusType;
-  address: string | null;
-  work_cities: string | null;
-  rotation_order: number | null;
-}
+import { INSTRUCTOR_STATUS, CLIENTS, InstructorStatusType, EmploymentType } from "@/lib/utils/constants";
+import { InstructorDrawer, InstructorFull } from "./instructor-drawer";
 
 interface InstructorManagerProps {
-  instructors: Instructor[];
+  instructors: InstructorFull[];
   lastLoginMap: Record<string, string | null>;
 }
 
@@ -50,47 +40,89 @@ function formatLastLogin(dateStr: string | null | undefined): string {
   return `${day}/${month}`;
 }
 
-export function InstructorManager({
-  instructors,
-  lastLoginMap,
-}: InstructorManagerProps) {
+function OnboardingDots({
+  instructor,
+  hasAppAccess,
+}: {
+  instructor: InstructorFull;
+  hasAppAccess: boolean;
+}) {
+  const items = [
+    { title: "תעודת זהות", done: !!instructor.id_photo_url, icon: <FileText size={11} /> },
+    { title: "חוזה", done: !!instructor.contract_url, icon: <ScrollText size={11} /> },
+    { title: "דוח חודשי", done: !!instructor.monthly_report_link, icon: <Link size={11} /> },
+    { title: "וואצאפ", done: !!instructor.whatsapp_added, icon: <MessageCircle size={11} /> },
+    { title: "גישה לאפליקציה", done: hasAppAccess, icon: <Smartphone size={11} /> },
+  ];
+  const doneCount = items.filter((i) => i.done).length;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {items.map((item) => (
+        <span
+          key={item.title}
+          title={item.title}
+          className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
+            item.done
+              ? "bg-green-100 text-green-600"
+              : "bg-orange-50 text-orange-400"
+          }`}
+        >
+          {item.done ? <Check size={10} /> : item.icon}
+        </span>
+      ))}
+      <span className={`text-xs font-medium ${doneCount === 5 ? "text-green-600" : "text-orange-600"}`}>
+        {doneCount}/5
+      </span>
+    </div>
+  );
+}
+
+const statusColors: Record<InstructorStatusType, string> = {
+  active: "bg-green-50 text-green-700 border-green-200",
+  substitute: "bg-blue-50 text-blue-700 border-blue-200",
+  inactive: "bg-gray-50 text-gray-700 border-gray-200",
+};
+
+const employmentColors: Record<string, string> = {
+  permanent: "bg-violet-50 text-violet-700 border-violet-200",
+  temporary: "bg-amber-50 text-amber-700 border-amber-200",
+};
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  permanent: "קבוע",
+  temporary: "זמני",
+};
+
+export function InstructorManager({ instructors, lastLoginMap }: InstructorManagerProps) {
   const router = useRouter();
   const [selectedStatuses, setSelectedStatuses] = useState<Set<InstructorStatusType>>(
     new Set(["active", "substitute"])
   );
   const [addFormOpen, setAddFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editAddress, setEditAddress] = useState("");
-  const [editWorkCities, setEditWorkCities] = useState("");
-  const [editRotationOrder, setEditRotationOrder] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [openInstructorId, setOpenInstructorId] = useState<string | null>(null);
 
-  // Filter by selected statuses and search query
   const filtered = instructors.filter((i) => {
     const matchesStatus = selectedStatuses.has(i.status ?? "active");
-    const matchesSearch = !searchQuery || i.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      !searchQuery || i.full_name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
-  // Count by status (treat null/missing status as "active")
   const activeCount = instructors.filter((i) => (i.status ?? "active") === "active").length;
   const substituteCount = instructors.filter((i) => i.status === "substitute").length;
   const inactiveCount = instructors.filter((i) => i.status === "inactive").length;
 
   function toggleStatus(status: InstructorStatusType) {
     const newSet = new Set(selectedStatuses);
-    if (newSet.has(status)) {
-      newSet.delete(status);
-    } else {
-      newSet.add(status);
-    }
-    if (newSet.size > 0) {
-      setSelectedStatuses(newSet);
-    }
+    if (newSet.has(status)) newSet.delete(status);
+    else newSet.add(status);
+    if (newSet.size > 0) setSelectedStatuses(newSet);
   }
 
   async function handleAdd(formData: FormData) {
@@ -106,349 +138,275 @@ export function InstructorManager({
     });
   }
 
-  async function handleChangeStatus(id: string, newStatus: InstructorStatusType) {
-    startTransition(async () => {
-      const result = await updateInstructorStatus(id, newStatus);
-      if (result.error) {
-        console.error("Error updating status:", result.error);
-      }
-    });
+  const unsyncedIds = instructors
+    .filter((i) => i.phone && !(i.id in lastLoginMap))
+    .map((i) => i.id);
+
+  async function handleSync() {
+    setIsSyncing(true);
+    setSyncMessage(null);
+    const result = await syncInstructorAuthUsers(unsyncedIds);
+    setIsSyncing(false);
+    if (result.errors.length > 0) {
+      setSyncMessage(`סונכרנו ${result.synced} מדריכים. שגיאות: ${result.errors.join(", ")}`);
+    } else {
+      setSyncMessage(`סונכרנו ${result.synced} מדריכים בהצלחה`);
+    }
+    router.refresh();
   }
 
-  async function handleSaveEdit(id: string) {
-    startTransition(async () => {
-      const rotationOrderValue = editRotationOrder.trim()
-        ? parseInt(editRotationOrder.trim(), 10)
-        : null;
-      await updateInstructor(id, {
-        full_name: editName.trim() || undefined,
-        phone: editPhone.trim() || null,
-        address: editAddress.trim() || null,
-        work_cities: editWorkCities.trim() || null,
-        rotation_order: isNaN(rotationOrderValue as number) ? null : rotationOrderValue,
-      });
-      setEditingId(null);
-      router.refresh();
-    });
-  }
-
-  function startEdit(instructor: Instructor) {
-    setEditingId(instructor.id);
-    setEditName(instructor.full_name);
-    setEditPhone(instructor.phone ?? "");
-    setEditAddress(instructor.address ?? "");
-    setEditWorkCities(instructor.work_cities ?? "");
-    setEditRotationOrder(instructor.rotation_order?.toString() ?? "");
-  }
-
-  const statusColors = {
-    active: "bg-green-50 text-green-700 border-green-200",
-    substitute: "bg-blue-50 text-blue-700 border-blue-200",
-    inactive: "bg-gray-50 text-gray-700 border-gray-200",
-  };
+  const openInstructor = openInstructorId
+    ? instructors.find((i) => i.id === openInstructorId) ?? null
+    : null;
 
   return (
-    <div className="space-y-4">
-      {/* Header row */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <>
+      <div className="space-y-4">
+        {/* Header row */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             {activeCount} פעילים | {substituteCount} משלימים | {inactiveCount} לא פעילים
           </p>
+          <div className="flex items-center gap-2">
+            {unsyncedIds.length > 0 && (
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                title={`${unsyncedIds.length} מדריכים ללא גישה למערכת`}
+                className="flex items-center gap-2 rounded-lg border border-orange-300 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 transition-colors hover:bg-orange-100 disabled:opacity-50"
+              >
+                {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                סנכרן גישה ({unsyncedIds.length})
+              </button>
+            )}
+            <button
+              onClick={() => setAddFormOpen(!addFormOpen)}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Plus size={16} />
+              הוסף מדריך
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setAddFormOpen(!addFormOpen)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Plus size={16} />
-          הוסף מדריך
-        </button>
-      </div>
 
-      {/* Search and filter */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
-        <div className="relative">
-          <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="חיפוש לפי שם..."
-            className="w-44 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
-          />
+        {syncMessage && (
+          <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            {syncMessage}
+          </p>
+        )}
+
+        {/* Search and filter */}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="חיפוש לפי שם..."
+              className="w-44 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
+            />
+          </div>
+          <div className="mx-1 h-6 w-px bg-border" />
+          <div className="flex items-center gap-1.5 text-sm font-medium">
+            <Filter size={14} />
+            <span>הצג:</span>
+          </div>
+          {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(([key, label]) => (
+            <label
+              key={key}
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                selectedStatuses.has(key)
+                  ? statusColors[key] + " font-medium"
+                  : "border-border bg-background hover:bg-muted"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedStatuses.has(key)}
+                onChange={() => toggleStatus(key)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              {label}
+            </label>
+          ))}
         </div>
-        <div className="mx-1 h-6 w-px bg-border" />
-        <div className="flex items-center gap-1.5 text-sm font-medium">
-          <Filter size={14} />
-          <span>הצג:</span>
-        </div>
-        {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(([key, label]) => (
-          <label
-            key={key}
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-all ${
-              selectedStatuses.has(key)
-                ? statusColors[key] + " font-medium"
-                : "border-border bg-background hover:bg-muted"
-            }`}
+
+        {/* Add form */}
+        {addFormOpen && (
+          <form
+            action={handleAdd}
+            className="rounded-xl border border-secondary/40 bg-secondary/5 p-4"
           >
-            <input
-              type="checkbox"
-              checked={selectedStatuses.has(key)}
-              onChange={() => toggleStatus(key)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            {label}
-          </label>
-        ))}
-      </div>
-
-      {/* Add form */}
-      {addFormOpen && (
-        <form
-          action={handleAdd}
-          className="rounded-xl border border-secondary/40 bg-secondary/5 p-4"
-        >
-          <h3 className="mb-3 font-medium">מדריך חדש</h3>
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-3">
+            <h3 className="mb-3 font-medium">מדריך חדש</h3>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <input
+                  name="full_name"
+                  type="text"
+                  required
+                  placeholder="שם מלא"
+                  className="flex-1 min-w-[150px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <input
+                  name="phone"
+                  type="tel"
+                  dir="ltr"
+                  placeholder="טלפון"
+                  className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
               <input
-                name="full_name"
+                name="address"
                 type="text"
-                required
-                placeholder="שם מלא"
-                className="flex-1 min-w-[150px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                placeholder="כתובת מגורים"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
               <input
-                name="phone"
-                type="tel"
-                dir="ltr"
-                placeholder="טלפון"
-                className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                name="work_cities"
+                type="text"
+                placeholder="ערים לעבודה"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  הוסף
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAddFormOpen(false); setError(null); }}
+                  className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+                >
+                  ביטול
+                </button>
+              </div>
             </div>
-            <input
-              name="address"
-              type="text"
-              placeholder="כתובת מגורים"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-            <input
-              name="work_cities"
-              type="text"
-              placeholder="ערים לעבודה (טקסט חופשי)"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={isPending}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                {isPending ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Check size={14} />
-                )}
-                הוסף
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAddFormOpen(false);
-                  setError(null);
-                }}
-                className="rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-muted"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-          {error && (
-            <p className="mt-2 text-sm text-red-600">{error}</p>
-          )}
-        </form>
-      )}
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          </form>
+        )}
 
-      {/* Instructors list */}
-      <div className="divide-y divide-border rounded-xl border border-border bg-background">
-        {filtered.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">
-            אין מדריכים להצגה
-          </div>
-        ) : (
-          filtered.map((instructor) => {
-            const isEditing = editingId === instructor.id;
+        {/* Table */}
+        <div className="overflow-x-auto rounded-xl border border-border bg-background">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+                <th className="px-4 py-3">שם</th>
+                <th className="px-4 py-3">טלפון</th>
+                <th className="px-4 py-3">סטטוס</th>
+                <th className="px-4 py-3">העסקה</th>
+                <th className="px-4 py-3">לקוחות</th>
+                <th className="px-4 py-3">קליטה</th>
+                <th className="px-4 py-3">התחברות</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                    אין מדריכים להצגה
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((instructor) => {
+                  const hasAppAccess = instructor.id in lastLoginMap;
+                  const lastLogin = lastLoginMap[instructor.id] ?? null;
 
-            return (
-              <div
-                key={instructor.id}
-                className={`p-4 transition-colors ${
-                  instructor.status === "inactive" ? "opacity-50" : ""
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                      instructor.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : instructor.status === "substitute"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    <Users size={18} />
-                  </div>
+                  return (
+                    <tr
+                      key={instructor.id}
+                      onClick={() => setOpenInstructorId(instructor.id)}
+                      className={`cursor-pointer transition-colors hover:bg-muted/40 ${
+                        instructor.status === "inactive" ? "opacity-50" : ""
+                      }`}
+                    >
+                      {/* Name */}
+                      <td className="px-4 py-3 font-medium">{instructor.full_name}</td>
 
-                  {/* Content */}
-                  {isEditing ? (
-                    <div className="flex flex-1 flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="min-w-[120px] flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                          autoFocus
-                          placeholder="שם מלא"
-                        />
-                        <input
-                          type="tel"
-                          dir="ltr"
-                          value={editPhone}
-                          onChange={(e) => setEditPhone(e.target.value)}
-                          placeholder="טלפון"
-                          className="w-32 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        value={editAddress}
-                        onChange={(e) => setEditAddress(e.target.value)}
-                        placeholder="כתובת מגורים"
-                        className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={editWorkCities}
-                        onChange={(e) => setEditWorkCities(e.target.value)}
-                        placeholder="ערים לעבודה (טקסט חופשי)"
-                        className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                      />
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-muted-foreground whitespace-nowrap">סדר בטבלת הקצאות:</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={editRotationOrder}
-                          onChange={(e) => setEditRotationOrder(e.target.value)}
-                          placeholder="—"
-                          className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                        />
-                        <span className="text-xs text-muted-foreground">(ריק = לא מופיע בטבלה)</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSaveEdit(instructor.id)}
-                          disabled={isPending}
-                          className="rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                      {/* Phone */}
+                      <td className="px-4 py-3 text-muted-foreground" dir="ltr">
+                        {instructor.phone ?? "—"}
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                            statusColors[instructor.status]
+                          }`}
                         >
-                          {isPending ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <>
-                              <Check size={14} className="inline" /> שמור
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-muted"
-                        >
-                          ביטול
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{instructor.full_name}</p>
-                      <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-                        {instructor.phone && (
-                          <span className="flex items-center gap-1" dir="ltr">
-                            <Phone size={12} />
-                            {instructor.phone}
-                          </span>
-                        )}
-                        {instructor.address && (
-                          <span className="text-xs">
-                            {instructor.address}
-                          </span>
-                        )}
-                        {instructor.work_cities && (
-                          <span className="flex items-center gap-1 text-xs text-orange-700">
-                            <MapPin size={12} />
-                            {instructor.work_cities}
-                          </span>
-                        )}
-                        <span className={`flex items-center gap-1 text-xs ${
-                          lastLoginMap[instructor.id] ? "text-muted-foreground" : "text-red-500"
-                        }`}>
-                          <LogIn size={12} />
-                          {formatLastLogin(lastLoginMap[instructor.id])}
+                          {INSTRUCTOR_STATUS[instructor.status]}
                         </span>
-                        {instructor.rotation_order != null ? (
-                          <span className="text-xs text-blue-600">טבלת הקצאות: #{instructor.rotation_order}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50">לא בטבלת הקצאות</span>
-                        )}
-                        {!instructor.phone && !instructor.address && !instructor.work_cities && !lastLoginMap[instructor.id] && (
-                          <span className="text-xs text-muted-foreground/60">
-                            ללא פרטים נוספים
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                      </td>
 
-                  {/* Actions */}
-                  {!isEditing && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => startEdit(instructor)}
-                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        title="ערוך"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <select
-                        value={instructor.status}
-                        onChange={(e) =>
-                          handleChangeStatus(
-                            instructor.id,
-                            e.target.value as InstructorStatusType
-                          )
-                        }
-                        disabled={isPending}
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                          statusColors[instructor.status]
+                      {/* Employment type */}
+                      <td className="px-4 py-3">
+                        {instructor.employment_type ? (
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                              employmentColors[instructor.employment_type]
+                            }`}
+                          >
+                            {EMPLOYMENT_LABELS[instructor.employment_type]}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        )}
+                      </td>
+
+                      {/* Clients */}
+                      <td className="px-4 py-3">
+                        {instructor.clients && instructor.clients.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {instructor.clients.map((c) => (
+                              <span
+                                key={c}
+                                className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                              >
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        )}
+                      </td>
+
+                      {/* Onboarding */}
+                      <td className="px-4 py-3">
+                        <OnboardingDots instructor={instructor} hasAppAccess={hasAppAccess} />
+                      </td>
+
+                      {/* Last login */}
+                      <td
+                        className={`px-4 py-3 text-xs ${
+                          lastLogin ? "text-muted-foreground" : "text-red-500"
                         }`}
                       >
-                        {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(
-                          ([key, label]) => (
-                            <option key={key} value={key}>
-                              {label}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
+                        {formatLastLogin(lastLogin)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+
+      {/* Drawer */}
+      {openInstructor && (
+        <InstructorDrawer
+          instructor={openInstructor}
+          lastLogin={lastLoginMap[openInstructor.id] ?? null}
+          hasAppAccess={openInstructor.id in lastLoginMap}
+          onClose={() => setOpenInstructorId(null)}
+        />
+      )}
+    </>
   );
 }

@@ -41,3 +41,14 @@ export const INSTRUCTOR_STATUS = {
 } as const;
 
 export type InstructorStatusType = keyof typeof INSTRUCTOR_STATUS;
+
+export const EMPLOYMENT_TYPE = {
+  permanent: "קבוע",
+  temporary: "זמני",
+} as const;
+
+export type EmploymentType = keyof typeof EMPLOYMENT_TYPE;
+
+export const CLIENTS = ["טומשין", "אופק", "עיריית הוד השרון", "ינוקא"] as const;
+
+export type Client = (typeof CLIENTS)[number];

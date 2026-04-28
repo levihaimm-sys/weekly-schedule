@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { InstructorStatusType } from "@/lib/utils/constants";
+import { InstructorStatusType, EmploymentType } from "@/lib/utils/constants";
 
 export async function addInstructor(formData: FormData) {
   const fullName = (formData.get("full_name") as string)?.trim();
@@ -251,4 +251,62 @@ export async function toggleInstructorActive(
   revalidatePath("/instructors");
   revalidatePath("/dashboard");
   return { success: true };
+}
+
+export async function updateInstructorOnboarding(
+  instructorId: string,
+  data: {
+    employment_type?: EmploymentType | null;
+    clients?: string[];
+    monthly_report_link?: string | null;
+    whatsapp_added?: boolean;
+  }
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("instructors")
+    .update(data)
+    .eq("id", instructorId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
+export async function uploadInstructorFile(formData: FormData) {
+  const instructorId = formData.get("instructorId") as string;
+  const fileType = formData.get("fileType") as "id_photo" | "contract";
+  const file = formData.get("file") as File;
+
+  if (!instructorId || !fileType || !file || file.size === 0) {
+    return { error: "נתונים חסרים" };
+  }
+
+  const admin = createAdminClient();
+  const ext = file.name.split(".").pop() ?? "bin";
+  const path = `${instructorId}/${fileType}.${ext}`;
+  const bytes = await file.arrayBuffer();
+
+  const { error: uploadError } = await admin.storage
+    .from("instructor-documents")
+    .upload(path, bytes, { upsert: true, contentType: file.type });
+
+  if (uploadError) {
+    return { error: "שגיאה בהעלאה: " + uploadError.message };
+  }
+
+  const { data: urlData } = admin.storage
+    .from("instructor-documents")
+    .getPublicUrl(path);
+
+  const column = fileType === "id_photo" ? "id_photo_url" : "contract_url";
+  const supabase = await createClient();
+  await supabase.from("instructors").update({ [column]: urlData.publicUrl }).eq("id", instructorId);
+
+  revalidatePath("/instructors");
+  return { success: true, url: urlData.publicUrl };
 }
