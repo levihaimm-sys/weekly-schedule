@@ -8,6 +8,7 @@ import { LessonConfirmButtons } from "@/components/schedule/lesson-confirm-butto
 import { InstructorReportButton } from "@/components/schedule/instructor-report-button";
 import { MonthSelector } from "@/components/schedule/month-selector";
 import { ConfirmLessonsFilters } from "@/components/schedule/confirm-lessons-filters";
+import { RevokeApprovalButton } from "@/components/schedule/revoke-approval-button";
 
 export const dynamic = "force-dynamic";
 
@@ -232,9 +233,14 @@ export default async function ConfirmLessonsPage({
 
                     <div className="shrink-0">
                       {isConfirmed ? (
-                        <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
-                          ✓ מאושר
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
+                            ✓ מאושר
+                          </span>
+                          {sigMap[lesson.id]?.signer_role === "instructor" && (
+                            <RevokeApprovalButton lessonId={lesson.id} />
+                          )}
+                        </div>
                       ) : lesson.status === "cancelled" ? (
                         <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
                           בוטל

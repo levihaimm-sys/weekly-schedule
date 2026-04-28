@@ -161,7 +161,7 @@ export function EquipmentConfirmationList({
       {/* Status Message */}
       {!canConfirm && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-          ⚠️ ניתן לאשר קבלת ציוד רק ביום ראשון ושני
+          ⚠️ פג המועד לאישור קבלת ציוד (48 שעות מקבלת הציוד)
         </div>
       )}
 

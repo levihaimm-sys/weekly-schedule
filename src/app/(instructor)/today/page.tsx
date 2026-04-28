@@ -91,13 +91,20 @@ export default async function TodayPage() {
 
   const equipmentConfirmations: any[] = equipmentResult.data ?? [];
   const allConfirmed = equipmentConfirmations.every((c: any) => c.is_confirmed);
-  const shouldShowEquipmentConfirmation = equipmentConfirmations.length > 0 && !allConfirmed;
+
+  // Show confirmation for 48 hours after assignment, or until all confirmed
+  const firstCreatedAt = equipmentConfirmations.length > 0
+    ? new Date(equipmentConfirmations[0].created_at)
+    : null;
+  const hoursSinceAssignment = firstCreatedAt
+    ? (now.getTime() - firstCreatedAt.getTime()) / (1000 * 60 * 60)
+    : 999;
+  const withinConfirmWindow = hoursSinceAssignment <= 48;
+  const canConfirmEquipment = withinConfirmWindow;
+  const shouldShowEquipmentConfirmation = equipmentConfirmations.length > 0 && !allConfirmed && withinConfirmWindow;
 
   const dayOfWeek = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"][now.getDay()];
   const dateStr = now.toLocaleDateString("he-IL", { day: "numeric", month: "long" });
-  const isSunday = now.getDay() === 0;
-  const isMonday = now.getDay() === 1;
-  const canConfirmEquipment = isSunday || isMonday;
 
 
   return (
@@ -110,8 +117,8 @@ export default async function TodayPage() {
         </p>
       </div>
 
-      {/* Equipment Confirmation - Show if equipment distributed and not all confirmed */}
-      {shouldShowEquipmentConfirmation && equipmentConfirmations.length > 0 && canConfirmEquipment && (
+      {/* Equipment Confirmation - Show for 48h after assignment, until confirmed */}
+      {shouldShowEquipmentConfirmation && (
         <div className="rounded-3xl bg-secondary p-7 shadow-md ring-2 ring-warning/30 ring-offset-2">
           <div className="mb-6 flex items-center gap-4">
             <div className="rounded-2xl bg-white/40 p-3">
@@ -120,9 +127,7 @@ export default async function TodayPage() {
             <div className="flex-1">
               <h3 className="text-xl font-bold text-foreground">אישור קבלת ציוד</h3>
               <p className="mt-1 text-sm font-medium text-foreground/70">
-                {canConfirmEquipment
-                  ? "יש לאשר קבלת ציוד עד יום שני בערב"
-                  : "ניתן לאשר קבלת ציוד רק בימי ראשון ושני"}
+                יש לאשר קבלת ציוד בתוך 48 שעות מקבלתו
               </p>
             </div>
           </div>

@@ -149,6 +149,28 @@ export async function confirmByInstructor(lessonId: string) {
 }
 
 /**
+ * Revoke an instructor self-confirmation (no signature).
+ * Deletes the signature record and resets lesson status to 'scheduled'.
+ */
+export async function revokeApproval(lessonId: string) {
+  const admin = createAdminClient();
+
+  await admin.from("signatures").delete().eq("lesson_id", lessonId);
+
+  await admin
+    .from("lessons")
+    .update({ status: "scheduled" })
+    .eq("id", lessonId);
+
+  revalidatePath("/my-schedule");
+  revalidatePath("/confirm-lessons");
+  revalidatePath("/dashboard");
+  revalidatePath("/today");
+
+  return { success: true };
+}
+
+/**
  * Mark lesson as "did not happen" - instructor reports lesson didn't take place.
  * Sets lesson status to 'cancelled' with a note.
  */
