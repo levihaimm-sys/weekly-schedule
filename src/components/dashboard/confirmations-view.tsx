@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  Filter,
   ChevronDown,
   UserCheck,
   ShieldCheck,
@@ -26,6 +25,7 @@ interface LessonData {
   instructor_name: string;
   location_name: string;
   location_city: string;
+  client_name: string;
 }
 
 interface SigData {
@@ -94,7 +94,7 @@ export function ConfirmationsView({
     return lessons.filter((l) => {
       if (instructorFilter !== "all" && l.instructor_id !== instructorFilter)
         return false;
-      if (clientFilter !== "all" && l.location_name !== clientFilter)
+      if (clientFilter !== "all" && l.client_name !== clientFilter)
         return false;
       if (statusFilter === "confirmed" && !sigMap[l.id]) return false;
       if (statusFilter === "pending" && (sigMap[l.id] || l.status === "cancelled"))
