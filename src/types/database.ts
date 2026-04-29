@@ -183,6 +183,23 @@ export interface WeeklyLessonAssignmentWithDetails extends WeeklyLessonAssignmen
   equipment_confirmations: EquipmentConfirmation[];
 }
 
+// =============================================
+// CLIENTS SYSTEM (לקוחות)
+// =============================================
+
+export interface ClientRecord {
+  id: string;
+  name: string;
+  primary_contact_name: string | null;
+  primary_contact_phone: string | null;
+  primary_contact_email: string | null;
+  secondary_contact_name: string | null;
+  secondary_contact_phone: string | null;
+  secondary_contact_email: string | null;
+  monthly_report_link: string | null;
+  created_at: string;
+}
+
 export interface EquipmentConfirmationWithDetails extends EquipmentConfirmation {
   equipment: Pick<Equipment, "id" | "name">;
   assignment: {
