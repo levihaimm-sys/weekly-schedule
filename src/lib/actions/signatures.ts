@@ -171,6 +171,56 @@ export async function revokeApproval(lessonId: string) {
 }
 
 /**
+ * Bulk instructor self-confirmation for multiple lessons at once.
+ */
+export async function bulkConfirmByInstructor(lessonIds: string[]) {
+  if (lessonIds.length === 0) return { error: "לא נבחרו שיעורים" };
+
+  const authClient = await createClient();
+  const admin = createAdminClient();
+
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) return { error: "לא מחובר" };
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .single();
+
+  const signerName = profile?.display_name ?? "מדריכה";
+  const now = new Date().toISOString();
+
+  const records = lessonIds.map((lessonId) => ({
+    lesson_id: lessonId,
+    signer_name: signerName,
+    signer_role: "instructor",
+    signature_url: null,
+    signed_at: now,
+  }));
+
+  const { error: insertError } = await admin
+    .from("signatures")
+    .upsert(records, { onConflict: "lesson_id" });
+
+  if (insertError) return { error: "שגיאה באישור: " + insertError.message };
+
+  await admin
+    .from("lessons")
+    .update({ status: "completed" })
+    .in("id", lessonIds);
+
+  revalidatePath("/my-schedule");
+  revalidatePath("/confirm-lessons");
+  revalidatePath("/dashboard");
+
+  return { success: true, count: lessonIds.length };
+}
+
+/**
  * Admin manually confirms a lesson on behalf of the instructor.
  */
 export async function adminConfirmLesson(lessonId: string, instructorName: string) {
@@ -182,7 +232,7 @@ export async function adminConfirmLesson(lessonId: string, instructorName: strin
       {
         lesson_id: lessonId,
         signer_name: instructorName,
-        signer_role: "instructor",
+        signer_role: "admin",
         signature_url: null,
         signed_at: new Date().toISOString(),
       },
