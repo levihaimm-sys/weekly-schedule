@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import {
   INSTRUCTOR_STATUS,
-  EMPLOYMENT_TYPE,
   CLIENTS,
   InstructorStatusType,
   EmploymentType,
@@ -82,7 +81,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
   const [workCities, setWorkCities] = useState(instructor.work_cities ?? "");
   const [rotationOrder, setRotationOrder] = useState(instructor.rotation_order?.toString() ?? "");
   const [status, setStatus] = useState<InstructorStatusType>(instructor.status);
-  const [employmentType, setEmploymentType] = useState<EmploymentType | null>(instructor.employment_type);
   const [selectedClients, setSelectedClients] = useState<string[]>(instructor.clients ?? []);
   const [detailsSaved, setDetailsSaved] = useState(false);
 
@@ -119,7 +117,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
         }),
         updateInstructorStatus(instructor.id, status),
         updateInstructorOnboarding(instructor.id, {
-          employment_type: employmentType,
           clients: selectedClients,
         }),
       ]);
@@ -210,7 +207,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
               <p className="font-semibold">{instructor.full_name}</p>
               <p className="text-xs text-muted-foreground">
                 {INSTRUCTOR_STATUS[status]}
-                {employmentType ? ` · ${EMPLOYMENT_TYPE[employmentType]}` : ""}
               </p>
             </div>
           </div>
@@ -307,27 +303,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
                   placeholder="למשל: הוד השרון, כפר סבא"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
-              </div>
-
-              {/* Employment type */}
-              <div>
-                <label className="mb-2 block text-xs font-medium text-muted-foreground">סוג העסקה</label>
-                <div className="flex gap-2">
-                  {(Object.entries(EMPLOYMENT_TYPE) as [EmploymentType, string][]).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setEmploymentType(employmentType === key ? null : key)}
-                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                        employmentType === key
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Clients */}

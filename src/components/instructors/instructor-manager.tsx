@@ -84,15 +84,6 @@ const statusColors: Record<InstructorStatusType, string> = {
   inactive: "bg-gray-50 text-gray-700 border-gray-200",
 };
 
-const employmentColors: Record<string, string> = {
-  permanent: "bg-violet-50 text-violet-700 border-violet-200",
-  temporary: "bg-amber-50 text-amber-700 border-amber-200",
-};
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  permanent: "קבוע",
-  temporary: "זמני",
-};
 
 export function InstructorManager({ instructors, lastLoginMap }: InstructorManagerProps) {
   const router = useRouter();
@@ -296,9 +287,9 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
                 <th className="px-4 py-3">שם</th>
-                <th className="px-4 py-3">טלפון</th>
+                <th className="px-4 py-3 text-center">טלפון</th>
+                <th className="px-4 py-3">כתובת</th>
                 <th className="px-4 py-3">סטטוס</th>
-                <th className="px-4 py-3">העסקה</th>
                 <th className="px-4 py-3">לקוחות</th>
                 <th className="px-4 py-3">קליטה</th>
                 <th className="px-4 py-3">התחברות</th>
@@ -307,7 +298,7 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
                     אין מדריכים להצגה
                   </td>
                 </tr>
@@ -328,8 +319,13 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
                       <td className="px-4 py-3 font-medium">{instructor.full_name}</td>
 
                       {/* Phone */}
-                      <td className="px-4 py-3 text-muted-foreground" dir="ltr">
+                      <td className="px-4 py-3 text-center text-muted-foreground" dir="ltr">
                         {instructor.phone ?? "—"}
+                      </td>
+
+                      {/* Address */}
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {instructor.address ?? <span className="text-xs text-muted-foreground/50">—</span>}
                       </td>
 
                       {/* Status */}
@@ -341,21 +337,6 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
                         >
                           {INSTRUCTOR_STATUS[instructor.status]}
                         </span>
-                      </td>
-
-                      {/* Employment type */}
-                      <td className="px-4 py-3">
-                        {instructor.employment_type ? (
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                              employmentColors[instructor.employment_type]
-                            }`}
-                          >
-                            {EMPLOYMENT_LABELS[instructor.employment_type]}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
-                        )}
                       </td>
 
                       {/* Clients */}
