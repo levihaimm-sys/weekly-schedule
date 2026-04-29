@@ -171,6 +171,60 @@ export async function revokeApproval(lessonId: string) {
 }
 
 /**
+ * Admin manually confirms a lesson on behalf of the instructor.
+ */
+export async function adminConfirmLesson(lessonId: string, instructorName: string) {
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("signatures")
+    .upsert(
+      {
+        lesson_id: lessonId,
+        signer_name: instructorName,
+        signer_role: "instructor",
+        signature_url: null,
+        signed_at: new Date().toISOString(),
+      },
+      { onConflict: "lesson_id" }
+    );
+
+  if (error) {
+    return { error: "שגיאה באישור: " + error.message };
+  }
+
+  await admin.from("lessons").update({ status: "completed" }).eq("id", lessonId);
+
+  revalidatePath("/confirmations");
+  revalidatePath("/schedule");
+  return { success: true };
+}
+
+/**
+ * Undo an instructor-initiated cancellation ("לא התקיים").
+ * Resets lesson status to 'scheduled' and clears the change_notes.
+ */
+export async function undoCancellation(lessonId: string) {
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("lessons")
+    .update({ status: "scheduled", change_notes: null })
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בביטול: " + error.message };
+  }
+
+  revalidatePath("/my-schedule");
+  revalidatePath("/confirm-lessons");
+  revalidatePath("/dashboard");
+  revalidatePath("/today");
+
+  return { success: true };
+}
+
+/**
  * Mark lesson as "did not happen" - instructor reports lesson didn't take place.
  * Sets lesson status to 'cancelled' with a note.
  */

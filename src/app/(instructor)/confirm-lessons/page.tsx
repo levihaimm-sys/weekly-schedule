@@ -9,6 +9,7 @@ import { InstructorReportButton } from "@/components/schedule/instructor-report-
 import { MonthSelector } from "@/components/schedule/month-selector";
 import { ConfirmLessonsFilters } from "@/components/schedule/confirm-lessons-filters";
 import { RevokeApprovalButton } from "@/components/schedule/revoke-approval-button";
+import { UndoCancellationButton } from "@/components/schedule/undo-cancellation-button";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,7 @@ export default async function ConfirmLessonsPage({
       lesson_date,
       start_time,
       status,
+      change_notes,
       instructor_absence_request,
       instructor_request_type,
       instructor_notes,
@@ -242,9 +244,14 @@ export default async function ConfirmLessonsPage({
                           )}
                         </div>
                       ) : lesson.status === "cancelled" ? (
-                        <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
-                          בוטל
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
+                            בוטל
+                          </span>
+                          {lesson.change_notes === "לא התקיים - דווח ע״י המדריכה" && (
+                            <UndoCancellationButton lessonId={lesson.id} />
+                          )}
+                        </div>
                       ) : lesson.instructor_absence_request ? (
                         <span className="flex items-center gap-1 rounded-xl bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-700">
                           <AlertTriangle size={12} />
