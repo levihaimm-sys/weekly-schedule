@@ -1,11 +1,22 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ConfirmationsView } from "@/components/dashboard/confirmations-view";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
-import { CITY_TO_CLIENT, CLIENTS } from "@/lib/utils/constants";
+
 import Link from "next/link";
 import { ChevronRight, ChevronLeft, Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+const CITY_TO_CLIENT: Record<string, string> = {
+  "פת": "טומשין",
+  "גבעתיים": "טומשין",
+  "ראש העין": "טומשין",
+  "באר יעקב": "טומשין",
+  "גבעתיים כצנלסון": "טומשין כצנלסון",
+  "הוד השרון": "עיריית הוד השרון",
+  "נחל שורק": "אופק",
+  "נס ציונה": "ינוקא",
+};
 
 const MONTHS_HEBREW = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
