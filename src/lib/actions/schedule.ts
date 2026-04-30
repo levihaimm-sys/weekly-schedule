@@ -636,6 +636,130 @@ export async function createManualLesson(data: {
   return { success: true };
 }
 
+export async function bulkImportLessons(csvText: string) {
+  const supabase = await createClient();
+
+  const lines = csvText
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length < 2) {
+    return { error: "הקובץ ריק או חסרת שורת כותרת" };
+  }
+
+  const header = lines[0].split(",").map((h) => h.trim());
+  const requiredCols = ["תאריך", "שעה", "מיקום"];
+  for (const col of requiredCols) {
+    if (!header.includes(col)) {
+      return { error: `עמודה חובה חסרה: ${col}` };
+    }
+  }
+
+  const { data: allLocations } = await supabase
+    .from("locations")
+    .select("id, name, city");
+  const { data: allInstructors } = await supabase
+    .from("instructors")
+    .select("id, full_name")
+    .in("status", ["active", "substitute"]);
+
+  const locationMap = new Map(
+    (allLocations ?? []).map((l) => [l.name.trim(), l.id])
+  );
+  const instructorMap = new Map(
+    (allInstructors ?? []).map((i) => [i.full_name.trim(), i.id])
+  );
+
+  const rows: {
+    instructor_id: string | null;
+    location_id: string;
+    lesson_date: string;
+    start_time: string;
+    status: string;
+    change_notes: string | null;
+    is_one_time_change: boolean;
+    recurring_item_id: null;
+  }[] = [];
+  const errors: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(",").map((v) => v.trim());
+    const row: Record<string, string> = {};
+    header.forEach((col, idx) => {
+      row[col] = values[idx] ?? "";
+    });
+
+    const locationId = locationMap.get(row["מיקום"]);
+    if (!locationId) {
+      errors.push(`שורה ${i + 1}: מיקום לא נמצא "${row["מיקום"]}"`);
+      continue;
+    }
+
+    let instructorId: string | null = null;
+    if (row["מדריך"]) {
+      instructorId = instructorMap.get(row["מדריך"]) ?? null;
+      if (!instructorId) {
+        errors.push(`שורה ${i + 1}: מדריך לא נמצא "${row["מדריך"]}"`);
+        continue;
+      }
+    }
+
+    const dateVal = row["תאריך"];
+    if (!dateVal || !/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+      errors.push(`שורה ${i + 1}: תאריך לא תקין "${dateVal}"`);
+      continue;
+    }
+
+    const timeVal = row["שעה"];
+    if (!timeVal || !/^\d{2}:\d{2}(:\d{2})?$/.test(timeVal)) {
+      errors.push(`שורה ${i + 1}: שעה לא תקינה "${timeVal}"`);
+      continue;
+    }
+
+    const startTime =
+      timeVal.length === 5 ? `${timeVal}:00` : timeVal;
+
+    rows.push({
+      instructor_id: instructorId,
+      location_id: locationId,
+      lesson_date: dateVal,
+      start_time: startTime,
+      status: "scheduled",
+      change_notes: row["הערות"] || null,
+      is_one_time_change: true,
+      recurring_item_id: null,
+    });
+  }
+
+  if (rows.length === 0) {
+    return { error: "אין שורות תקינות לייבוא", details: errors };
+  }
+
+  const BATCH_SIZE = 100;
+  let inserted = 0;
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase.from("lessons").insert(batch);
+    if (error) {
+      errors.push(`שגיאת הכנסה בבאצ׳ ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`);
+    } else {
+      inserted += batch.length;
+    }
+  }
+
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    inserted,
+    skipped: lines.length - 1 - rows.length,
+    details: errors.length > 0 ? errors : undefined,
+  };
+}
+
 /**
  * Mark a schedule change as "seen" (dismiss from active view).
  */

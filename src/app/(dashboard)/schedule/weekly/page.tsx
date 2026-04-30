@@ -47,6 +47,12 @@ export default async function WeeklySchedulePage({
           <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח שבועי</h2>
           <div className="flex items-center gap-2">
             <Link
+              href="/schedule/import"
+              className="rounded-lg border border-border bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 md:px-4 md:py-2 md:text-sm"
+            >
+              ייבוא שיעורים
+            </Link>
+            <Link
               href="/schedule"
               className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted md:px-4 md:py-2 md:text-sm"
             >
