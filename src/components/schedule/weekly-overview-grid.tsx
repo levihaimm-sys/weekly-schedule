@@ -122,7 +122,7 @@ export function WeeklyOverviewGrid({
           return (
             <div key={dateStr} className="min-w-0">
               {/* Day header */}
-              <div className="rounded-t-lg bg-secondary py-1.5 text-center">
+              <div className="sticky top-14 md:top-16 z-10 rounded-t-lg bg-secondary py-1.5 text-center shadow-sm">
                 <p className="text-xs font-bold text-[#1C1917] sm:text-sm">
                   {DAYS_SHORT[dayIndex]}
                 </p>
