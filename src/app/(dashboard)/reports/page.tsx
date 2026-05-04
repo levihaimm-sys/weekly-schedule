@@ -1,17 +1,23 @@
-import { getAllInstructors, getAllCities } from "@/lib/queries/schedule";
-import { FileText, MapPin } from "lucide-react";
+import { getAllInstructors } from "@/lib/queries/schedule";
+import { FileText, Building2, BarChart3 } from "lucide-react";
 import { ReportForm } from "@/components/reports/report-form";
-import { LocationReportForm } from "@/components/reports/location-report-form";
+import { ClientReportForm } from "@/components/reports/client-report-form";
+import { MonthlySummaryForm } from "@/components/reports/monthly-summary-form";
 
 export default async function ReportsPage() {
-  const [instructors, cities] = await Promise.all([
-    getAllInstructors(),
-    getAllCities(),
-  ]);
+  const instructors = await getAllInstructors();
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">דוחות חודשיים</h2>
+
+      <div className="rounded-xl border border-border bg-background p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <Building2 className="text-violet-500" size={24} />
+          <h3 className="text-lg font-semibold">דוח לקוח</h3>
+        </div>
+        <ClientReportForm />
+      </div>
 
       <div className="rounded-xl border border-border bg-background p-6">
         <div className="mb-4 flex items-center gap-3">
@@ -23,10 +29,10 @@ export default async function ReportsPage() {
 
       <div className="rounded-xl border border-border bg-background p-6">
         <div className="mb-4 flex items-center gap-3">
-          <MapPin className="text-blue-500" size={24} />
-          <h3 className="text-lg font-semibold">דוח עיר</h3>
+          <BarChart3 className="text-emerald-500" size={24} />
+          <h3 className="text-lg font-semibold">סיכום חודשי לפי לקוח</h3>
         </div>
-        <LocationReportForm cities={cities} />
+        <MonthlySummaryForm />
       </div>
     </div>
   );

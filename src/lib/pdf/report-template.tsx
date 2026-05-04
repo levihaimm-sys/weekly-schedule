@@ -148,6 +148,236 @@ function statusToHebrew(status: string) {
   return map[status] ?? status;
 }
 
+// ─── Client Report ───────────────────────────────────────────────────────────
+
+interface ClientLessonRow {
+  date: string;
+  dayOfWeek: number;
+  time: string;
+  locationName: string;
+  instructorName: string;
+  status: string;
+  signatureUrl?: string | null;
+  signerName?: string | null;
+  signerRole?: string | null;
+}
+
+interface ClientCitySection {
+  city: string;
+  total: number;
+  completed: number;
+  cancelled: number;
+  teacherConfirmed: number;
+  instructorConfirmed: number;
+  lessons?: ClientLessonRow[];
+}
+
+interface ClientReportDocumentData {
+  clientName: string;
+  month: number;
+  year: number;
+  mode: "full" | "summary";
+  cities: ClientCitySection[];
+}
+
+const cityHeaderStyle = StyleSheet.create({
+  box: {
+    backgroundColor: "#e0e7ff",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginBottom: 3,
+  },
+  text: { fontWeight: 700, fontSize: 10 },
+  subText: { fontSize: 8, color: "#4b5563", marginTop: 2 },
+});
+
+export function ClientReportDocument({
+  data,
+}: {
+  data: ClientReportDocumentData;
+}) {
+  const totals = {
+    total: data.cities.reduce((s, c) => s + c.total, 0),
+    completed: data.cities.reduce((s, c) => s + c.completed, 0),
+    cancelled: data.cities.reduce((s, c) => s + c.cancelled, 0),
+    teacherConfirmed: data.cities.reduce((s, c) => s + c.teacherConfirmed, 0),
+    instructorConfirmed: data.cities.reduce(
+      (s, c) => s + c.instructorConfirmed,
+      0
+    ),
+  };
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <Text style={styles.title}>חיים בתנועה - דוח לקוח חודשי</Text>
+          <Text style={styles.subtitle}>
+            {`${data.clientName} | ${MONTHS_HEBREW[data.month - 1]} ${data.year}`}
+          </Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        {data.mode === "full" ? (
+          // Full mode — lesson table per city
+          data.cities.map((cityData, ci) => (
+            <View key={ci}>
+              <View
+                style={[cityHeaderStyle.box, ci > 0 ? { marginTop: 14 } : {}]}
+              >
+                <Text style={cityHeaderStyle.text}>{cityData.city}</Text>
+                <Text style={cityHeaderStyle.subText}>
+                  {`סה"כ: ${cityData.total} | הושלמו: ${cityData.completed} | בוטלו: ${cityData.cancelled} | גננת: ${cityData.teacherConfirmed} | מדריכה: ${cityData.instructorConfirmed}`}
+                </Text>
+              </View>
+              <View style={styles.table}>
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.tableHeaderText, styles.colDate]}>
+                    תאריך
+                  </Text>
+                  <Text style={[styles.tableHeaderText, styles.colDay]}>
+                    יום
+                  </Text>
+                  <Text style={[styles.tableHeaderText, styles.colTime]}>
+                    שעה
+                  </Text>
+                  <Text
+                    style={[styles.tableHeaderText, styles.colLocation]}
+                  >
+                    מיקום
+                  </Text>
+                  <Text style={[styles.tableHeaderText, { width: "14%" }]}>
+                    מדריכה
+                  </Text>
+                  <Text style={[styles.tableHeaderText, styles.colStatus]}>
+                    סטטוס
+                  </Text>
+                  <Text
+                    style={[styles.tableHeaderText, styles.colSignature]}
+                  >
+                    אישור
+                  </Text>
+                </View>
+                {(cityData.lessons ?? []).map((lesson, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.tableRow,
+                      i % 2 === 1 ? styles.tableRowAlt : {},
+                    ]}
+                  >
+                    <Text style={[styles.cell, styles.colDate]}>
+                      {lesson.date}
+                    </Text>
+                    <Text style={[styles.cell, styles.colDay]}>
+                      {HEBREW_DAYS[lesson.dayOfWeek]}
+                    </Text>
+                    <Text style={[styles.cell, styles.colTime]}>
+                      {lesson.time}
+                    </Text>
+                    <Text style={[styles.cell, styles.colLocation]}>
+                      {lesson.locationName}
+                    </Text>
+                    <Text style={[styles.cell, { width: "14%" }]}>
+                      {lesson.instructorName}
+                    </Text>
+                    <Text style={[styles.cell, styles.colStatus]}>
+                      {statusToHebrew(lesson.status)}
+                    </Text>
+                    <View style={[styles.colSignature, { alignItems: "center" }]}>
+                      {lesson.signerRole === "teacher" ? (
+                        <View style={{ alignItems: "center" }}>
+                          {lesson.signatureUrl ? (
+                            <Image
+                              src={lesson.signatureUrl}
+                              style={styles.signatureImage}
+                            />
+                          ) : null}
+                          <Text
+                            style={[styles.cell, { fontSize: 7, color: "#666" }]}
+                          >
+                            {`גננת: ${lesson.signerName}`}
+                          </Text>
+                        </View>
+                      ) : lesson.signerRole === "instructor" ? (
+                        <Text style={[styles.cell, { color: "#2563eb" }]}>
+                          {"✓"} מדריכה
+                        </Text>
+                      ) : (
+                        <Text style={[styles.cell, { color: "#999" }]}>—</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))
+        ) : (
+          // Summary mode — one row per city
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderText, { width: "22%" }]}>
+                עיר
+              </Text>
+              <Text style={[styles.tableHeaderText, { width: "13%" }]}>
+                {`סה"כ`}
+              </Text>
+              <Text style={[styles.tableHeaderText, { width: "13%" }]}>
+                הושלמו
+              </Text>
+              <Text style={[styles.tableHeaderText, { width: "13%" }]}>
+                בוטלו
+              </Text>
+              <Text style={[styles.tableHeaderText, { width: "19%" }]}>
+                אישור גננת
+              </Text>
+              <Text style={[styles.tableHeaderText, { width: "20%" }]}>
+                אישור מדריכה
+              </Text>
+            </View>
+            {data.cities.map((cityData, i) => (
+              <View
+                key={i}
+                style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}
+              >
+                <Text style={[styles.cell, { width: "22%", fontWeight: 700 }]}>
+                  {cityData.city}
+                </Text>
+                <Text style={[styles.cell, { width: "13%" }]}>
+                  {cityData.total}
+                </Text>
+                <Text style={[styles.cell, { width: "13%", color: "#16a34a" }]}>
+                  {cityData.completed}
+                </Text>
+                <Text style={[styles.cell, { width: "13%", color: "#dc2626" }]}>
+                  {cityData.cancelled}
+                </Text>
+                <Text style={[styles.cell, { width: "19%" }]}>
+                  {cityData.teacherConfirmed}
+                </Text>
+                <Text style={[styles.cell, { width: "20%" }]}>
+                  {cityData.instructorConfirmed}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={[styles.summary, { marginTop: 16 }]}>
+          <Text style={styles.summaryText}>
+            {`סה"כ: ${totals.total} | הושלמו: ${totals.completed} | בוטלו: ${totals.cancelled} | אישור גננת: ${totals.teacherConfirmed} | אישור מדריכה: ${totals.instructorConfirmed}`}
+          </Text>
+        </View>
+
+        <Text style={styles.footer}>
+          {`הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}`}
+        </Text>
+      </Page>
+    </Document>
+  );
+}
+
 // ─── Location Report ────────────────────────────────────────────────────────
 
 interface LocationLessonRow {
