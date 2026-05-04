@@ -227,7 +227,7 @@ export function LocationReportDocument({ data }: { data: LocationReportData }) {
 
         <View style={styles.summary}>
           <Text style={styles.summaryText}>
-            סה&quot;כ שיעורים: {data.lessons.length} | הושלמו: {completed} | בוטלו: {cancelled}
+            {`סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled}`}
           </Text>
         </View>
 
@@ -418,9 +418,7 @@ export function MonthlyReportDocument({ data }: { data: ReportData }) {
         {/* Summary */}
         <View style={styles.summary}>
           <Text style={styles.summaryText}>
-            סה&quot;כ שיעורים: {data.lessons.length} | הושלמו: {completed} |
-            בוטלו: {cancelled} | אישור גננת: {teacherConfirmed} | אישור
-            מדריכה: {instructorConfirmed}
+            {`סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConfirmed} | אישור מדריכה: ${instructorConfirmed}`}
           </Text>
         </View>
 
