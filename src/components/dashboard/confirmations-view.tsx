@@ -289,6 +289,60 @@ export function ConfirmationsView({
                   );
                 })}
               </div>
+
+              {/* Client summary table */}
+              {(() => {
+                const nonCancelled = iLessons.filter(
+                  (l) => l.status !== "cancelled"
+                );
+                const byClient = new Map<
+                  string,
+                  { confirmed: number; pending: number }
+                >();
+                for (const l of nonCancelled) {
+                  if (!byClient.has(l.client_name))
+                    byClient.set(l.client_name, { confirmed: 0, pending: 0 });
+                  const entry = byClient.get(l.client_name)!;
+                  if (sigMap[l.id]) entry.confirmed++;
+                  else entry.pending++;
+                }
+                const rows = [...byClient.entries()].sort((a, b) =>
+                  a[0].localeCompare(b[0], "he")
+                );
+                if (rows.length === 0) return null;
+                return (
+                  <div className="border-t border-border bg-muted/20 px-4 py-3">
+                    <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                      סיכום לפי לקוח
+                    </p>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-xs text-muted-foreground">
+                          <th className="pb-1 text-right">לקוח</th>
+                          <th className="pb-1 text-center">אושרו</th>
+                          <th className="pb-1 text-center">לא אושרו</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(([client, counts]) => (
+                          <tr
+                            key={client}
+                            className="border-b border-border/50 last:border-0"
+                          >
+                            <td className="py-1 font-medium">{client}</td>
+                            <td className="py-1 text-center font-medium text-green-700">
+                              {counts.confirmed}
+                            </td>
+                            <td className="py-1 text-center font-medium text-orange-700">
+                              {counts.pending}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}

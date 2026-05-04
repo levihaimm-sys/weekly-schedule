@@ -49,6 +49,25 @@ export const EMPLOYMENT_TYPE = {
 
 export type EmploymentType = keyof typeof EMPLOYMENT_TYPE;
 
-export const CLIENTS = ["טומשין", "אופק", "עיריית הוד השרון", "ינוקא"] as const;
+export const CLIENTS = ["טומשין", "טומשין כצנלסון", "עיריית הוד השרון", "אופק", "ינוקא"] as const;
 
 export type Client = (typeof CLIENTS)[number];
+
+export const CLIENT_CITIES: Record<string, string[]> = {
+  "טומשין": ["פת", "גבעתיים", "ראש העין", "באר יעקב"],
+  "טומשין כצנלסון": ["גבעתיים כצנלסון"],
+  "עיריית הוד השרון": ["הוד השרון"],
+  "אופק": ["נחל שורק"],
+  "ינוקא": ["נס ציונה"],
+};
+
+export const CITY_TO_CLIENT: Record<string, string> = {
+  "פת": "טומשין",
+  "גבעתיים": "טומשין",
+  "ראש העין": "טומשין",
+  "באר יעקב": "טומשין",
+  "גבעתיים כצנלסון": "טומשין כצנלסון",
+  "הוד השרון": "עיריית הוד השרון",
+  "נחל שורק": "אופק",
+  "נס ציונה": "ינוקא",
+};
