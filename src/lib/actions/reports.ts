@@ -204,8 +204,8 @@ export async function getMonthlyClientSummary(
 
 // ─── Instructor Monthly Summary ───────────────────────────────────────────────
 
-export interface InstructorClientSummary {
-  client: string;
+export interface InstructorCitySummary {
+  city: string;
   total: number;
   completed: number;
   cancelled: number;
@@ -215,7 +215,7 @@ export interface InstructorClientSummary {
 
 export interface InstructorMonthlySummary {
   instructorName: string;
-  clients: InstructorClientSummary[];
+  cities: InstructorCitySummary[];
   total: number;
   completed: number;
   cancelled: number;
@@ -245,26 +245,21 @@ export async function getInstructorMonthlySummary(
 
   if (error) return { error: "שגיאה בטעינת נתונים: " + error.message };
 
-  // Build instructor → client stats map
-  const instructorMap = new Map<
-    string,
-    Map<string, InstructorClientSummary>
-  >();
+  // Build instructor → city stats map
+  const instructorMap = new Map<string, Map<string, InstructorCitySummary>>();
 
   for (const lesson of rawLessons ?? []) {
-    const instructorName =
-      (lesson.instructor as any)?.full_name ?? "לא ידוע";
+    const instructorName = (lesson.instructor as any)?.full_name ?? "לא ידוע";
     const city = (lesson.location as any)?.city ?? "";
-    const client = CITY_TO_CLIENT[city];
-    if (!client) continue;
+    if (!city || !CITY_TO_CLIENT[city]) continue;
 
     if (!instructorMap.has(instructorName))
       instructorMap.set(instructorName, new Map());
-    const clientMap = instructorMap.get(instructorName)!;
+    const cityMap = instructorMap.get(instructorName)!;
 
-    if (!clientMap.has(client)) {
-      clientMap.set(client, {
-        client,
+    if (!cityMap.has(city)) {
+      cityMap.set(city, {
+        city,
         total: 0,
         completed: 0,
         cancelled: 0,
@@ -273,7 +268,7 @@ export async function getInstructorMonthlySummary(
       });
     }
 
-    const stats = clientMap.get(client)!;
+    const stats = cityMap.get(city)!;
     stats.total++;
     if (lesson.status === "completed") stats.completed++;
     if (lesson.status === "cancelled") stats.cancelled++;
@@ -284,26 +279,21 @@ export async function getInstructorMonthlySummary(
   }
 
   const result: InstructorMonthlySummary[] = [];
-  for (const [instructorName, clientMap] of instructorMap.entries()) {
-    const clients = [...clientMap.values()].sort((a, b) =>
-      a.client.localeCompare(b.client, "he")
+  for (const [instructorName, cityMap] of instructorMap.entries()) {
+    const cities = [...cityMap.values()].sort((a, b) =>
+      a.city.localeCompare(b.city, "he")
     );
     result.push({
       instructorName,
-      clients,
-      total: clients.reduce((s, c) => s + c.total, 0),
-      completed: clients.reduce((s, c) => s + c.completed, 0),
-      cancelled: clients.reduce((s, c) => s + c.cancelled, 0),
-      teacherConfirmed: clients.reduce((s, c) => s + c.teacherConfirmed, 0),
-      instructorConfirmed: clients.reduce(
-        (s, c) => s + c.instructorConfirmed,
-        0
-      ),
+      cities,
+      total: cities.reduce((s, c) => s + c.total, 0),
+      completed: cities.reduce((s, c) => s + c.completed, 0),
+      cancelled: cities.reduce((s, c) => s + c.cancelled, 0),
+      teacherConfirmed: cities.reduce((s, c) => s + c.teacherConfirmed, 0),
+      instructorConfirmed: cities.reduce((s, c) => s + c.instructorConfirmed, 0),
     });
   }
 
-  result.sort((a, b) =>
-    a.instructorName.localeCompare(b.instructorName, "he")
-  );
+  result.sort((a, b) => a.instructorName.localeCompare(b.instructorName, "he"));
   return { data: result };
 }

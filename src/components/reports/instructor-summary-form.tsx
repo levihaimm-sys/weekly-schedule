@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import {
   getInstructorMonthlySummary,
   InstructorMonthlySummary,
-} from "@/lib/actions/reports";
+  } from "@/lib/actions/reports";
 import { Loader2 } from "lucide-react";
 
 const MONTHS = [
@@ -84,7 +84,7 @@ export function InstructorSummaryForm() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-                <th className="w-[28%] px-4 py-2.5">לקוח</th>
+                <th className="w-[28%] px-4 py-2.5">עיר</th>
                 <th className="w-[12%] px-4 py-2.5 text-center">סה"כ</th>
                 <th className="w-[12%] px-4 py-2.5 text-center">הושלמו</th>
                 <th className="w-[12%] px-4 py-2.5 text-center">בוטלו</th>
@@ -102,18 +102,18 @@ export function InstructorSummaryForm() {
                     </td>
                   </tr>
 
-                  {/* Client rows */}
-                  {instructor.clients.map((client) => (
+                  {/* City rows */}
+                  {instructor.cities.map((city) => (
                     <tr
-                      key={`${instructor.instructorName}-${client.client}`}
+                      key={`${instructor.instructorName}-${city.city}`}
                       className="border-b border-border/50 hover:bg-muted/20"
                     >
-                      <td className={`${COL_LABEL} pr-8`}>{client.client}</td>
-                      <td className={COL}>{client.total}</td>
-                      <td className={`${COL} font-medium text-green-700`}>{client.completed}</td>
-                      <td className={`${COL} font-medium text-red-600`}>{client.cancelled}</td>
-                      <td className={COL}>{client.teacherConfirmed}</td>
-                      <td className={COL}>{client.instructorConfirmed}</td>
+                      <td className={`${COL_LABEL} pr-8`}>{city.city}</td>
+                      <td className={COL}>{city.total}</td>
+                      <td className={`${COL} font-medium text-green-700`}>{city.completed}</td>
+                      <td className={`${COL} font-medium text-red-600`}>{city.cancelled}</td>
+                      <td className={COL}>{city.teacherConfirmed}</td>
+                      <td className={COL}>{city.instructorConfirmed}</td>
                     </tr>
                   ))}
 
