@@ -281,7 +281,19 @@ export function ClientReportForm() {
                               </td>
                               <td className="px-3 py-2">
                                 {lesson.signerRole === "teacher" ? (
-                                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">✓ גננת</span>
+                                  <div className="flex flex-col items-start gap-0.5">
+                                    {lesson.signatureUrl && (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={lesson.signatureUrl}
+                                        alt="חתימה"
+                                        className="h-7 w-16 object-contain"
+                                      />
+                                    )}
+                                    <span className="text-xs text-muted-foreground">
+                                      גננת: {lesson.signerName}
+                                    </span>
+                                  </div>
                                 ) : lesson.signerRole === "instructor" ? (
                                   <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">✓ מדריכה</span>
                                 ) : (

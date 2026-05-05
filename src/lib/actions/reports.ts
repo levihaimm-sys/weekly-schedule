@@ -13,6 +13,7 @@ export interface ClientReportLesson {
   city: string;
   signerRole: "teacher" | "instructor" | null;
   signerName: string | null;
+  signatureUrl: string | null;
 }
 
 export interface ClientReportData {
@@ -61,7 +62,7 @@ export async function getClientReportData(
       `id, lesson_date, start_time, status,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(name, city),
-       signatures(signer_name, signer_role)`
+       signatures(signer_name, signer_role, signature_url)`
     )
     .in("location_id", locationIds)
     .gte("lesson_date", startDate)
@@ -83,6 +84,7 @@ export async function getClientReportData(
       city: l.location?.city ?? "—",
       signerRole: sig?.signer_role ?? null,
       signerName: sig?.signer_name ?? null,
+      signatureUrl: sig?.signature_url ?? null,
     };
   });
 
