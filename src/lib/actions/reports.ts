@@ -61,8 +61,7 @@ export async function getClientReportData(
     .select(
       `id, lesson_date, start_time, status,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
-       location:locations!lessons_location_id_fkey(name, city),
-       signatures(signer_name, signer_role, signature_url)`
+       location:locations!lessons_location_id_fkey(name, city)`
     )
     .in("location_id", locationIds)
     .gte("lesson_date", startDate)
@@ -72,8 +71,21 @@ export async function getClientReportData(
 
   if (error) return { error: "שגיאה בטעינת נתונים: " + error.message };
 
+  // Fetch signatures separately — same pattern as instructor report
+  const lessonIds = (rawLessons ?? []).map((l: any) => l.id);
+  const sigMap = new Map<string, { signer_role: string; signer_name: string; signature_url: string | null }>();
+  if (lessonIds.length > 0) {
+    const { data: signatures } = await supabase
+      .from("signatures")
+      .select("lesson_id, signer_name, signer_role, signature_url")
+      .in("lesson_id", lessonIds);
+    for (const sig of signatures ?? []) {
+      sigMap.set(sig.lesson_id, sig);
+    }
+  }
+
   const lessons: ClientReportLesson[] = (rawLessons ?? []).map((l: any) => {
-    const sig = l.signatures?.[0] ?? null;
+    const sig = sigMap.get(l.id) ?? null;
     return {
       id: l.id,
       lesson_date: l.lesson_date,
@@ -82,7 +94,7 @@ export async function getClientReportData(
       instructorName: l.instructor?.full_name ?? "—",
       locationName: l.location?.name ?? "—",
       city: l.location?.city ?? "—",
-      signerRole: sig?.signer_role ?? null,
+      signerRole: (sig?.signer_role as "teacher" | "instructor" | null) ?? null,
       signerName: sig?.signer_name ?? null,
       signatureUrl: sig?.signature_url ?? null,
     };
