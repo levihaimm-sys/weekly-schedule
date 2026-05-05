@@ -15,6 +15,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { AdminConfirmButton } from "./admin-confirm-button";
+import { AdminCancelButton } from "./admin-cancel-button";
 
 interface LessonData {
   id: string;
@@ -279,10 +280,13 @@ export function ConfirmationsView({
                           {status.label}
                         </span>
                         {!isConfirmed && !isCancelled && isPast && (
-                          <AdminConfirmButton
-                            lessonId={lesson.id}
-                            instructorName={name}
-                          />
+                          <>
+                            <AdminConfirmButton
+                              lessonId={lesson.id}
+                              instructorName={name}
+                            />
+                            <AdminCancelButton lessonId={lesson.id} />
+                          </>
                         )}
                       </div>
                     </div>

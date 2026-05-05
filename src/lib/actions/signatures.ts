@@ -250,6 +250,24 @@ export async function adminConfirmLesson(lessonId: string, instructorName: strin
   return { success: true };
 }
 
+export async function adminCancelLesson(lessonId: string) {
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("lessons")
+    .update({ status: "cancelled" })
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בביטול: " + error.message };
+  }
+
+  revalidatePath("/confirmations");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/my-schedule");
+  return { success: true };
+}
+
 /**
  * Undo an instructor-initiated cancellation ("לא התקיים").
  * Resets lesson status to 'scheduled' and clears the change_notes.
