@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import {
-  getMonthlyClientSummary,
-  ClientMonthlySummary,
+  getInstructorMonthlySummary,
+  InstructorMonthlySummary,
 } from "@/lib/actions/reports";
 import { Loader2 } from "lucide-react";
 
@@ -15,18 +15,18 @@ const MONTHS = [
 const COL = "px-4 py-2 text-center tabular-nums";
 const COL_LABEL = "px-4 py-2";
 
-export function MonthlySummaryForm() {
+export function InstructorSummaryForm() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
-  const [data, setData] = useState<ClientMonthlySummary[] | null>(null);
+  const [data, setData] = useState<InstructorMonthlySummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
     setError(null);
     startTransition(async () => {
-      const result = await getMonthlyClientSummary(month, year);
+      const result = await getInstructorMonthlySummary(month, year);
       if (result.error) setError(result.error);
       else setData(result.data!);
     });
@@ -84,7 +84,7 @@ export function MonthlySummaryForm() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-                <th className="w-[28%] px-4 py-2.5">עיר</th>
+                <th className="w-[28%] px-4 py-2.5">לקוח</th>
                 <th className="w-[12%] px-4 py-2.5 text-center">סה"כ</th>
                 <th className="w-[12%] px-4 py-2.5 text-center">הושלמו</th>
                 <th className="w-[12%] px-4 py-2.5 text-center">בוטלו</th>
@@ -93,35 +93,38 @@ export function MonthlySummaryForm() {
               </tr>
             </thead>
             <tbody>
-              {data.map((client) => (
+              {data.map((instructor) => (
                 <>
-                  {/* Client group header */}
-                  <tr key={`h-${client.client}`} className="border-y border-border bg-violet-50">
-                    <td colSpan={6} className="px-4 py-2 font-semibold text-violet-900">
-                      {client.client}
+                  {/* Instructor group header */}
+                  <tr key={`h-${instructor.instructorName}`} className="border-y border-border bg-orange-50">
+                    <td colSpan={6} className="px-4 py-2 font-semibold text-orange-900">
+                      {instructor.instructorName}
                     </td>
                   </tr>
 
-                  {/* City rows */}
-                  {client.cities.map((city) => (
-                    <tr key={`${client.client}-${city.city}`} className="border-b border-border/50 hover:bg-muted/20">
-                      <td className={`${COL_LABEL} pr-8`}>{city.city}</td>
-                      <td className={COL}>{city.total}</td>
-                      <td className={`${COL} font-medium text-green-700`}>{city.completed}</td>
-                      <td className={`${COL} font-medium text-red-600`}>{city.cancelled}</td>
-                      <td className={COL}>{city.teacherConfirmed}</td>
-                      <td className={COL}>{city.instructorConfirmed}</td>
+                  {/* Client rows */}
+                  {instructor.clients.map((client) => (
+                    <tr
+                      key={`${instructor.instructorName}-${client.client}`}
+                      className="border-b border-border/50 hover:bg-muted/20"
+                    >
+                      <td className={`${COL_LABEL} pr-8`}>{client.client}</td>
+                      <td className={COL}>{client.total}</td>
+                      <td className={`${COL} font-medium text-green-700`}>{client.completed}</td>
+                      <td className={`${COL} font-medium text-red-600`}>{client.cancelled}</td>
+                      <td className={COL}>{client.teacherConfirmed}</td>
+                      <td className={COL}>{client.instructorConfirmed}</td>
                     </tr>
                   ))}
 
-                  {/* Client total row */}
-                  <tr key={`t-${client.client}`} className="border-b-2 border-border bg-muted/30 font-semibold text-xs">
+                  {/* Instructor total row */}
+                  <tr key={`t-${instructor.instructorName}`} className="border-b-2 border-border bg-muted/30 font-semibold text-xs">
                     <td className={`${COL_LABEL} pr-8 text-muted-foreground`}>סה"כ</td>
-                    <td className={COL}>{client.total}</td>
-                    <td className={`${COL} text-green-700`}>{client.completed}</td>
-                    <td className={`${COL} text-red-600`}>{client.cancelled}</td>
-                    <td className={COL}>{client.teacherConfirmed}</td>
-                    <td className={COL}>{client.instructorConfirmed}</td>
+                    <td className={COL}>{instructor.total}</td>
+                    <td className={`${COL} text-green-700`}>{instructor.completed}</td>
+                    <td className={`${COL} text-red-600`}>{instructor.cancelled}</td>
+                    <td className={COL}>{instructor.teacherConfirmed}</td>
+                    <td className={COL}>{instructor.instructorConfirmed}</td>
                   </tr>
                 </>
               ))}

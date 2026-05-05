@@ -199,3 +199,109 @@ export async function getMonthlyClientSummary(
   result.sort((a, b) => a.client.localeCompare(b.client, "he"));
   return { data: result };
 }
+
+// ─── Instructor Monthly Summary ───────────────────────────────────────────────
+
+export interface InstructorClientSummary {
+  client: string;
+  total: number;
+  completed: number;
+  cancelled: number;
+  teacherConfirmed: number;
+  instructorConfirmed: number;
+}
+
+export interface InstructorMonthlySummary {
+  instructorName: string;
+  clients: InstructorClientSummary[];
+  total: number;
+  completed: number;
+  cancelled: number;
+  teacherConfirmed: number;
+  instructorConfirmed: number;
+}
+
+export async function getInstructorMonthlySummary(
+  month: number,
+  year: number
+): Promise<{ data?: InstructorMonthlySummary[]; error?: string }> {
+  const supabase = createAdminClient();
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+  const { data: rawLessons, error } = await supabase
+    .from("lessons")
+    .select(
+      `id, status,
+       instructor:instructors!lessons_instructor_id_fkey(full_name),
+       location:locations!lessons_location_id_fkey(city),
+       signatures(signer_role)`
+    )
+    .gte("lesson_date", startDate)
+    .lte("lesson_date", endDate);
+
+  if (error) return { error: "שגיאה בטעינת נתונים: " + error.message };
+
+  // Build instructor → client stats map
+  const instructorMap = new Map<
+    string,
+    Map<string, InstructorClientSummary>
+  >();
+
+  for (const lesson of rawLessons ?? []) {
+    const instructorName =
+      (lesson.instructor as any)?.full_name ?? "לא ידוע";
+    const city = (lesson.location as any)?.city ?? "";
+    const client = CITY_TO_CLIENT[city];
+    if (!client) continue;
+
+    if (!instructorMap.has(instructorName))
+      instructorMap.set(instructorName, new Map());
+    const clientMap = instructorMap.get(instructorName)!;
+
+    if (!clientMap.has(client)) {
+      clientMap.set(client, {
+        client,
+        total: 0,
+        completed: 0,
+        cancelled: 0,
+        teacherConfirmed: 0,
+        instructorConfirmed: 0,
+      });
+    }
+
+    const stats = clientMap.get(client)!;
+    stats.total++;
+    if (lesson.status === "completed") stats.completed++;
+    if (lesson.status === "cancelled") stats.cancelled++;
+
+    const sig = (lesson.signatures as any)?.[0];
+    if (sig?.signer_role === "teacher") stats.teacherConfirmed++;
+    if (sig?.signer_role === "instructor") stats.instructorConfirmed++;
+  }
+
+  const result: InstructorMonthlySummary[] = [];
+  for (const [instructorName, clientMap] of instructorMap.entries()) {
+    const clients = [...clientMap.values()].sort((a, b) =>
+      a.client.localeCompare(b.client, "he")
+    );
+    result.push({
+      instructorName,
+      clients,
+      total: clients.reduce((s, c) => s + c.total, 0),
+      completed: clients.reduce((s, c) => s + c.completed, 0),
+      cancelled: clients.reduce((s, c) => s + c.cancelled, 0),
+      teacherConfirmed: clients.reduce((s, c) => s + c.teacherConfirmed, 0),
+      instructorConfirmed: clients.reduce(
+        (s, c) => s + c.instructorConfirmed,
+        0
+      ),
+    });
+  }
+
+  result.sort((a, b) =>
+    a.instructorName.localeCompare(b.instructorName, "he")
+  );
+  return { data: result };
+}
