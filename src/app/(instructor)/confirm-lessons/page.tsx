@@ -1,15 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { DAYS_HEBREW, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
-import { formatTime } from "@/lib/utils/date";
-import { MapPin, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { redirect } from "next/navigation";
-import { LessonConfirmButtons } from "@/components/schedule/lesson-confirm-buttons";
-import { InstructorReportButton } from "@/components/schedule/instructor-report-button";
 import { MonthSelector } from "@/components/schedule/month-selector";
 import { ConfirmLessonsFilters } from "@/components/schedule/confirm-lessons-filters";
-import { RevokeApprovalButton } from "@/components/schedule/revoke-approval-button";
-import { UndoCancellationButton } from "@/components/schedule/undo-cancellation-button";
+import { BulkConfirmLessons } from "@/components/schedule/bulk-confirm-lessons";
 
 export const dynamic = "force-dynamic";
 
@@ -172,114 +167,8 @@ export default async function ConfirmLessonsPage({
         </span>
       </div>
 
-      {/* Lessons list - COMPACT spacing */}
-      <div className="space-y-2">
-        {allLessons.length === 0 ? (
-          <div className="rounded-2xl bg-card p-10 text-center shadow-sm">
-            <p className="text-lg font-semibold text-muted-foreground">אין שיעורים בחודש זה</p>
-          </div>
-        ) : (
-          allLessons.map((lesson: any) => {
-            const isConfirmed = !!sigMap[lesson.id];
-            const lessonDate = new Date(lesson.lesson_date);
-            const dayName = DAYS_HEBREW[lessonDate.getDay()];
-            const dateStr = format(lessonDate, "dd/MM");
-
-            // Calculate if lesson has started + 10 minutes
-            const now = new Date();
-            const lessonDateTime = new Date(`${lesson.lesson_date}T${lesson.start_time}`);
-            const tenMinutesAfterStart = new Date(lessonDateTime.getTime() + 10 * 60 * 1000);
-            const hasStartedPlus10 = now >= tenMinutesAfterStart;
-            const isFutureLesson = !hasStartedPlus10 && !isConfirmed && lesson.status !== "cancelled" && !lesson.instructor_absence_request;
-
-            return (
-              <div key={lesson.id}>
-                <div
-                  className={`rounded-2xl p-4 shadow-sm ${
-                    isConfirmed
-                      ? "bg-success/10"
-                      : lesson.status === "cancelled"
-                        ? "bg-destructive/10"
-                        : lesson.instructor_absence_request
-                          ? "bg-orange-50"
-                          : "bg-card"
-                  }`}
-                >
-                  {/* Top row: lesson info + status badge */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-4">
-                        {/* Date + Day column */}
-                        <div className="shrink-0">
-                          <span className="font-bold text-sm text-foreground block">
-                            {dateStr}
-                          </span>
-                          <span className="font-bold text-sm text-foreground">
-                            {dayName}
-                          </span>
-                        </div>
-                        {/* Time + City column */}
-                        <div className="shrink-0">
-                          <span className="flex items-center gap-1 font-bold text-sm text-foreground">
-                            <Clock size={12} />
-                            {formatTime(lesson.start_time)}
-                          </span>
-                          <div className="flex items-center gap-1 font-bold text-sm text-foreground mt-0.5">
-                            <MapPin size={11} />
-                            {lesson.location?.city}
-                          </div>
-                        </div>
-                      </div>
-                      <p className="font-bold text-sm text-foreground truncate mt-2">{lesson.location?.name}</p>
-                    </div>
-
-                    <div className="shrink-0">
-                      {isConfirmed ? (
-                        <div className="flex flex-col items-end">
-                          <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
-                            ✓ מאושר
-                          </span>
-                          {sigMap[lesson.id]?.signer_role === "instructor" && (
-                            <RevokeApprovalButton lessonId={lesson.id} />
-                          )}
-                        </div>
-                      ) : lesson.status === "cancelled" ? (
-                        <div className="flex flex-col items-end">
-                          <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
-                            בוטל
-                          </span>
-                          {lesson.change_notes === "לא התקיים - דווח ע״י המדריכה" && (
-                            <UndoCancellationButton lessonId={lesson.id} />
-                          )}
-                        </div>
-                      ) : lesson.instructor_absence_request ? (
-                        <span className="flex items-center gap-1 rounded-xl bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-700">
-                          <AlertTriangle size={12} />
-                          {INSTRUCTOR_REQUEST_TYPES[lesson.instructor_request_type as keyof typeof INSTRUCTOR_REQUEST_TYPES] ?? "דווח"}
-                        </span>
-                      ) : hasStartedPlus10 ? (
-                        <LessonConfirmButtons
-                          lessonId={lesson.id}
-                          locationName={lesson.location?.name ?? ""}
-                          startTime={lesson.start_time}
-                          signature={null}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {/* Report buttons for future lessons - full width below */}
-                  {isFutureLesson && (
-                    <div className="mt-3 border-t border-border/50 pt-3">
-                      <InstructorReportButton lessonId={lesson.id} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      {/* Lessons list with multi-select */}
+      <BulkConfirmLessons lessons={allLessons as any} sigMap={sigMap} />
     </div>
   );
 }

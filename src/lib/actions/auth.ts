@@ -121,7 +121,7 @@ export async function loginAsInstructor(formData: FormData) {
     const dbName = normalizeName(instructor.full_name);
     const inputName = normalizeName(fullName);
     if (!dbName.includes(inputName) && !inputName.includes(dbName)) {
-      return { error: `[DEBUG] DB: "${dbName}" (${[...dbName].map(c=>c.codePointAt(0)?.toString(16)).join(',')}) | INPUT: "${inputName}" (${[...inputName].map(c=>c.codePointAt(0)?.toString(16)).join(',')})` };
+      return { error: "השם אינו תואם למספר הטלפון" };
     }
 
     // Deterministic email for this instructor

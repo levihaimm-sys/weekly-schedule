@@ -372,13 +372,13 @@ export function AssignmentsOverviewTable({
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="overflow-auto rounded-lg border border-border max-h-[calc(100vh-200px)]">
         <table className="w-full border-collapse text-sm" dir="rtl">
-          <thead>
+          <thead className="sticky top-0 z-20">
             {/* City header row */}
             <tr className="bg-secondary text-[#1C1917]">
               <th
-                className="sticky right-0 z-20 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold"
+                className="sticky right-0 z-30 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold"
                 rowSpan={2}
               >
                 תאריך

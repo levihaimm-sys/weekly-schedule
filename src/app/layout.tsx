@@ -13,9 +13,15 @@ export const metadata: Metadata = {
   description: "מערכת ניהול פעילויות ספורט ונוכחות לעמותת חיים בתנועה",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: "/pwa-icon.png",
+    shortcut: "/pwa-icon.png",
+    apple: [
+      {
+        url: "/pwa-icon.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
   },
   appleWebApp: {
     capable: true,

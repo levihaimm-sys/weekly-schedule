@@ -33,7 +33,16 @@
       "Bash(npm run build:*)",
       "Bash(git -C \"c:/Users/levih/Documents/weekly-schedule\" log --oneline -3)",
       "Bash(head:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(python3 -c \"from PIL import Image; img=Image.open\\('public/pwa-icon.png'\\); print\\('pwa-icon.png:', img.size, img.format\\)\")",
+      "Bash(npx --yes identify-image public/pwa-icon.png)",
+      "Bash(git add *)",
+      "Read(//c/Users/levih/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/39e37dcb-bb2d-4a96-aae7-e381e073f7d2/7f6324d0-9ae9-4d55-989b-0175ad6f630a/skills/xlsx/**)",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\(r'C:\\\\Users\\\\levih\\\\Downloads\\\\חיים בתנועה - לג בעומר.xlsx', sheet_name=None\\); [print\\(f'Sheet: {k}\\\\n{v.to_string\\(\\)}\\\\n'\\) for k,v in df.items\\(\\)]\")",
+      "Bash(python -c \"import pandas as pd; df = pd.read_excel\\(r'C:\\\\Users\\\\levih\\\\Downloads\\\\חיים בתנועה - לג בעומר.xlsx', sheet_name=None\\); [print\\(f'Sheet: {k}'\\) or print\\(v.to_string\\(\\)\\) or print\\(\\) for k,v in df.items\\(\\)]\")",
+      "Bash(ping -n 8 127.0.0.1)",
+      "PowerShell(python -c \"import pandas as pd; df = pd.read_excel\\(r'C:\\\\Users\\\\levih\\\\Downloads\\\\���� ������ - �� �����.xlsx'\\); print\\(df.columns.tolist\\(\\)\\); print\\(df.head\\(20\\).to_string\\(\\)\\)\")",
+      "PowerShell([Console]::OutputEncoding = [System.Text.Encoding]::UTF8; python -c \"import sys; sys.stdout.reconfigure\\(encoding='utf-8'\\); import pandas as pd; df = pd.read_excel\\(r'C:\\\\Users\\\\levih\\\\Downloads\\\\חיים בתנועה - לג בעומר.xlsx'\\); print\\(len\\(df\\)\\); print\\(df.tail\\(20\\).to_csv\\(index=False\\)\\)\")"
     ]
   }
 }

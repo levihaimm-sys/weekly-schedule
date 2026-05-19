@@ -105,6 +105,12 @@ export default async function MySchedulePage({
     if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
   }
 
+  // Week summary stats
+  const totalLessons = weekLessons?.length ?? 0;
+  const confirmedLessons = (weekLessons ?? []).filter((l) => !!sigMap[l.id]).length;
+  const cancelledLessons = (weekLessons ?? []).filter((l) => l.status === "cancelled" && !sigMap[l.id]).length;
+  const pendingLessons = totalLessons - confirmedLessons - cancelledLessons;
+
   return (
     <div className="space-y-4">
       <div>
@@ -124,6 +130,35 @@ export default async function MySchedulePage({
           basePath="/my-schedule"
         />
       </div>
+
+      {/* Week Summary */}
+      {totalLessons > 0 && (
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-card px-5 py-4 shadow-sm">
+          <div className="text-sm text-muted-foreground">
+            <span className="font-bold text-foreground text-lg">{totalLessons}</span> שיעורים השבוע
+          </div>
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="h-2.5 w-2.5 rounded-full bg-success" />
+            <span className="font-semibold text-success">{confirmedLessons}</span>
+            <span className="text-muted-foreground">אושרו</span>
+          </div>
+          {pendingLessons > 0 && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="h-2.5 w-2.5 rounded-full bg-orange-400" />
+              <span className="font-semibold text-orange-600">{pendingLessons}</span>
+              <span className="text-muted-foreground">ממתינים</span>
+            </div>
+          )}
+          {cancelledLessons > 0 && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
+              <span className="font-semibold text-destructive">{cancelledLessons}</span>
+              <span className="text-muted-foreground">בוטלו</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Weekly Schedule */}
       <div className="space-y-5">

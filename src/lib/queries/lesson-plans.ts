@@ -404,7 +404,11 @@ export async function getAssignmentsOverview() {
   const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const currentWeekStart = formatDate(sunday);
 
-  // Fetch ALL assignments — no date range restriction
+  // 3 weeks back, all future weeks
+  const rangeStart = new Date(sunday);
+  rangeStart.setDate(rangeStart.getDate() - 3 * 7);
+  const rangeStartStr = formatDate(rangeStart);
+
   const { data: assignments, error } = await supabase
     .from("weekly_lesson_assignments")
     .select(
@@ -414,6 +418,7 @@ export async function getAssignmentsOverview() {
       lesson_plan:lesson_plans(id, name, category, pdf_path, week_number)
     `
     )
+    .gte("week_start_date", rangeStartStr)
     .order("week_start_date");
 
   if (error) {
