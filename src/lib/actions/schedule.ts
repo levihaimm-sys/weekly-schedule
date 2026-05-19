@@ -129,8 +129,16 @@ export async function updateLesson(
   const finalUpdates: Record<string, any> = { ...updates };
   // Mark as one-time change so the sync mechanism won't reset this lesson
   finalUpdates.is_one_time_change = true;
-  if (lesson?.instructor_absence_request && !lesson?.instructor_request_handled) {
-    finalUpdates.instructor_request_handled = true;
+  if (lesson?.instructor_absence_request) {
+    if (updates.instructor_id !== undefined) {
+      // New instructor assigned → fully clear the absence state so the lesson
+      // looks and behaves like a normal scheduled lesson again
+      finalUpdates.instructor_absence_request = false;
+      finalUpdates.instructor_request_handled = false;
+    } else if (!lesson.instructor_request_handled) {
+      // Other update (time, notes, etc.) on an unhandled absence → mark handled
+      finalUpdates.instructor_request_handled = true;
+    }
   }
 
   const { error } = await supabase
@@ -335,14 +343,13 @@ export async function applyPermanentChange(
     return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
   }
 
-  // Mark pending absence requests on these lessons as handled
+  // Clear absence flags on affected lessons — new instructor makes them normal again
   await supabase
     .from("lessons")
-    .update({ instructor_request_handled: true })
+    .update({ instructor_absence_request: false, instructor_request_handled: false })
     .eq("recurring_item_id", recurringId)
     .gte("lesson_date", today)
-    .eq("instructor_absence_request", true)
-    .eq("instructor_request_handled", false);
+    .eq("instructor_absence_request", true);
 
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");
