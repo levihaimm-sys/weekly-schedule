@@ -119,27 +119,29 @@ export function DayLessonsViewer({
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
-        <Filter size={14} className="text-muted-foreground" />
-        <select
-          value={filterCity}
-          onChange={(e) => setFilterCity(e.target.value)}
-          className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
-        >
-          <option value="">כל הישובים</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        <select
-          value={filterInstructor}
-          onChange={(e) => setFilterInstructor(e.target.value)}
-          className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
-        >
-          <option value="">כל המדריכים</option>
-          {dayInstructors.map((i) => (
-            <option key={i.id} value={i.id}>{i.name}</option>
-          ))}
-        </select>
+        <Filter size={14} className="text-muted-foreground shrink-0" />
+        <div className="grid grid-cols-2 gap-2 flex-1 sm:flex sm:flex-wrap sm:flex-none">
+          <select
+            value={filterCity}
+            onChange={(e) => setFilterCity(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
+          >
+            <option value="">כל הישובים</option>
+            {cities.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={filterInstructor}
+            onChange={(e) => setFilterInstructor(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm"
+          >
+            <option value="">כל המדריכים</option>
+            {dayInstructors.map((i) => (
+              <option key={i.id} value={i.id}>{i.name}</option>
+            ))}
+          </select>
+        </div>
         {(filterCity || filterInstructor) && (
           <button
             onClick={() => { setFilterCity(""); setFilterInstructor(""); }}

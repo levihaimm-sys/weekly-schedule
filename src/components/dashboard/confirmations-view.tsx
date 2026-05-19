@@ -127,12 +127,12 @@ export function ConfirmationsView({
   return (
     <>
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <div className="relative">
           <select
             value={instructorFilter}
             onChange={(e) => setInstructorFilter(e.target.value)}
-            className="appearance-none rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-sm font-medium"
+            className="w-full appearance-none rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-sm font-medium"
           >
             <option value="all">כל המדריכים</option>
             {instructors.map((i) => (
@@ -151,7 +151,7 @@ export function ConfirmationsView({
           <select
             value={clientFilter}
             onChange={(e) => setClientFilter(e.target.value)}
-            className="appearance-none rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-sm font-medium"
+            className="w-full appearance-none rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-sm font-medium"
           >
             <option value="all">כל הלקוחות</option>
             {clients.map((c) => (
@@ -166,11 +166,11 @@ export function ConfirmationsView({
           />
         </div>
 
-        <div className="relative">
+        <div className="relative col-span-2 sm:col-span-1">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="appearance-none rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-sm font-medium"
+            className="w-full appearance-none rounded-lg border border-border bg-background pl-8 pr-3 py-2 text-sm font-medium"
           >
             <option value="all">כל הסטטוסים</option>
             <option value="confirmed">אושרו</option>

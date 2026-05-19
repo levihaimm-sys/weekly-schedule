@@ -59,7 +59,7 @@ export function ScheduleGrid({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <MultiSelectFilter
           options={cities.map((city) => ({ value: city, label: city }))}
           selected={localCities}

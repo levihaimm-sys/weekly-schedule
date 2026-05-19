@@ -335,6 +335,15 @@ export async function applyPermanentChange(
     return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
   }
 
+  // Mark pending absence requests on these lessons as handled
+  await supabase
+    .from("lessons")
+    .update({ instructor_request_handled: true })
+    .eq("recurring_item_id", recurringId)
+    .gte("lesson_date", today)
+    .eq("instructor_absence_request", true)
+    .eq("instructor_request_handled", false);
+
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");
   revalidatePath("/dashboard");
@@ -634,6 +643,31 @@ export async function createManualLesson(data: {
   revalidatePath("/dashboard");
 
   return { success: true };
+}
+
+/**
+ * Create a new location (gan) on the fly.
+ */
+export async function createLocation(data: {
+  name: string;
+  city: string;
+}) {
+  const supabase = await createClient();
+
+  const { data: loc, error } = await supabase
+    .from("locations")
+    .insert({ name: data.name.trim(), city: data.city.trim() })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { error: "שגיאה ביצירת המיקום: " + error.message };
+  }
+
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/locations");
+
+  return { success: true, id: loc.id as string };
 }
 
 export async function bulkImportLessons(csvText: string) {

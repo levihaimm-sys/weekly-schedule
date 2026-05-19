@@ -62,8 +62,9 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
 
-  // Filter tasks
+  // Filter tasks — "all" tab hides completed; only "completed" tab shows them
   const filtered = tasks.filter((t) => {
+    if (statusFilter === "all" && t.status === "completed") return false;
     if (statusFilter !== "all" && t.status !== statusFilter) return false;
     if (assigneeFilter !== "all" && t.assigned_to !== assigneeFilter) return false;
     return true;
@@ -81,7 +82,7 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
   });
 
   const counts = {
-    all: tasks.length,
+    all: tasks.filter((t) => t.status !== "completed").length,
     pending: tasks.filter((t) => t.status === "pending").length,
     in_progress: tasks.filter((t) => t.status === "in_progress").length,
     completed: tasks.filter((t) => t.status === "completed").length,

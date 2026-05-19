@@ -8,7 +8,7 @@ import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
-import { createManualLesson, bulkUpdateLessons } from "@/lib/actions/schedule";
+import { createManualLesson, bulkUpdateLessons, createLocation } from "@/lib/actions/schedule";
 
 interface WeeklyLesson {
   id: string;
@@ -182,46 +182,50 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     <>
       {/* Filters */}
       {cities && cities.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <MultiSelectFilter
-            options={cities.map((city) => ({ value: city, label: city }))}
-            selected={localCities}
-            onChange={setLocalCities}
-            placeholder="כל הערים"
-          />
-          <MultiSelectFilter
-            options={[
-              { value: "__no_instructor__", label: "ללא מדריך" },
-              ...instructors.map((inst) => ({ value: inst.id, label: inst.full_name })),
-            ]}
-            selected={localInstructors}
-            onChange={setLocalInstructors}
-            placeholder="כל המדריכים"
-          />
-          <button
-            type="button"
-            onClick={() => setLocalChangesOnly((prev) => !prev)}
-            className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              localChangesOnly
-                ? "border-orange-300 bg-orange-50 text-orange-700"
-                : "border-border bg-background hover:bg-muted"
-            }`}
-          >
-            שינויים
-          </button>
-          {/* Multi-select toggle */}
-          <button
-            type="button"
-            onClick={toggleSelectMode}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              selectMode
-                ? "border-blue-400 bg-blue-50 text-blue-700"
-                : "border-border bg-background hover:bg-muted"
-            }`}
-          >
-            <MousePointerClick size={14} />
-            בחירה מרובה
-          </button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <MultiSelectFilter
+              options={cities.map((city) => ({ value: city, label: city }))}
+              selected={localCities}
+              onChange={setLocalCities}
+              placeholder="כל הערים"
+            />
+            <MultiSelectFilter
+              options={[
+                { value: "__no_instructor__", label: "ללא מדריך" },
+                ...instructors.map((inst) => ({ value: inst.id, label: inst.full_name })),
+              ]}
+              selected={localInstructors}
+              onChange={setLocalInstructors}
+              placeholder="כל המדריכים"
+            />
+          </div>
+          <div className="flex gap-2 items-center">
+            <button
+              type="button"
+              onClick={() => setLocalChangesOnly((prev) => !prev)}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                localChangesOnly
+                  ? "border-orange-300 bg-orange-50 text-orange-700"
+                  : "border-border bg-background hover:bg-muted"
+              }`}
+            >
+              שינויים
+            </button>
+            {/* Multi-select toggle */}
+            <button
+              type="button"
+              onClick={toggleSelectMode}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                selectMode
+                  ? "border-blue-400 bg-blue-50 text-blue-700"
+                  : "border-border bg-background hover:bg-muted"
+              }`}
+            >
+              <MousePointerClick size={14} />
+              בחירה מרובה
+            </button>
+          </div>
         </div>
       )}
 
@@ -892,6 +896,10 @@ function LocationSearchSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newCity, setNewCity] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -900,6 +908,8 @@ function LocationSearchSelect({
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
         setSearch("");
+        setCreating(false);
+        setCreateError(null);
       }
     }
     if (open) {
@@ -925,6 +935,23 @@ function LocationSearchSelect({
     ? `${selected.name} — ${selected.city}`
     : "בחר גן / מיקום";
 
+  async function handleCreate() {
+    if (!search.trim() || !newCity.trim()) return;
+    setCreateLoading(true);
+    setCreateError(null);
+    const result = await createLocation({ name: search.trim(), city: newCity.trim() });
+    setCreateLoading(false);
+    if (result.error) {
+      setCreateError(result.error);
+      return;
+    }
+    onChange(result.id!);
+    setOpen(false);
+    setSearch("");
+    setCreating(false);
+    setNewCity("");
+  }
+
   return (
     <div>
       <label className="mb-1 block text-sm font-medium">
@@ -947,28 +974,70 @@ function LocationSearchSelect({
                 ref={searchInputRef}
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setCreating(false); setCreateError(null); }}
                 placeholder="חיפוש לפי שם גן, עיר..."
                 className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
             <div className="max-h-56 overflow-y-auto">
-              {filtered.length === 0 ? (
+              {filtered.map((loc) => (
+                <button
+                  key={loc.id}
+                  type="button"
+                  onClick={() => { onChange(loc.id); setOpen(false); setSearch(""); }}
+                  className={`w-full px-3 py-2 text-sm text-right hover:bg-muted ${value === loc.id ? "bg-muted font-medium" : ""}`}
+                >
+                  <span className="font-medium">{loc.name}</span>
+                  <span className="text-muted-foreground"> — {loc.city}</span>
+                </button>
+              ))}
+              {/* Add new location option */}
+              {search.trim() && !creating && (
+                <button
+                  type="button"
+                  onClick={() => setCreating(true)}
+                  className="w-full px-3 py-2 text-sm text-right text-primary hover:bg-muted border-t border-border"
+                >
+                  + הוסף גן חדש &quot;{search.trim()}&quot;
+                </button>
+              )}
+              {filtered.length === 0 && !search.trim() && (
                 <div className="px-3 py-3 text-sm text-muted-foreground text-center">לא נמצאו מיקומים</div>
-              ) : (
-                filtered.map((loc) => (
-                  <button
-                    key={loc.id}
-                    type="button"
-                    onClick={() => { onChange(loc.id); setOpen(false); setSearch(""); }}
-                    className={`w-full px-3 py-2 text-sm text-right hover:bg-muted ${value === loc.id ? "bg-muted font-medium" : ""}`}
-                  >
-                    <span className="font-medium">{loc.name}</span>
-                    <span className="text-muted-foreground"> — {loc.city}</span>
-                  </button>
-                ))
               )}
             </div>
+            {/* Inline create form */}
+            {creating && search.trim() && (
+              <div className="border-t border-border p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">גן חדש: {search.trim()}</p>
+                <input
+                  type="text"
+                  value={newCity}
+                  onChange={(e) => setNewCity(e.target.value)}
+                  placeholder="עיר..."
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+                  autoFocus
+                />
+                {createError && <p className="text-xs text-destructive">{createError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCreate}
+                    disabled={createLoading || !newCity.trim()}
+                    className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                  >
+                    {createLoading ? "..." : "הוסף"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCreating(false); setCreateError(null); }}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

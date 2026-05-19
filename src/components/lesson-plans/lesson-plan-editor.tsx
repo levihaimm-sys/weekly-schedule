@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Save, Eye, Music, FileText } from "lucide-react";
+import { useState, useTransition, useRef } from "react";
+import { Save, Eye, Music, FileText, Upload, Trash2, CheckCircle } from "lucide-react";
 import type { LessonPlan } from "@/types/database";
 
 interface LessonPlanEditorProps {
@@ -22,6 +22,10 @@ export function LessonPlanEditor({
   const [notes, setNotes] = useState(lessonPlan.notes || "");
   const [showPreview, setShowPreview] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [pdfPath, setPdfPath] = useState<string | null>(lessonPlan.pdf_path || null);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     startTransition(async () => {
@@ -43,6 +47,34 @@ export function LessonPlanEditor({
       }
     });
   };
+
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfUploading(true);
+    setPdfError(null);
+    const form = new FormData();
+    form.append("pdf", file);
+    const res = await fetch(`/api/lesson-plans/${lessonPlan.id}/pdf`, {
+      method: "POST",
+      body: form,
+    });
+    setPdfUploading(false);
+    if (res.ok) {
+      const data = await res.json();
+      setPdfPath(data.pdf_path);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setPdfError(data.error || "שגיאה בהעלאת ה-PDF");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handlePdfDelete() {
+    if (!confirm("למחוק את ה-PDF?")) return;
+    const res = await fetch(`/api/lesson-plans/${lessonPlan.id}/pdf`, { method: "DELETE" });
+    if (res.ok) setPdfPath(null);
+  }
 
   return (
     <div className="space-y-6">
@@ -82,6 +114,57 @@ export function LessonPlanEditor({
         ) : (
           <p className="text-sm text-gray-500">אין ציוד רשום</p>
         )}
+      </div>
+
+      {/* PDF Upload */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="flex items-center gap-2 font-semibold text-gray-900 mb-3">
+          <FileText className="w-5 h-5 text-red-600" />
+          קובץ PDF
+        </h3>
+        {pdfPath ? (
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+            <span className="text-sm text-gray-700 flex-1">{pdfPath}</span>
+            <button
+              type="button"
+              onClick={handlePdfDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              מחק
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <Upload className="w-4 h-4" />
+              החלף
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-red-600">אין PDF — המדריכים לא יראו תוכן</span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={pdfUploading}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              {pdfUploading ? "מעלה..." : "העלה PDF"}
+            </button>
+          </div>
+        )}
+        {pdfError && <p className="mt-2 text-sm text-red-600">{pdfError}</p>}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          onChange={handlePdfUpload}
+          className="hidden"
+        />
       </div>
 
       {/* Playlist URL */}
