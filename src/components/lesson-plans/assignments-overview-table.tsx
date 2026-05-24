@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
 import { updateWeeklyAssignment, createWeeklyAssignment } from "@/lib/actions/equipment";
-import { updateRotationOrders } from "@/lib/actions/instructors";
+import { updateRotationOrders, clearRotationOrder } from "@/lib/actions/instructors";
 import type { LessonPlan } from "@/types/database";
 
 interface Assignment {
@@ -61,11 +61,14 @@ export function AssignmentsOverviewTable({
     unknownInstructors: string[];
     unknownLessonPlans: string[];
     instructorsWithoutOrder: { name: string; id: string }[];
+    instructorsToRemove?: { name: string; id: string }[];
   } | null>(null);
   const [rotationDialog, setRotationDialog] = useState<{ name: string; id: string }[]>([]);
   const [rotationInputs, setRotationInputs] = useState<Record<string, string>>({});
   const [savingRotation, setSavingRotation] = useState(false);
   const [rotationError, setRotationError] = useState<string | null>(null);
+  const [removeDialog, setRemoveDialog] = useState<{ name: string; id: string }[]>([]);
+  const [removingFromTable, setRemovingFromTable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
@@ -211,7 +214,7 @@ export function AssignmentsOverviewTable({
       const res = await fetch("/api/lesson-plans/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows, replace: replaceMode }),
+        body: JSON.stringify({ rows, replace: replaceMode, csvInstructorNames: instructorNames.map((n) => n.trim()) }),
       });
 
       const result = await res.json();
@@ -222,6 +225,10 @@ export function AssignmentsOverviewTable({
         setRotationInputs(
           Object.fromEntries(result.instructorsWithoutOrder.map((i: { name: string; id: string }) => [i.id, ""]))
         );
+      }
+
+      if (result.instructorsToRemove?.length > 0) {
+        setRemoveDialog(result.instructorsToRemove);
       }
 
       if (result.created > 0 || result.updated > 0 || result.deleted > 0) {
@@ -257,6 +264,17 @@ export function AssignmentsOverviewTable({
       startTransition(() => router.refresh());
     } finally {
       setSavingRotation(false);
+    }
+  }
+
+  async function handleRemoveFromTable() {
+    setRemovingFromTable(true);
+    try {
+      await clearRotationOrder(removeDialog.map((i) => i.id));
+      setRemoveDialog([]);
+      startTransition(() => router.refresh());
+    } finally {
+      setRemovingFromTable(false);
     }
   }
 
@@ -363,7 +381,7 @@ export function AssignmentsOverviewTable({
               {" "}| דולגו: {importResult.skipped}
             </span>
             {importResult.unknownInstructors.length > 0 && (
-              <div className="mt-1 text-xs">מדריכות לא מזוהות: {importResult.unknownInstructors.join(", ")}</div>
+              <div className="mt-1 text-xs">מדריכות לא נמצאו במערכת (יש להוסיף דרך דף המדריכות): {importResult.unknownInstructors.join(", ")}</div>
             )}
             {importResult.unknownLessonPlans.length > 0 && (
               <div className="mt-1 text-xs">מערכי שיעור לא מזוהים: {importResult.unknownLessonPlans.join(", ")}</div>
@@ -507,6 +525,40 @@ export function AssignmentsOverviewTable({
                 className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
               >
                 דלג
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove from rotation dialog — instructors in table but not in the imported CSV */}
+      {removeDialog.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl" dir="rtl">
+            <h3 className="text-lg font-bold mb-2">מדריכות שלא נמצאו בקובץ ה-CSV</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              המדריכות הבאות מופיעות בטבלה אך אינן בקובץ שייבאת.
+              האם להסיר אותן מהטבלה (ניתן להוסיף מחדש בהמשך)?
+            </p>
+            <ul className="mb-6 space-y-1">
+              {removeDialog.map((inst) => (
+                <li key={inst.id} className="text-sm font-medium">• {inst.name}</li>
+              ))}
+            </ul>
+            <div className="flex gap-2">
+              <button
+                onClick={handleRemoveFromTable}
+                disabled={removingFromTable}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {removingFromTable ? "מסיר..." : "כן, הסר מהטבלה"}
+              </button>
+              <button
+                onClick={() => setRemoveDialog([])}
+                disabled={removingFromTable}
+                className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted"
+              >
+                השאר בטבלה
               </button>
             </div>
           </div>

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (profile?.role !== "admin")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { rows, replace }: { rows: ImportRow[]; replace?: boolean } = await req.json();
+  const { rows, replace, csvInstructorNames }: { rows: ImportRow[]; replace?: boolean; csvInstructorNames?: string[] } = await req.json();
 
   // Load all instructors and lesson plans for name → id mapping
   const [{ data: instructors }, { data: lessonPlans }] = await Promise.all([
@@ -123,6 +123,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Find instructors currently in the rotation table but missing from the CSV header
+  let instructorsToRemove: { name: string; id: string }[] = [];
+  if (csvInstructorNames && csvInstructorNames.length > 0) {
+    const csvNamesSet = new Set(csvInstructorNames.map((n) => n.trim()));
+    instructorsToRemove = (instructors ?? [])
+      .filter((i) => i.rotation_order != null && !csvNamesSet.has(i.full_name.trim()))
+      .map((i) => ({ name: i.full_name, id: i.id }));
+  }
+
   return NextResponse.json({
     created,
     updated,
@@ -131,5 +140,6 @@ export async function POST(req: NextRequest) {
     unknownInstructors: [...unknownInstructors],
     unknownLessonPlans: [...unknownLessonPlans],
     instructorsWithoutOrder: [...instructorsWithoutOrder.entries()].map(([name, id]) => ({ name, id })),
+    instructorsToRemove,
   });
 }

@@ -188,6 +188,18 @@ export async function updateRotationOrders(
   return { success: true };
 }
 
+export async function clearRotationOrder(ids: string[]) {
+  const supabase = await createClient();
+
+  for (const id of ids) {
+    await supabase.from("instructors").update({ rotation_order: null }).eq("id", id);
+  }
+
+  revalidatePath("/lesson-plans/assignments");
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
 export async function syncInstructorAuthUsers(
   instructorIds: string[]
 ): Promise<{ synced: number; errors: string[] }> {
