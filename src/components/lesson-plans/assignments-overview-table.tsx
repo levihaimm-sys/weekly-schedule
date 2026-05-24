@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
-import { updateWeeklyAssignment, createWeeklyAssignment } from "@/lib/actions/equipment";
+import { updateWeeklyAssignment, createWeeklyAssignment, distributeEquipmentToInstructor } from "@/lib/actions/equipment";
 import { updateRotationOrders, clearRotationOrder } from "@/lib/actions/instructors";
 import type { LessonPlan } from "@/types/database";
 
@@ -12,6 +12,7 @@ interface Assignment {
   instructor_id: string;
   week_start_date: string;
   is_permanent_change: boolean;
+  equipment_distributed: boolean;
   instructor: { id: string; full_name: string };
   lesson_plan: { id: string; name: string; category: string; pdf_path: string | null; week_number: number };
 }
@@ -29,6 +30,13 @@ interface EditingCell {
   assignmentId: string | null;
   currentLessonPlanId: string | null;
   currentLessonPlanName: string;
+  isDistributed: boolean;
+}
+
+interface EquipmentItem {
+  equipment_id: string;
+  equipment_name: string;
+  quantity: number;
 }
 
 interface AssignmentsOverviewTableProps {
@@ -69,6 +77,9 @@ export function AssignmentsOverviewTable({
   const [rotationError, setRotationError] = useState<string | null>(null);
   const [removeDialog, setRemoveDialog] = useState<{ name: string; id: string }[]>([]);
   const [removingFromTable, setRemovingFromTable] = useState(false);
+  const [dialogEquipment, setDialogEquipment] = useState<EquipmentItem[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(false);
+  const [distributing, setDistributing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
@@ -115,18 +126,30 @@ export function AssignmentsOverviewTable({
     return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
   }
 
-  function handleCellClick(week: string, inst: { id: string; name: string }) {
-    if (isPastWeek(week)) return; // Don't allow editing past weeks
+  async function handleCellClick(week: string, inst: { id: string; name: string }) {
+    if (isPastWeek(week)) return;
     const assignment = assignmentMap[week]?.[inst.id];
+    const lessonPlanId = assignment?.lesson_plan?.id ?? "";
     setEditingCell({
       week,
       instructorId: inst.id,
       instructorName: inst.name,
       assignmentId: assignment?.id ?? null,
-      currentLessonPlanId: assignment?.lesson_plan?.id ?? null,
+      currentLessonPlanId: lessonPlanId || null,
       currentLessonPlanName: assignment?.lesson_plan?.name ?? "",
+      isDistributed: assignment?.equipment_distributed ?? false,
     });
-    setSelectedLessonPlanId(assignment?.lesson_plan?.id ?? "");
+    setSelectedLessonPlanId(lessonPlanId);
+    setDialogEquipment([]);
+    if (lessonPlanId) {
+      setLoadingEquipment(true);
+      const res = await fetch(`/api/lesson-plans/${lessonPlanId}/equipment`);
+      if (res.ok) {
+        const data = await res.json();
+        setDialogEquipment(data.equipment ?? []);
+      }
+      setLoadingEquipment(false);
+    }
   }
 
   async function handleSave(isPermanent: boolean) {
@@ -241,6 +264,51 @@ export function AssignmentsOverviewTable({
       setImporting(false);
       // Reset file input so same file can be re-imported
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleLessonPlanSelect(lessonPlanId: string) {
+    setSelectedLessonPlanId(lessonPlanId);
+    setDialogEquipment([]);
+    if (!lessonPlanId) return;
+    setLoadingEquipment(true);
+    const res = await fetch(`/api/lesson-plans/${lessonPlanId}/equipment`);
+    if (res.ok) {
+      const data = await res.json();
+      setDialogEquipment(data.equipment ?? []);
+    }
+    setLoadingEquipment(false);
+  }
+
+  async function handleDistribute() {
+    if (!editingCell || !selectedLessonPlanId) return;
+    setDistributing(true);
+    try {
+      let assignmentId = editingCell.assignmentId;
+      if (!assignmentId) {
+        const createResult = await createWeeklyAssignment(
+          editingCell.instructorId,
+          selectedLessonPlanId,
+          editingCell.week,
+          false
+        );
+        if (!createResult.success || !createResult.data) {
+          alert("שגיאה ביצירת שיבוץ: " + createResult.error);
+          return;
+        }
+        assignmentId = createResult.data.id;
+      } else if (selectedLessonPlanId !== editingCell.currentLessonPlanId) {
+        await updateWeeklyAssignment(assignmentId, selectedLessonPlanId, false);
+      }
+      const result = await distributeEquipmentToInstructor(assignmentId, selectedLessonPlanId);
+      if (!result.success) {
+        alert("שגיאה באישור חלוקת ציוד: " + result.error);
+        return;
+      }
+      setEditingCell(null);
+      startTransition(() => router.refresh());
+    } finally {
+      setDistributing(false);
     }
   }
 
@@ -572,7 +640,7 @@ export function AssignmentsOverviewTable({
           onClick={() => setEditingCell(null)}
         >
           <div
-            className="mx-4 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl"
+            className="mx-4 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-2xl overflow-y-auto max-h-[90vh]"
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -606,11 +674,11 @@ export function AssignmentsOverviewTable({
             </div>
 
             {/* Lesson plan selector */}
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-sm font-medium mb-2">בחר מערך שיעור</label>
               <select
                 value={selectedLessonPlanId}
-                onChange={(e) => setSelectedLessonPlanId(e.target.value)}
+                onChange={(e) => handleLessonPlanSelect(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               >
                 <option value="">-- בחר מערך --</option>
@@ -626,25 +694,61 @@ export function AssignmentsOverviewTable({
               </select>
             </div>
 
+            {/* Equipment list */}
+            {loadingEquipment && (
+              <p className="mb-4 text-xs text-muted-foreground">טוען ציוד...</p>
+            )}
+            {!loadingEquipment && dialogEquipment.length > 0 && (
+              <div className="mb-4 rounded-lg border border-border bg-muted/40 p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">רשימת ציוד:</p>
+                <ul className="space-y-1">
+                  {dialogEquipment.map((item) => (
+                    <li key={item.equipment_id} className="flex justify-between text-sm">
+                      <span>{item.equipment_name}</span>
+                      <span className="font-medium text-muted-foreground">{item.quantity} יח׳</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {!loadingEquipment && selectedLessonPlanId && dialogEquipment.length === 0 && (
+              <p className="mb-4 text-xs text-muted-foreground">אין ציוד מוגדר למערך זה.</p>
+            )}
+
+            {/* Distribution status */}
+            {editingCell.isDistributed && (
+              <div className="mb-4 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">
+                ✓ ציוד כבר חולק למדריכה זו
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="flex flex-col gap-2">
+              {/* Distribute button */}
+              <button
+                onClick={handleDistribute}
+                disabled={!selectedLessonPlanId || distributing || saving}
+                className="w-full rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {distributing ? "מאשר..." : editingCell.isDistributed ? "חלק ציוד מחדש" : "אשר חלוקת ציוד"}
+              </button>
               <button
                 onClick={() => handleSave(false)}
                 disabled={
                   !selectedLessonPlanId ||
                   selectedLessonPlanId === editingCell.currentLessonPlanId ||
-                  saving
+                  saving || distributing
                 }
                 className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? "שומר..." : "שינוי חד-פעמי (רק למדריכה זו)"}
+                {saving ? "שומר..." : "שינוי חד-פעמי (ללא חלוקת ציוד)"}
               </button>
               <button
                 onClick={() => handleSave(true)}
                 disabled={
                   !selectedLessonPlanId ||
                   selectedLessonPlanId === editingCell.currentLessonPlanId ||
-                  saving
+                  saving || distributing
                 }
                 className="w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -652,7 +756,7 @@ export function AssignmentsOverviewTable({
               </button>
               <button
                 onClick={() => setEditingCell(null)}
-                disabled={saving}
+                disabled={saving || distributing}
                 className="w-full rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
               >
                 ביטול
