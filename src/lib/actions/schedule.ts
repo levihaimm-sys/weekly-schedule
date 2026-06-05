@@ -823,13 +823,18 @@ export async function bulkImportLessons(csvText: string) {
 
   const BATCH_SIZE = 100;
   let inserted = 0;
+  let skippedDuplicates = 0;
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase.from("lessons").insert(batch);
+    const { data, error } = await supabase
+      .from("lessons")
+      .upsert(batch, { ignoreDuplicates: true })
+      .select("id");
     if (error) {
       errors.push(`שגיאת הכנסה בבאצ׳ ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`);
     } else {
-      inserted += batch.length;
+      inserted += data?.length ?? 0;
+      skippedDuplicates += batch.length - (data?.length ?? 0);
     }
   }
 
@@ -840,7 +845,7 @@ export async function bulkImportLessons(csvText: string) {
   return {
     success: true,
     inserted,
-    skipped: lines.length - 1 - rows.length,
+    skipped: (lines.length - 1 - rows.length) + skippedDuplicates,
     details: errors.length > 0 ? errors : undefined,
   };
 }
