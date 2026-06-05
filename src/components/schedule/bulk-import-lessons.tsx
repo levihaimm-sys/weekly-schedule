@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Upload, FileText, CheckCircle, AlertCircle, Download } from "lucide-react";
 import { bulkImportLessons } from "@/lib/actions/schedule";
+import { CITY_TO_CLIENT } from "@/lib/utils/constants";
 
 const EXAMPLE_CSV = `תאריך,שעה,מיקום,מדריך,הערות
 2026-05-05,10:00,שם מיקום,שם מדריך,שיעור חג`;
@@ -110,12 +111,17 @@ export function BulkImportLessons({
             שמות מיקומים ({locations.length})
           </summary>
           <div className="mt-2 max-h-48 overflow-y-auto text-sm space-y-0.5">
-            {locations.map((l) => (
-              <div key={l.id} className="text-muted-foreground">
-                {l.name}
-                {l.city ? ` (${l.city})` : ""}
-              </div>
-            ))}
+            {locations.map((l) => {
+              const client = l.city ? CITY_TO_CLIENT[l.city] : null;
+              return (
+                <div key={l.id} className="flex items-baseline justify-between gap-2">
+                  <span className="font-medium">{l.name}</span>
+                  <span className="text-muted-foreground text-xs shrink-0">
+                    {client ?? l.city ?? ""}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </details>
         <details className="rounded-xl border border-border bg-white p-4">
