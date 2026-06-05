@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   const city  = p.get("city") ?? "";
   const month = parseInt(p.get("month") ?? "1");
   const year  = parseInt(p.get("year")  ?? "2026");
+  const showSigs = p.get("sigs") !== "0";
 
   const startDate = `${year}-${String(month).padStart(2,"0")}-01`;
   const endDate   = `${year}-${String(month).padStart(2,"0")}-${new Date(year,month,0).getDate()}`;
@@ -36,12 +37,14 @@ export async function GET(request: NextRequest) {
   const rows = lessons.map((lesson: any, i: number) => {
     const sig = sigMap.get(lesson.id) as any;
     const d = new Date(lesson.lesson_date + "T12:00:00");
-    let sigCell = "<td>—</td>";
-    if (sig?.signer_role === "teacher") {
-      sigCell = `<td>${sig.signature_url ? `<img src="${sig.signature_url}" style="max-height:22px;max-width:60px;display:block;margin:0 auto">` : ""}<div style="font-size:7pt;color:#666">גננת: ${sig.signer_name ?? ""}</div></td>`;
-    } else if (sig?.signer_role === "instructor") {
-      sigCell = `<td style="color:#2563eb">✓ מדריכה</td>`;
-    }
+    const sigCell = showSigs ? (() => {
+      if (sig?.signer_role === "teacher") {
+        return `<td>${sig.signature_url ? `<img src="${sig.signature_url}" style="max-height:22px;max-width:60px;display:block;margin:0 auto">` : ""}<div style="font-size:7pt;color:#666">${sig.signer_name ?? ""}</div></td>`;
+      } else if (sig?.signer_role) {
+        return `<td style="color:#2563eb">מאושר</td>`;
+      }
+      return "<td>—</td>";
+    })() : "";
     return `<tr style="${i%2===1?"background:#f9f9fb":""}">
       <td>${d.toLocaleDateString("he-IL")}</td>
       <td>${HEBREW_DAYS[d.getDay()]}</td>
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
 
   const completed   = lessons.filter((l:any) => l.status==="completed").length;
   const cancelled   = lessons.filter((l:any) => l.status==="cancelled").length;
-  const teacherConf = [...sigMap.values()].filter((s:any) => s.signer_role==="teacher").length;
+  const totalConf   = [...sigMap.values()].filter((s:any) => s.signer_role).length;
 
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
@@ -91,10 +94,10 @@ td{padding:4pt 5pt;text-align:center;border-bottom:.5pt solid #e4e4e7;vertical-a
 <div class="sub">${city}<br>${MONTHS_HEBREW[month-1]} ${year}</div>
 <hr>
 <table>
-<thead><tr><th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריך</th><th>סטטוס</th><th>אישור</th></tr></thead>
+<thead><tr><th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריך</th><th>סטטוס</th>${showSigs ? "<th>אישור</th>" : ""}</tr></thead>
 <tbody>${rows}</tbody>
 </table>
-<div class="summary">סה"כ שיעורים: ${lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConf}</div>
+<div class="summary">סה"כ שיעורים: ${lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled}${showSigs ? ` | מאושר: ${totalConf}` : ""}</div>
 <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>
 </body>
 </html>`;

@@ -24,9 +24,10 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
   const [city, setCity] = useState("");
   const [month, setMonth] = useState(currentMonth);
   const [year, setYear] = useState(currentYear);
+  const [showSigs, setShowSigs] = useState(true);
 
   const printUrl = city
-    ? `/api/reports/print/city?city=${encodeURIComponent(city)}&month=${month}&year=${year}`
+    ? `/api/reports/print/city?city=${encodeURIComponent(city)}&month=${month}&year=${year}&sigs=${showSigs ? "1" : "0"}`
     : null;
 
   async function handlePreview(e: React.FormEvent<HTMLFormElement>) {
@@ -95,6 +96,17 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
             >
               <option value="2026">2026</option>
               <option value="2025">2025</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">אישורים</label>
+            <select
+              value={showSigs ? "yes" : "no"}
+              onChange={(e) => setShowSigs(e.target.value === "yes")}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            >
+              <option value="yes">עם פירוט אישורים</option>
+              <option value="no">ללא פירוט אישורים</option>
             </select>
           </div>
         </div>

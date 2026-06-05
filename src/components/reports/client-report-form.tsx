@@ -43,6 +43,7 @@ export function ClientReportForm() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [mode, setMode] = useState<"full" | "summary">("full");
+  const [showSigs, setShowSigs] = useState(true);
   const [report, setReport] = useState<ClientReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -155,6 +156,17 @@ export function ClientReportForm() {
             <option value="summary">ללא פירוט (סיכום בלבד)</option>
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">אישורים</label>
+          <select
+            value={showSigs ? "yes" : "no"}
+            onChange={(e) => setShowSigs(e.target.value === "yes")}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="yes">עם פירוט אישורים</option>
+            <option value="no">ללא פירוט אישורים</option>
+          </select>
+        </div>
         <button
           onClick={handleSubmit}
           disabled={isPending}
@@ -164,7 +176,7 @@ export function ClientReportForm() {
           הצג דוח
         </button>
         <a
-          href={`/api/reports/print/client?client=${encodeURIComponent(client)}&month=${month}&year=${year}&mode=${mode}`}
+          href={`/api/reports/print/client?client=${encodeURIComponent(client)}&month=${month}&year=${year}&mode=${mode}&sigs=${showSigs ? "1" : "0"}`}
           className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Printer size={14} />

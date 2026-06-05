@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   const clientName = p.get("client") ?? "";
   const month = parseInt(p.get("month") ?? "1");
   const year  = parseInt(p.get("year")  ?? "2026");
-  const mode  = p.get("mode") ?? "full";
+  const mode     = p.get("mode") ?? "full";
+  const showSigs = p.get("sigs") !== "0";
 
   const cities = CLIENT_CITIES[clientName];
   if (!cities?.length) return new NextResponse("לקוח לא נמצא", { status: 404 });
@@ -67,12 +68,14 @@ export async function GET(request: NextRequest) {
       if (!cityData.total) continue;
       const rows = cityData.lessons.map(({ lesson, sig }: any, i: number) => {
         const d = new Date(lesson.lesson_date + "T12:00:00");
-        let sigCell = "<td>—</td>";
-        if (sig?.signer_role === "teacher") {
-          sigCell = `<td>${sig.signature_url ? `<img src="${sig.signature_url}" style="max-height:22px;max-width:60px;display:block;margin:0 auto">` : ""}<div style="font-size:7pt;color:#666">גננת: ${sig.signer_name ?? ""}</div></td>`;
-        } else if (sig?.signer_role === "instructor") {
-          sigCell = `<td style="color:#2563eb">✓ מדריכה</td>`;
-        }
+        const sigCell = showSigs ? (() => {
+          if (sig?.signer_role === "teacher") {
+            return `<td>${sig.signature_url ? `<img src="${sig.signature_url}" style="max-height:22px;max-width:60px;display:block;margin:0 auto">` : ""}<div style="font-size:7pt;color:#666">${sig.signer_name ?? ""}</div></td>`;
+          } else if (sig?.signer_role) {
+            return `<td style="color:#2563eb">מאושר</td>`;
+          }
+          return "<td>—</td>";
+        })() : "";
         return `<tr style="${i%2===1?"background:#f9f9fb":""}">
           <td>${d.toLocaleDateString("he-IL")}</td>
           <td>${HEBREW_DAYS[d.getDay()]}</td>
@@ -84,13 +87,14 @@ export async function GET(request: NextRequest) {
         </tr>`;
       }).join("");
 
+      const cityConf = cityData.teacherConf + cityData.instrConf;
       tableHtml += `
         <div style="background:#e0e7ff;padding:5pt 8pt;margin-top:12pt;margin-bottom:3pt;font-weight:700;font-size:10pt;border-radius:2pt">
           ${city}
-          <div style="font-size:7.5pt;color:#4b5563;margin-top:2pt;font-weight:400">סה"כ: ${cityData.total} | הושלמו: ${cityData.completed} | בוטלו: ${cityData.cancelled} | גננת: ${cityData.teacherConf} | מדריכה: ${cityData.instrConf}</div>
+          <div style="font-size:7.5pt;color:#4b5563;margin-top:2pt;font-weight:400">סה"כ: ${cityData.total} | הושלמו: ${cityData.completed} | בוטלו: ${cityData.cancelled}${showSigs ? ` | מאושר: ${cityConf}` : ""}</div>
         </div>
         <table>
-          <thead><tr><th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריכה</th><th>סטטוס</th><th>אישור</th></tr></thead>
+          <thead><tr><th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריכה</th><th>סטטוס</th>${showSigs ? "<th>אישור</th>" : ""}</tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }
@@ -112,8 +116,7 @@ export async function GET(request: NextRequest) {
 
   const totalCompleted = lessons.filter((l: any) => l.status === "completed").length;
   const totalCancelled = lessons.filter((l: any) => l.status === "cancelled").length;
-  const totalTeacher   = [...sigMap.values()].filter((s: any) => s.signer_role === "teacher").length;
-  const totalInstructor = [...sigMap.values()].filter((s: any) => s.signer_role === "instructor").length;
+  const totalConf      = [...sigMap.values()].filter((s: any) => s.signer_role).length;
 
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
@@ -149,7 +152,7 @@ td{padding:4pt 5pt;text-align:center;border-bottom:.5pt solid #e4e4e7;vertical-a
 <div class="sub">${clientName}<br>${MONTHS_HEBREW[month-1]} ${year}</div>
 <hr>
 ${tableHtml}
-<div class="summary">סה"כ: ${lessons.length} | הושלמו: ${totalCompleted} | בוטלו: ${totalCancelled} | אישור גננת: ${totalTeacher} | אישור מדריכה: ${totalInstructor}</div>
+<div class="summary">סה"כ: ${lessons.length} | הושלמו: ${totalCompleted} | בוטלו: ${totalCancelled}${showSigs ? ` | מאושר: ${totalConf}` : ""}</div>
 <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>
 </body>
 </html>`;
