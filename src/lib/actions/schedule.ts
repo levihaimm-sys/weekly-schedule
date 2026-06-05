@@ -821,20 +821,33 @@ export async function bulkImportLessons(csvText: string) {
     return { error: "אין שורות תקינות לייבוא", details: errors };
   }
 
+  // Pre-filter duplicates by checking existing lessons for the same dates
+  const uniqueDates = [...new Set(rows.map((r) => r.lesson_date))];
+  const { data: existingLessons } = await supabase
+    .from("lessons")
+    .select("instructor_id, location_id, lesson_date, start_time")
+    .in("lesson_date", uniqueDates);
+
+  const existingKeys = new Set(
+    (existingLessons ?? []).map(
+      (e) => `${e.instructor_id}|${e.location_id}|${e.lesson_date}|${e.start_time}`
+    )
+  );
+
+  const newRows = rows.filter(
+    (r) => !existingKeys.has(`${r.instructor_id}|${r.location_id}|${r.lesson_date}|${r.start_time}`)
+  );
+  const skippedDuplicates = rows.length - newRows.length;
+
   const BATCH_SIZE = 100;
   let inserted = 0;
-  let skippedDuplicates = 0;
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
-    const { data, error } = await supabase
-      .from("lessons")
-      .upsert(batch, { ignoreDuplicates: true })
-      .select("id");
+  for (let i = 0; i < newRows.length; i += BATCH_SIZE) {
+    const batch = newRows.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase.from("lessons").insert(batch);
     if (error) {
       errors.push(`שגיאת הכנסה בבאצ׳ ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`);
     } else {
-      inserted += data?.length ?? 0;
-      skippedDuplicates += batch.length - (data?.length ?? 0);
+      inserted += batch.length;
     }
   }
 
