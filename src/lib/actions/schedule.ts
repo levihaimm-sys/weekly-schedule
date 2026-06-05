@@ -736,19 +736,26 @@ export async function bulkImportLessons(csvText: string) {
 
     const gardenName = row[gardenCol];
     const clientName = row["שם הלקוח"];
+    const cityName = row["עיר"];
 
     let locationId: string | undefined;
-    if (clientName) {
-      const clientCities = CLIENT_CITIES[clientName];
-      if (!clientCities) {
-        errors.push(`שורה ${i + 1}: לקוח לא נמצא "${clientName}"`);
-        continue;
+    if (cityName || clientName) {
+      let candidates = allLocations ?? [];
+      if (cityName) {
+        candidates = candidates.filter((l) => l.city === cityName);
       }
-      const match = (allLocations ?? []).find(
-        (l) => l.name.trim() === gardenName && clientCities.includes(l.city)
-      );
+      if (clientName) {
+        const clientCities = CLIENT_CITIES[clientName];
+        if (!clientCities) {
+          errors.push(`שורה ${i + 1}: לקוח לא נמצא "${clientName}"`);
+          continue;
+        }
+        candidates = candidates.filter((l) => clientCities.includes(l.city));
+      }
+      const match = candidates.find((l) => l.name.trim() === gardenName);
       if (!match) {
-        errors.push(`שורה ${i + 1}: גן "${gardenName}" לא נמצא תחת לקוח "${clientName}"`);
+        const context = [cityName, clientName].filter(Boolean).join(", ");
+        errors.push(`שורה ${i + 1}: גן "${gardenName}" לא נמצא (${context})`);
         continue;
       }
       locationId = match.id;
