@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { CLIENTS, DAYS_SHORT } from "@/lib/utils/constants";
 import { getClientReportData, ClientReportData } from "@/lib/actions/reports";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Printer } from "lucide-react";
+import { printClientReport } from "@/lib/pdf/print-html";
 
 const MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -163,6 +164,15 @@ export function ClientReportForm() {
           {isPending ? <Loader2 size={14} className="animate-spin" /> : null}
           הצג דוח
         </button>
+        {report && (
+          <button
+            onClick={() => printClientReport(report, client, month, year, mode)}
+            className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Printer size={14} />
+            הדפס PDF
+          </button>
+        )}
         <button
           onClick={handleDownload}
           disabled={downloading}
@@ -173,7 +183,7 @@ export function ClientReportForm() {
           ) : (
             <Download size={14} />
           )}
-          הורד PDF
+          PDF (ישן)
         </button>
       </div>
 

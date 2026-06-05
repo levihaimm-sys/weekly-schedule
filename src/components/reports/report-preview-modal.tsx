@@ -1,6 +1,7 @@
 "use client";
 
-import { X, Download, Loader2 } from "lucide-react";
+import { X, Download, Loader2, Printer } from "lucide-react";
+import { printInstructorReport, printCityReport } from "@/lib/pdf/print-html";
 
 // ─── City Report Preview ──────────────────────────────────────────────────────
 
@@ -110,12 +111,19 @@ export function CityReportPreviewModal({
 
         <div className="mt-4 flex gap-3">
           <button
+            onClick={() => printCityReport(data)}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Printer size={16} />
+            הדפס PDF
+          </button>
+          <button
             onClick={onDownload}
             disabled={downloading}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
           >
             {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            {downloading ? "מוריד..." : "הורד PDF"}
+            {downloading ? "מוריד..." : "PDF (ישן)"}
           </button>
           <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted">
             סגור
@@ -271,16 +279,23 @@ export function ReportPreviewModal({
         {/* Actions */}
         <div className="mt-4 flex gap-3">
           <button
+            onClick={() => printInstructorReport(data)}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Printer size={16} />
+            הדפס PDF
+          </button>
+          <button
             onClick={onDownload}
             disabled={downloading}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
           >
             {downloading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <Download size={16} />
             )}
-            {downloading ? "מוריד..." : "הורד PDF"}
+            {downloading ? "מוריד..." : "PDF (ישן)"}
           </button>
           <button
             onClick={onClose}
