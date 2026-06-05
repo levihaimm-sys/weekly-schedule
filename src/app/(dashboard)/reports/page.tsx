@@ -41,7 +41,7 @@ export default async function ReportsPage() {
           <Users className="text-blue-500" size={24} />
           <h3 className="text-lg font-semibold">סיכום חודשי לפי מדריך</h3>
         </div>
-        <InstructorSummaryForm />
+        <InstructorSummaryForm instructors={instructors} />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import {
   getMonthlyClientSummary,
   ClientMonthlySummary,
 } from "@/lib/actions/reports";
+import { CLIENTS } from "@/lib/utils/constants";
 import { Loader2 } from "lucide-react";
 
 const MONTHS = [
@@ -20,6 +21,7 @@ export function MonthlySummaryForm() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [data, setData] = useState<ClientMonthlySummary[] | null>(null);
+  const [filterClient, setFilterClient] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -59,6 +61,17 @@ export function MonthlySummaryForm() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">לקוח</label>
+          <select
+            value={filterClient}
+            onChange={(e) => setFilterClient(e.target.value)}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">כל הלקוחות</option>
+            {CLIENTS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
         <button
           onClick={handleSubmit}
           disabled={isPending}
@@ -93,7 +106,7 @@ export function MonthlySummaryForm() {
               </tr>
             </thead>
             <tbody>
-              {data.map((client) => (
+              {data.filter((c) => !filterClient || c.client === filterClient).map((client) => (
                 <>
                   {/* Client group header */}
                   <tr key={`h-${client.client}`} className="border-y border-border bg-violet-50">

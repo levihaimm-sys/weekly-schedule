@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Download, Loader2, Printer } from "lucide-react";
+import { Eye, Printer } from "lucide-react";
 import { CityReportPreviewModal, type CityReportPreviewData } from "./report-preview-modal";
-import { buildCityReportHtml, fillPrintWindow, openLoadingWindow } from "@/lib/pdf/print-html";
 
 interface CityReportFormProps {
   cities: string[];
@@ -16,116 +15,24 @@ const MONTHS = [
 
 export function LocationReportForm({ cities }: CityReportFormProps) {
   const [loading, setLoading] = useState(false);
-  const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<CityReportPreviewData | null>(null);
-  const [downloading, setDownloading] = useState(false);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
-  function getFormValues(form: HTMLFormElement) {
-    const formData = new FormData(form);
-    return {
-      city: formData.get("city") as string,
-      month: parseInt(formData.get("month") as string),
-      year: parseInt(formData.get("year") as string),
-    };
-  }
+  const [city, setCity] = useState("");
+  const [month, setMonth] = useState(currentMonth);
+  const [year, setYear] = useState(currentYear);
+
+  const printUrl = city
+    ? `/api/reports/print/city?city=${encodeURIComponent(city)}&month=${month}&year=${year}`
+    : null;
 
   async function handlePreview(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const { city, month, year } = getFormValues(e.currentTarget);
-
-    if (!city) {
-      setError("בחר עיר");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/reports/generate-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city, month, year, preview: true }),
-      });
-
-      if (!response.ok) {
-        let errorMsg = "שגיאה ביצירת הדוח";
-        try {
-          const data = await response.json();
-          errorMsg = data.error || errorMsg;
-        } catch {
-          errorMsg = `שגיאת שרת (${response.status})`;
-        }
-        setError(errorMsg);
-        return;
-      }
-
-      const data = await response.json();
-      setPreviewData(data);
-    } catch {
-      setError("שגיאה בחיבור לשרת");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDownload(city?: string, month?: number, year?: number) {
-    const form = document.getElementById("city-report-form") as HTMLFormElement | null;
-    if (!form) return;
-    const values = getFormValues(form);
-    const c = city ?? values.city;
-    const m = month ?? values.month;
-    const y = year ?? values.year;
-
-    setDownloading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/reports/generate-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city: c, month: m, year: y }),
-      });
-
-      if (!response.ok) {
-        let errorMsg = "שגיאה ביצירת הדוח";
-        try {
-          const data = await response.json();
-          errorMsg = data.error || errorMsg;
-        } catch {
-          errorMsg = `שגיאת שרת (${response.status})`;
-        }
-        setError(errorMsg);
-        return;
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `report-${c}-${m}-${y}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      setError("שגיאה בחיבור לשרת");
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  async function handlePrint() {
-    const form = document.getElementById("city-report-form") as HTMLFormElement | null;
-    if (!form) return;
-    const { city, month, year } = getFormValues(form);
     if (!city) { setError("בחר עיר"); return; }
-
-    setPrinting(true);
+    setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/reports/generate-location", {
@@ -135,16 +42,14 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        setError(data.error ?? "שגיאה");
+        setError(data.error ?? "שגיאה ביצירת הדוח");
         return;
       }
-      const data: CityReportPreviewData = await response.json();
-      const { title, body } = buildCityReportHtml(data);
-      fillPrintWindow(openLoadingWindow(), title, body);
+      setPreviewData(await response.json());
     } catch {
       setError("שגיאה בחיבור לשרת");
     } finally {
-      setPrinting(false);
+      setLoading(false);
     }
   }
 
@@ -156,12 +61,14 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
             <label className="mb-1 block text-sm font-medium">עיר</label>
             <select
               name="city"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
               required
             >
               <option value="">בחר עיר...</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>{city}</option>
+              {cities.map((c) => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
@@ -169,7 +76,8 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
             <label className="mb-1 block text-sm font-medium">חודש</label>
             <select
               name="month"
-              defaultValue={currentMonth}
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             >
               {MONTHS.map((name, i) => (
@@ -181,7 +89,8 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
             <label className="mb-1 block text-sm font-medium">שנה</label>
             <select
               name="year"
-              defaultValue={currentYear}
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             >
               <option value="2026">2026</option>
@@ -193,22 +102,29 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-3">
-          <button
-            type="button"
-            disabled={printing || loading}
-            onClick={handlePrint}
-            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {printing ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
-            {printing ? "מכין..." : "הדפס PDF"}
-          </button>
+          {printUrl ? (
+            <a
+              href={printUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Printer size={16} />
+              הדפס PDF
+            </a>
+          ) : (
+            <button type="button" disabled className="flex items-center gap-2 rounded-lg bg-primary/50 px-6 py-2.5 text-sm font-medium text-primary-foreground cursor-not-allowed">
+              <Printer size={16} />
+              הדפס PDF
+            </button>
+          )}
 
           <button
             type="submit"
-            disabled={loading || printing}
+            disabled={loading}
             className="flex items-center gap-2 rounded-lg border border-border px-6 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+            <Eye size={16} />
             {loading ? "טוען..." : "תצוגה מקדימה"}
           </button>
         </div>
@@ -218,8 +134,8 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
         <CityReportPreviewModal
           data={previewData}
           onClose={() => setPreviewData(null)}
-          onDownload={() => handleDownload(previewData.city, previewData.month, previewData.year)}
-          downloading={downloading}
+          onDownload={() => {}}
+          downloading={false}
         />
       )}
     </>

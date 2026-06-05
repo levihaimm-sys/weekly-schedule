@@ -109,48 +109,58 @@ function buildHtml(title: string, body: string): string {
 </html>`;
 }
 
-// Print using a hidden iframe — no popup permission needed.
-function printViaIframe(title: string, body: string): void {
-  // Remove any leftover iframe from a previous print
-  document.getElementById("__rpt_iframe__")?.remove();
+// Inject report HTML into the current page, hide everything else, print, then clean up.
+// This uses window.print() directly — works in every browser with no popups needed.
+function printViaInjection(title: string, body: string): void {
+  const CONTAINER_ID = "__rpt_print__";
+  const STYLE_ID = "__rpt_style__";
 
-  const iframe = document.createElement("iframe");
-  iframe.id = "__rpt_iframe__";
-  // Must be visible (even if off-screen) for print to work in all browsers
-  iframe.style.cssText =
-    "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:none;pointer-events:none;";
-  document.body.appendChild(iframe);
+  // Clean up any leftover from a previous call
+  document.getElementById(CONTAINER_ID)?.remove();
+  document.getElementById(STYLE_ID)?.remove();
 
-  const doc = iframe.contentDocument!;
-  doc.open();
-  doc.write(buildHtml(title, body));
-  doc.close();
+  const originalTitle = document.title;
+  document.title = title;
 
-  const doPrint = () => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    // Clean up after print dialog closes
-    iframe.contentWindow?.addEventListener("afterprint", () => iframe.remove(), { once: true });
-    // Fallback cleanup
-    setTimeout(() => iframe.remove(), 120_000);
-  };
+  // Inject the report content into the page
+  const container = document.createElement("div");
+  container.id = CONTAINER_ID;
+  container.innerHTML = body;
+  document.body.appendChild(container);
 
-  // Wait for fonts to load before printing
-  const fontsReady = (doc as Document & { fonts?: FontFaceSet }).fonts?.ready;
-  if (fontsReady) {
-    const fallback = setTimeout(doPrint, 3000);
-    fontsReady.then(() => { clearTimeout(fallback); setTimeout(doPrint, 300); });
-  } else {
-    setTimeout(doPrint, 1000);
-  }
+  // Add print CSS: hide everything except the report container
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap');
+    @media print {
+      body > *:not(#${CONTAINER_ID}) { display: none !important; }
+      #${CONTAINER_ID} {
+        display: block !important;
+        font-family: 'Heebo', Arial, sans-serif;
+        font-size: 10pt;
+        direction: rtl;
+        color: #111;
+      }
+      ${BASE_CSS}
+      @page { size: A4; margin: 18mm 15mm 22mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  window.print();
+
+  // Restore page after print dialog closes (window.print() is synchronous)
+  document.title = originalTitle;
+  document.getElementById(CONTAINER_ID)?.remove();
+  document.getElementById(STYLE_ID)?.remove();
 }
 
-// Keep these exports so existing callers in forms still compile, but redirect to iframe approach
-export function openLoadingWindow(): Window {
-  return window; // unused stub — forms now call printViaIframe directly
-}
+// Stubs kept for backward compatibility with form imports
+export function openLoadingWindow(): Window { return window; }
 export function fillPrintWindow(_win: Window, title: string, body: string): void {
-  printViaIframe(title, body);
+  printViaInjection(title, body);
 }
 
 // ─── Instructor Report ───────────────────────────────────────────────────────
@@ -197,7 +207,7 @@ export function buildInstructorReportHtml(data: ReportPreviewData): { title: str
 
 export function printInstructorReport(data: ReportPreviewData): void {
   const { title, body } = buildInstructorReportHtml(data);
-  printViaIframe(title, body);
+  printViaInjection(title, body);
 }
 
 // ─── City Report ─────────────────────────────────────────────────────────────
@@ -243,7 +253,7 @@ export function buildCityReportHtml(data: CityReportPreviewData): { title: strin
 
 export function printCityReport(data: CityReportPreviewData): void {
   const { title, body } = buildCityReportHtml(data);
-  printViaIframe(title, body);
+  printViaInjection(title, body);
 }
 
 // ─── Client Report ────────────────────────────────────────────────────────────

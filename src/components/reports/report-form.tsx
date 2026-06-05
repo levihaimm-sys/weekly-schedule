@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Download, Loader2, Printer } from "lucide-react";
+import { Eye, Printer } from "lucide-react";
 import { ReportPreviewModal, type ReportPreviewData } from "./report-preview-modal";
-import { buildInstructorReportHtml, fillPrintWindow, openLoadingWindow } from "@/lib/pdf/print-html";
 
 interface ReportFormProps {
   instructors: { id: string; full_name: string }[];
@@ -16,117 +15,24 @@ const MONTHS = [
 
 export function ReportForm({ instructors }: ReportFormProps) {
   const [loading, setLoading] = useState(false);
-  const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<ReportPreviewData | null>(null);
-  const [downloading, setDownloading] = useState(false);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
-  function getFormValues(form: HTMLFormElement) {
-    const formData = new FormData(form);
-    return {
-      instructorId: formData.get("instructor") as string,
-      month: parseInt(formData.get("month") as string),
-      year: parseInt(formData.get("year") as string),
-    };
-  }
+  const [instructorId, setInstructorId] = useState("");
+  const [month, setMonth] = useState(currentMonth);
+  const [year, setYear] = useState(currentYear);
+
+  const printUrl = instructorId
+    ? `/api/reports/print/instructor?instructorId=${instructorId}&month=${month}&year=${year}`
+    : null;
 
   async function handlePreview(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const { instructorId, month, year } = getFormValues(e.currentTarget);
-
-    if (!instructorId) {
-      setError("בחר מדריך");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/reports/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instructorId, month, year, preview: true }),
-      });
-
-      if (!response.ok) {
-        let errorMsg = "שגיאה ביצירת הדוח";
-        try {
-          const data = await response.json();
-          errorMsg = data.error || errorMsg;
-        } catch {
-          errorMsg = `שגיאת שרת (${response.status})`;
-        }
-        setError(errorMsg);
-        return;
-      }
-
-      const data = await response.json();
-      setPreviewData(data);
-    } catch {
-      setError("שגיאה בחיבור לשרת");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDownload(instructorId?: string, month?: number, year?: number) {
-    // If called from the modal, we need the current form values
-    const form = document.getElementById("report-form") as HTMLFormElement | null;
-    if (!form) return;
-    const values = getFormValues(form);
-    const id = instructorId ?? values.instructorId;
-    const m = month ?? values.month;
-    const y = year ?? values.year;
-
-    setDownloading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/reports/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instructorId: id, month: m, year: y }),
-      });
-
-      if (!response.ok) {
-        let errorMsg = "שגיאה ביצירת הדוח";
-        try {
-          const data = await response.json();
-          errorMsg = data.error || errorMsg;
-        } catch {
-          errorMsg = `שגיאת שרת (${response.status})`;
-        }
-        setError(errorMsg);
-        return;
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `report-${m}-${y}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      setError("שגיאה בחיבור לשרת");
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  async function handlePrint() {
-    const form = document.getElementById("report-form") as HTMLFormElement | null;
-    if (!form) return;
-    const { instructorId, month, year } = getFormValues(form);
     if (!instructorId) { setError("בחר מדריך"); return; }
-
-    setPrinting(true);
+    setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/reports/generate", {
@@ -136,16 +42,14 @@ export function ReportForm({ instructors }: ReportFormProps) {
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        setError(data.error ?? "שגיאה");
+        setError(data.error ?? "שגיאה ביצירת הדוח");
         return;
       }
-      const data = await response.json();
-      const { title, body } = buildInstructorReportHtml(data);
-      fillPrintWindow(openLoadingWindow(), title, body);
+      setPreviewData(await response.json());
     } catch {
       setError("שגיאה בחיבור לשרת");
     } finally {
-      setPrinting(false);
+      setLoading(false);
     }
   }
 
@@ -157,14 +61,14 @@ export function ReportForm({ instructors }: ReportFormProps) {
             <label className="mb-1 block text-sm font-medium">מדריך</label>
             <select
               name="instructor"
+              value={instructorId}
+              onChange={(e) => setInstructorId(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
               required
             >
               <option value="">בחר מדריך...</option>
               {instructors.map((inst) => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.full_name}
-                </option>
+                <option key={inst.id} value={inst.id}>{inst.full_name}</option>
               ))}
             </select>
           </div>
@@ -172,13 +76,12 @@ export function ReportForm({ instructors }: ReportFormProps) {
             <label className="mb-1 block text-sm font-medium">חודש</label>
             <select
               name="month"
-              defaultValue={currentMonth}
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             >
               {MONTHS.map((name, i) => (
-                <option key={i} value={i + 1}>
-                  {name}
-                </option>
+                <option key={i} value={i + 1}>{name}</option>
               ))}
             </select>
           </div>
@@ -186,7 +89,8 @@ export function ReportForm({ instructors }: ReportFormProps) {
             <label className="mb-1 block text-sm font-medium">שנה</label>
             <select
               name="year"
-              defaultValue={currentYear}
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             >
               <option value="2026">2026</option>
@@ -198,22 +102,33 @@ export function ReportForm({ instructors }: ReportFormProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-3">
-          <button
-            type="button"
-            disabled={printing || loading}
-            onClick={handlePrint}
-            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {printing ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
-            {printing ? "מכין..." : "הדפס PDF"}
-          </button>
+          {printUrl ? (
+            <a
+              href={printUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Printer size={16} />
+              הדפס PDF
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="flex items-center gap-2 rounded-lg bg-primary/50 px-6 py-2.5 text-sm font-medium text-primary-foreground cursor-not-allowed"
+            >
+              <Printer size={16} />
+              הדפס PDF
+            </button>
+          )}
 
           <button
             type="submit"
-            disabled={loading || printing}
+            disabled={loading}
             className="flex items-center gap-2 rounded-lg border border-border px-6 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+            <Eye size={16} />
             {loading ? "טוען..." : "תצוגה מקדימה"}
           </button>
         </div>
@@ -223,8 +138,8 @@ export function ReportForm({ instructors }: ReportFormProps) {
         <ReportPreviewModal
           data={previewData}
           onClose={() => setPreviewData(null)}
-          onDownload={() => handleDownload(undefined, previewData.month, previewData.year)}
-          downloading={downloading}
+          onDownload={() => {}}
+          downloading={false}
         />
       )}
     </>

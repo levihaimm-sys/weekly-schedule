@@ -15,11 +15,12 @@ const MONTHS = [
 const COL = "px-4 py-2 text-center tabular-nums";
 const COL_LABEL = "px-4 py-2";
 
-export function InstructorSummaryForm() {
+export function InstructorSummaryForm({ instructors }: { instructors: { full_name: string }[] }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [data, setData] = useState<InstructorMonthlySummary[] | null>(null);
+  const [filterInstructor, setFilterInstructor] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -59,6 +60,17 @@ export function InstructorSummaryForm() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">מדריך</label>
+          <select
+            value={filterInstructor}
+            onChange={(e) => setFilterInstructor(e.target.value)}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">כל המדריכים</option>
+            {instructors.map((i) => <option key={i.full_name} value={i.full_name}>{i.full_name}</option>)}
+          </select>
+        </div>
         <button
           onClick={handleSubmit}
           disabled={isPending}
@@ -93,7 +105,7 @@ export function InstructorSummaryForm() {
               </tr>
             </thead>
             <tbody>
-              {data.map((instructor) => (
+              {data.filter((i) => !filterInstructor || i.instructorName === filterInstructor).map((instructor) => (
                 <>
                   {/* Instructor group header */}
                   <tr key={`h-${instructor.instructorName}`} className="border-y border-border bg-orange-50">
