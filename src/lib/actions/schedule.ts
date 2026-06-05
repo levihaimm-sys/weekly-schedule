@@ -678,6 +678,34 @@ export async function createLocation(data: {
   return { success: true, id: loc.id as string };
 }
 
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { result.push(current.trim()); current = ""; }
+      else { current += ch; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseDate(raw: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const dmy = /^(\d{1,2})[\/.\\-](\d{1,2})[\/.\\-](\d{2,4})$/.exec(raw);
+  if (!dmy) return null;
+  const year = dmy[3].length === 2 ? 2000 + parseInt(dmy[3]) : parseInt(dmy[3]);
+  return `${year}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+}
+
 export async function bulkImportLessons(csvText: string) {
   const supabase = await createClient();
 
@@ -690,7 +718,7 @@ export async function bulkImportLessons(csvText: string) {
     return { error: "הקובץ ריק או חסרת שורת כותרת" };
   }
 
-  const header = lines[0].split(",").map((h) => h.trim());
+  const header = parseCSVLine(lines[0]);
   // Support both "שם הגן" (new) and "מיקום" (legacy)
   const gardenCol = header.includes("שם הגן") ? "שם הגן" : "מיקום";
   const requiredCols = ["תאריך", "שעה", gardenCol];
@@ -708,6 +736,7 @@ export async function bulkImportLessons(csvText: string) {
     .select("id, full_name")
     .in("status", ["active", "substitute"]);
 
+  // mutable map — auto-created locations get added during the loop
   const locationMap = new Map(
     (allLocations ?? []).map((l) => [l.name.trim(), l.id])
   );
@@ -728,44 +757,29 @@ export async function bulkImportLessons(csvText: string) {
   const errors: string[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(",").map((v) => v.trim());
+    const values = parseCSVLine(lines[i]);
     const row: Record<string, string> = {};
     header.forEach((col, idx) => {
       row[col] = values[idx] ?? "";
     });
 
     const gardenName = row[gardenCol];
-    const clientName = row["שם הלקוח"];
-    const cityName = row["עיר"];
+    const cityName = row["עיר"] ?? "";
 
-    let locationId: string | undefined;
-    if (cityName || clientName) {
-      let candidates = allLocations ?? [];
-      if (cityName) {
-        candidates = candidates.filter((l) => l.city === cityName);
-      }
-      if (clientName) {
-        const clientCities = CLIENT_CITIES[clientName];
-        if (!clientCities) {
-          errors.push(`שורה ${i + 1}: לקוח לא נמצא "${clientName}"`);
-          continue;
-        }
-        candidates = candidates.filter((l) => clientCities.includes(l.city));
-      }
-      const match = candidates.find((l) => l.name.trim() === gardenName);
-      if (!match) {
-        const context = [cityName, clientName].filter(Boolean).join(", ");
-        errors.push(`שורה ${i + 1}: גן "${gardenName}" לא נמצא (${context})`);
+    // Find or auto-create location
+    let locationId: string | undefined = locationMap.get(gardenName);
+    if (!locationId) {
+      const { data: newLoc, error: locErr } = await supabase
+        .from("locations")
+        .insert({ name: gardenName, city: cityName })
+        .select("id")
+        .single();
+      if (locErr || !newLoc) {
+        errors.push(`שורה ${i + 1}: שגיאה ביצירת גן "${gardenName}": ${locErr?.message}`);
         continue;
       }
-      locationId = match.id;
-    } else {
-      locationId = locationMap.get(gardenName);
-    }
-
-    if (!locationId) {
-      errors.push(`שורה ${i + 1}: גן לא נמצא "${gardenName}"`);
-      continue;
+      locationId = newLoc.id as string;
+      locationMap.set(gardenName, locationId);
     }
 
     let instructorId: string | null = null;
@@ -777,20 +791,19 @@ export async function bulkImportLessons(csvText: string) {
       }
     }
 
-    const dateVal = row["תאריך"];
-    if (!dateVal || !/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
-      errors.push(`שורה ${i + 1}: תאריך לא תקין "${dateVal}"`);
+    const dateVal = parseDate(row["תאריך"]);
+    if (!dateVal) {
+      errors.push(`שורה ${i + 1}: תאריך לא תקין "${row["תאריך"]}"`);
       continue;
     }
 
     const timeVal = row["שעה"];
-    if (!timeVal || !/^\d{2}:\d{2}(:\d{2})?$/.test(timeVal)) {
+    if (!timeVal || !/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeVal)) {
       errors.push(`שורה ${i + 1}: שעה לא תקינה "${timeVal}"`);
       continue;
     }
 
-    const startTime =
-      timeVal.length === 5 ? `${timeVal}:00` : timeVal;
+    const startTime = timeVal.length <= 5 ? `${timeVal.padStart(5, "0")}:00` : timeVal;
 
     rows.push({
       instructor_id: instructorId,
