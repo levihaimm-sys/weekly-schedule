@@ -105,8 +105,6 @@ export function ReportForm({ instructors }: ReportFormProps) {
           {printUrl ? (
             <a
               href={printUrl}
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Printer size={16} />

@@ -134,17 +134,23 @@ th{padding:5pt;text-align:center;font-weight:700}
 td{padding:4pt 5pt;text-align:center;border-bottom:.5pt solid #e4e4e7;vertical-align:middle}
 .summary{margin-top:12pt;background:#f4f4f5;padding:8pt 10pt;font-size:9pt;border-radius:3pt}
 .footer{text-align:center;font-size:7.5pt;color:#aaa;margin-top:10pt}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}}
+.toolbar{display:flex;gap:10px;margin-bottom:16pt;justify-content:center}
+.toolbar button{padding:8px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'Heebo',Arial,sans-serif;font-size:11pt;font-weight:700}
+.btn-print{background:#2563eb;color:#fff}.btn-back{background:#f4f4f5;color:#333}
+@media print{.toolbar{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}}
 </style>
 </head>
 <body>
+<div class="toolbar">
+  <button class="btn-print" onclick="window.print()">🖨️ הדפס / שמור כ-PDF</button>
+  <button class="btn-back" onclick="history.back()">← חזור</button>
+</div>
 <h1>חיים בתנועה - דוח לקוח חודשי</h1>
 <div class="sub">${clientName}<br>${MONTHS_HEBREW[month-1]} ${year}</div>
 <hr>
 ${tableHtml}
 <div class="summary">סה"כ: ${lessons.length} | הושלמו: ${totalCompleted} | בוטלו: ${totalCancelled} | אישור גננת: ${totalTeacher} | אישור מדריכה: ${totalInstructor}</div>
 <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>
-<script>window.onload=function(){window.print()}<\/script>
 </body>
 </html>`;
 
