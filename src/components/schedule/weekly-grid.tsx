@@ -8,7 +8,7 @@ import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
-import { createManualLesson, bulkUpdateLessons, createLocation } from "@/lib/actions/schedule";
+import { createManualLesson, bulkUpdateLessons, bulkDeleteLessons, createLocation } from "@/lib/actions/schedule";
 
 interface WeeklyLesson {
   id: string;
@@ -81,13 +81,14 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<"instructor" | "location" | "status" | "time" | "notes" | null>(null);
+  const [bulkAction, setBulkAction] = useState<"instructor" | "location" | "status" | "time" | "notes" | "date" | "delete" | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkInstructorId, setBulkInstructorId] = useState("");
   const [bulkLocationId, setBulkLocationId] = useState("");
   const [bulkStatus, setBulkStatus] = useState("cancelled");
   const [bulkTime, setBulkTime] = useState("");
   const [bulkNotes, setBulkNotes] = useState("");
+  const [bulkDate, setBulkDate] = useState("");
 
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
@@ -128,6 +129,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     setBulkLoading(true);
     const ids = Array.from(selectedIds);
 
+    if (bulkAction === "delete") {
+      const result = await bulkDeleteLessons(ids);
+      setBulkLoading(false);
+      if (!result.error) {
+        clearSelection();
+        setSelectMode(false);
+        router.refresh();
+      }
+      return;
+    }
+
     let updates: Parameters<typeof bulkUpdateLessons>[1] = {};
     if (bulkAction === "instructor") {
       updates = { instructor_id: bulkInstructorId || null };
@@ -141,6 +153,9 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       updates = { start_time: `${bulkTime}:00` };
     } else if (bulkAction === "notes") {
       updates = { change_notes: bulkNotes };
+    } else if (bulkAction === "date") {
+      if (!bulkDate) { setBulkLoading(false); return; }
+      updates = { lesson_date: bulkDate };
     }
 
     const result = await bulkUpdateLessons(ids, updates);
@@ -238,7 +253,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           <div className="flex flex-wrap gap-2 mr-auto">
             {selectedIds.size > 0 && (
               <>
-                {(["instructor", "location", "status", "time", "notes"] as const).map((action) => (
+                {(["instructor", "location", "status", "time", "date", "notes"] as const).map((action) => (
                   <button
                     key={action}
                     onClick={() => setBulkAction(action)}
@@ -248,9 +263,19 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                         : "border-border bg-background hover:bg-muted"
                     }`}
                   >
-                    {{ instructor: "שנה מדריך", location: "שנה מיקום", status: "שנה סטטוס", time: "שנה שעה", notes: "הערות" }[action]}
+                    {{ instructor: "שנה מדריך", location: "שנה מיקום", status: "שנה סטטוס", time: "שנה שעה", date: "שנה תאריך", notes: "הערות" }[action]}
                   </button>
                 ))}
+                <button
+                  onClick={() => setBulkAction("delete")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bulkAction === "delete"
+                      ? "border-red-400 bg-red-100 text-red-700"
+                      : "border-red-200 bg-background text-red-600 hover:bg-red-50"
+                  }`}
+                >
+                  מחק שיעורים
+                </button>
                 <button
                   onClick={clearSelection}
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
@@ -322,6 +347,35 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
               <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "date" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="date"
+                value={bulkDate}
+                onChange={(e) => setBulkDate(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} disabled={!bulkDate} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "delete" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <span className="flex-1 text-sm text-red-700">
+                האם למחוק {selectedIds.size} שיעורים? פעולה זו בלתי הפיכה.
+              </span>
+              <button
+                onClick={executeBulkAction}
+                disabled={bulkLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "מחק"}
+              </button>
               <BulkCancelButton onClick={() => setBulkAction(null)} />
             </div>
           )}

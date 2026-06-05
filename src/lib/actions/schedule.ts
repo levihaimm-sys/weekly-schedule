@@ -903,6 +903,22 @@ export async function unmarkChangeAsSeen(lessonId: string) {
 /**
  * Bulk update multiple lessons at once (for multi-select actions).
  */
+export async function bulkDeleteLessons(lessonIds: string[]) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("lessons").delete().in("id", lessonIds);
+
+  if (error) {
+    return { error: "שגיאה במחיקת שיעורים: " + error.message };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
 export async function bulkUpdateLessons(
   lessonIds: string[],
   updates: {
@@ -911,6 +927,7 @@ export async function bulkUpdateLessons(
     change_notes?: string;
     location_id?: string;
     start_time?: string;
+    lesson_date?: string;
   }
 ) {
   const supabase = await createClient();
