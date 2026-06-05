@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format } from "date-fns";
 import { getTodayInIsrael } from "@/lib/utils/date";
+import { CLIENT_CITIES } from "@/lib/utils/constants";
 
 
 /**
@@ -690,7 +691,9 @@ export async function bulkImportLessons(csvText: string) {
   }
 
   const header = lines[0].split(",").map((h) => h.trim());
-  const requiredCols = ["תאריך", "שעה", "מיקום"];
+  // Support both "שם הגן" (new) and "מיקום" (legacy)
+  const gardenCol = header.includes("שם הגן") ? "שם הגן" : "מיקום";
+  const requiredCols = ["תאריך", "שעה", gardenCol];
   for (const col of requiredCols) {
     if (!header.includes(col)) {
       return { error: `עמודה חובה חסרה: ${col}` };
@@ -731,9 +734,30 @@ export async function bulkImportLessons(csvText: string) {
       row[col] = values[idx] ?? "";
     });
 
-    const locationId = locationMap.get(row["מיקום"]);
+    const gardenName = row[gardenCol];
+    const clientName = row["שם הלקוח"];
+
+    let locationId: string | undefined;
+    if (clientName) {
+      const clientCities = CLIENT_CITIES[clientName];
+      if (!clientCities) {
+        errors.push(`שורה ${i + 1}: לקוח לא נמצא "${clientName}"`);
+        continue;
+      }
+      const match = (allLocations ?? []).find(
+        (l) => l.name.trim() === gardenName && clientCities.includes(l.city)
+      );
+      if (!match) {
+        errors.push(`שורה ${i + 1}: גן "${gardenName}" לא נמצא תחת לקוח "${clientName}"`);
+        continue;
+      }
+      locationId = match.id;
+    } else {
+      locationId = locationMap.get(gardenName);
+    }
+
     if (!locationId) {
-      errors.push(`שורה ${i + 1}: מיקום לא נמצא "${row["מיקום"]}"`);
+      errors.push(`שורה ${i + 1}: גן לא נמצא "${gardenName}"`);
       continue;
     }
 

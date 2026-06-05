@@ -5,8 +5,8 @@ import { Upload, FileText, CheckCircle, AlertCircle, Download } from "lucide-rea
 import { bulkImportLessons } from "@/lib/actions/schedule";
 import { CITY_TO_CLIENT } from "@/lib/utils/constants";
 
-const EXAMPLE_CSV = `תאריך,שעה,מיקום,מדריך,הערות
-2026-05-05,10:00,שם מיקום,שם מדריך,שיעור חג`;
+const EXAMPLE_CSV = `תאריך,שעה,שם הגן,שם הלקוח,מדריך,הערות
+2026-05-05,10:00,גן גלבוע,עיריית הוד השרון,שם מדריך,שיעור חג`;
 
 export function BulkImportLessons({
   locations,
@@ -84,10 +84,10 @@ export function BulkImportLessons({
         <h3 className="font-semibold text-lg">פורמט הקובץ</h3>
         <div className="text-sm text-muted-foreground space-y-1">
           <p>
-            <strong>עמודות חובה:</strong> תאריך, שעה, מיקום
+            <strong>עמודות חובה:</strong> תאריך, שעה, שם הגן
           </p>
           <p>
-            <strong>עמודות אופציונליות:</strong> מדריך, הערות
+            <strong>עמודות אופציונליות:</strong> שם הלקוח, מדריך, הערות
           </p>
         </div>
         <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono overflow-x-auto whitespace-pre" dir="ltr">
