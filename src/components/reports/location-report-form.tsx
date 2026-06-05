@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Eye, Download, Loader2, Printer } from "lucide-react";
 import { CityReportPreviewModal, type CityReportPreviewData } from "./report-preview-modal";
-import { openLoadingWindow, fillPrintWindow, buildCityReportHtml } from "@/lib/pdf/print-html";
+import { buildCityReportHtml, fillPrintWindow, openLoadingWindow } from "@/lib/pdf/print-html";
 
 interface CityReportFormProps {
   cities: string[];
@@ -125,9 +125,6 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
     const { city, month, year } = getFormValues(form);
     if (!city) { setError("בחר עיר"); return; }
 
-    const win = openLoadingWindow();
-    if (!win) return;
-
     setPrinting(true);
     setError(null);
     try {
@@ -137,16 +134,14 @@ export function LocationReportForm({ cities }: CityReportFormProps) {
         body: JSON.stringify({ city, month, year, preview: true }),
       });
       if (!response.ok) {
-        win.close();
         const data = await response.json().catch(() => ({}));
         setError(data.error ?? "שגיאה");
         return;
       }
       const data: CityReportPreviewData = await response.json();
       const { title, body } = buildCityReportHtml(data);
-      fillPrintWindow(win, title, body);
+      fillPrintWindow(openLoadingWindow(), title, body);
     } catch {
-      win.close();
       setError("שגיאה בחיבור לשרת");
     } finally {
       setPrinting(false);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Eye, Download, Loader2, Printer } from "lucide-react";
 import { ReportPreviewModal, type ReportPreviewData } from "./report-preview-modal";
-import { openLoadingWindow, fillPrintWindow, buildInstructorReportHtml } from "@/lib/pdf/print-html";
+import { buildInstructorReportHtml, fillPrintWindow, openLoadingWindow } from "@/lib/pdf/print-html";
 
 interface ReportFormProps {
   instructors: { id: string; full_name: string }[];
@@ -126,10 +126,6 @@ export function ReportForm({ instructors }: ReportFormProps) {
     const { instructorId, month, year } = getFormValues(form);
     if (!instructorId) { setError("בחר מדריך"); return; }
 
-    // Open the window immediately (before await) so popup blocker won't block it
-    const win = openLoadingWindow();
-    if (!win) return;
-
     setPrinting(true);
     setError(null);
     try {
@@ -139,16 +135,14 @@ export function ReportForm({ instructors }: ReportFormProps) {
         body: JSON.stringify({ instructorId, month, year, preview: true }),
       });
       if (!response.ok) {
-        win.close();
         const data = await response.json().catch(() => ({}));
         setError(data.error ?? "שגיאה");
         return;
       }
       const data = await response.json();
       const { title, body } = buildInstructorReportHtml(data);
-      fillPrintWindow(win, title, body);
+      fillPrintWindow(openLoadingWindow(), title, body);
     } catch {
-      win.close();
       setError("שגיאה בחיבור לשרת");
     } finally {
       setPrinting(false);

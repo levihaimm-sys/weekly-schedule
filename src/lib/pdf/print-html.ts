@@ -77,11 +77,7 @@ const FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">`;
 
-const AUTO_PRINT = `<script>
-  document.fonts.ready.then(function() {
-    setTimeout(function() { window.print(); }, 400);
-  });
-<\/script>`;
+// No auto-print script needed — printing is triggered from the parent via iframe.contentWindow.print()
 
 function signerCell(
   signerRole?: string | null,
@@ -105,35 +101,56 @@ function buildHtml(title: string, body: string): string {
 <html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${title}</title>
   ${FONT_LINK}
   <style>${BASE_CSS}</style>
 </head>
-<body>${body}${AUTO_PRINT}</body>
+<body>${body}</body>
 </html>`;
 }
 
-function openPrintWindow(title: string, body: string): void {
-  const win = window.open("", "_blank");
-  if (!win) { alert("אנא אפשר חלונות קופצים בדפדפן כדי להדפיס"); return; }
-  win.document.write(buildHtml(title, body));
-  win.document.close();
+// Print using a hidden iframe — no popup permission needed.
+function printViaIframe(title: string, body: string): void {
+  // Remove any leftover iframe from a previous print
+  document.getElementById("__rpt_iframe__")?.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "__rpt_iframe__";
+  // Must be visible (even if off-screen) for print to work in all browsers
+  iframe.style.cssText =
+    "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:none;pointer-events:none;";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(buildHtml(title, body));
+  doc.close();
+
+  const doPrint = () => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    // Clean up after print dialog closes
+    iframe.contentWindow?.addEventListener("afterprint", () => iframe.remove(), { once: true });
+    // Fallback cleanup
+    setTimeout(() => iframe.remove(), 120_000);
+  };
+
+  // Wait for fonts to load before printing
+  const fontsReady = (doc as Document & { fonts?: FontFaceSet }).fonts?.ready;
+  if (fontsReady) {
+    const fallback = setTimeout(doPrint, 3000);
+    fontsReady.then(() => { clearTimeout(fallback); setTimeout(doPrint, 300); });
+  } else {
+    setTimeout(doPrint, 1000);
+  }
 }
 
-// Opens window immediately (before async work) to avoid popup blockers,
-// then fills it once data is ready.
-export function openLoadingWindow(): Window | null {
-  const win = window.open("", "_blank");
-  if (!win) { alert("אנא אפשר חלונות קופצים בדפדפן כדי להדפיס"); return null; }
-  win.document.write("<!DOCTYPE html><html><body style='font-family:Arial;text-align:center;padding:60px;direction:rtl'><p>טוען נתונים...</p></body></html>");
-  return win;
+// Keep these exports so existing callers in forms still compile, but redirect to iframe approach
+export function openLoadingWindow(): Window {
+  return window; // unused stub — forms now call printViaIframe directly
 }
-
-export function fillPrintWindow(win: Window, title: string, body: string): void {
-  win.document.open();
-  win.document.write(buildHtml(title, body));
-  win.document.close();
+export function fillPrintWindow(_win: Window, title: string, body: string): void {
+  printViaIframe(title, body);
 }
 
 // ─── Instructor Report ───────────────────────────────────────────────────────
@@ -180,7 +197,7 @@ export function buildInstructorReportHtml(data: ReportPreviewData): { title: str
 
 export function printInstructorReport(data: ReportPreviewData): void {
   const { title, body } = buildInstructorReportHtml(data);
-  openPrintWindow(title, body);
+  printViaIframe(title, body);
 }
 
 // ─── City Report ─────────────────────────────────────────────────────────────
@@ -226,7 +243,7 @@ export function buildCityReportHtml(data: CityReportPreviewData): { title: strin
 
 export function printCityReport(data: CityReportPreviewData): void {
   const { title, body } = buildCityReportHtml(data);
-  openPrintWindow(title, body);
+  printViaIframe(title, body);
 }
 
 // ─── Client Report ────────────────────────────────────────────────────────────
