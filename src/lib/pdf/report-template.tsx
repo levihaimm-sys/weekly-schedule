@@ -29,9 +29,10 @@ Font.register({
 // Prevent react-pdf's Latin hyphenation from mangling RTL characters
 Font.registerHyphenationCallback((word) => [word]);
 
-// Wrap mixed Hebrew+number strings in RTL embedding so the bidi algorithm orders them correctly
-function rtl(text: string): string {
-  return `‫${text}‬`;
+// Simple numeric date string to avoid toLocaleDateString injecting Hebrew bidi marks
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
 }
 
 const styles = StyleSheet.create({
@@ -55,6 +56,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     direction: "rtl",
+    textAlign: "center",
   },
   divider: {
     borderBottomWidth: 1,
@@ -122,10 +124,12 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     fontSize: 10,
-    textAlign: "right",
     direction: "rtl",
   },
 });
+
+// Inline style for stat segments inside row-reverse summary rows
+const seg = { fontSize: 10, fontFamily: "Heebo" } as const;
 
 const HEBREW_DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 const MONTHS_HEBREW = [
@@ -202,7 +206,6 @@ const cityHeaderStyle = StyleSheet.create({
     marginBottom: 3,
   },
   text: { fontWeight: 700, fontSize: 10, direction: "rtl" },
-  subText: { fontSize: 8, color: "#4b5563", marginTop: 2, direction: "rtl" },
 });
 
 export function ClientReportDocument({
@@ -226,9 +229,8 @@ export function ClientReportDocument({
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.title}>חיים בתנועה - דוח לקוח חודשי</Text>
-          <Text style={styles.subtitle}>
-            {rtl(`${data.clientName} | ${MONTHS_HEBREW[data.month - 1]} ${data.year}`)}
-          </Text>
+          <Text style={styles.subtitle}>{data.clientName}</Text>
+          <Text style={styles.subtitle}>{MONTHS_HEBREW[data.month - 1]} {String(data.year)}</Text>
         </View>
 
         <View style={styles.divider} />
@@ -241,9 +243,19 @@ export function ClientReportDocument({
                 style={[cityHeaderStyle.box, ci > 0 ? { marginTop: 14 } : {}]}
               >
                 <Text style={cityHeaderStyle.text}>{cityData.city}</Text>
-                <Text style={cityHeaderStyle.subText}>
-                  {rtl(`סה"כ: ${cityData.total} | הושלמו: ${cityData.completed} | בוטלו: ${cityData.cancelled} | גננת: ${cityData.teacherConfirmed} | מדריכה: ${cityData.instructorConfirmed}`)}
-                </Text>
+                {/* Stats row — row-reverse so each segment positions RTL without mixed bidi strings */}
+                <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", marginTop: 2 }}>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{'סה"כ: '}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{cityData.total}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{' | הושלמו: '}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{cityData.completed}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{' | בוטלו: '}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{cityData.cancelled}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{' | גננת: '}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{cityData.teacherConfirmed}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{' | מדריכה: '}</Text>
+                  <Text style={[seg, { fontSize: 8, color: "#4b5563" }]}>{cityData.instructorConfirmed}</Text>
+                </View>
               </View>
               <View style={styles.table}>
                 <View style={styles.tableHeader}>
@@ -311,7 +323,7 @@ export function ClientReportDocument({
                           <Text
                             style={[styles.cell, { fontSize: 7, color: "#666" }]}
                           >
-                            {rtl(`גננת: ${lesson.signerName}`)}
+                            {`גננת: ${lesson.signerName}`}
                           </Text>
                         </View>
                       ) : lesson.signerRole === "instructor" ? (
@@ -335,7 +347,7 @@ export function ClientReportDocument({
                 עיר
               </Text>
               <Text style={[styles.tableHeaderText, { width: "13%" }]}>
-                {`סה"כ`}
+                {'סה"כ'}
               </Text>
               <Text style={[styles.tableHeaderText, { width: "13%" }]}>
                 הושלמו
@@ -379,14 +391,24 @@ export function ClientReportDocument({
         )}
 
         <View style={[styles.summary, { marginTop: 16 }]}>
-          <Text style={styles.summaryText}>
-            {rtl(`סה"כ: ${totals.total} | הושלמו: ${totals.completed} | בוטלו: ${totals.cancelled} | אישור גננת: ${totals.teacherConfirmed} | אישור מדריכה: ${totals.instructorConfirmed}`)}
-          </Text>
+          <View style={{ flexDirection: "row-reverse", flexWrap: "wrap" }}>
+            <Text style={seg}>{'סה"כ: '}</Text>
+            <Text style={seg}>{totals.total}</Text>
+            <Text style={seg}>{' | הושלמו: '}</Text>
+            <Text style={seg}>{totals.completed}</Text>
+            <Text style={seg}>{' | בוטלו: '}</Text>
+            <Text style={seg}>{totals.cancelled}</Text>
+            <Text style={seg}>{' | אישור גננת: '}</Text>
+            <Text style={seg}>{totals.teacherConfirmed}</Text>
+            <Text style={seg}>{' | אישור מדריכה: '}</Text>
+            <Text style={seg}>{totals.instructorConfirmed}</Text>
+          </View>
         </View>
 
-        <Text style={styles.footer}>
-          {rtl(`הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}`)}
-        </Text>
+        <View style={styles.footer}>
+          <Text>הופק אוטומטית על ידי מערכת חיים בתנועה</Text>
+          <Text>{todayStr()}</Text>
+        </View>
       </Page>
     </Document>
   );
@@ -422,9 +444,8 @@ export function LocationReportDocument({ data }: { data: LocationReportData }) {
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.title}>חיים בתנועה - דוח לקוח חודשי</Text>
-          <Text style={styles.subtitle}>
-            {rtl(`${data.locationName} — ${data.city} | ${MONTHS_HEBREW[data.month - 1]} ${data.year}`)}
-          </Text>
+          <Text style={styles.subtitle}>{data.locationName} — {data.city}</Text>
+          <Text style={styles.subtitle}>{MONTHS_HEBREW[data.month - 1]} {String(data.year)}</Text>
         </View>
 
         <View style={styles.divider} />
@@ -456,11 +477,11 @@ export function LocationReportDocument({ data }: { data: LocationReportData }) {
                       <Image src={lesson.signatureUrl} style={styles.signatureImage} />
                     ) : null}
                     <Text style={[styles.cell, { fontSize: 7, color: "#666" }]}>
-                      {rtl(`גננת: ${lesson.signerName}`)}
+                      {`גננת: ${lesson.signerName}`}
                     </Text>
                   </View>
                 ) : lesson.signerRole === "instructor" ? (
-                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"\u2713"} מדריכה</Text>
+                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"✓"} מדריכה</Text>
                 ) : (
                   <Text style={[styles.cell, { color: "#999" }]}>—</Text>
                 )}
@@ -470,14 +491,20 @@ export function LocationReportDocument({ data }: { data: LocationReportData }) {
         </View>
 
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>
-            {rtl(`סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled}`)}
-          </Text>
+          <View style={{ flexDirection: "row-reverse", flexWrap: "wrap" }}>
+            <Text style={seg}>{'סה"כ שיעורים: '}</Text>
+            <Text style={seg}>{data.lessons.length}</Text>
+            <Text style={seg}>{' | הושלמו: '}</Text>
+            <Text style={seg}>{completed}</Text>
+            <Text style={seg}>{' | בוטלו: '}</Text>
+            <Text style={seg}>{cancelled}</Text>
+          </View>
         </View>
 
-        <Text style={styles.footer}>
-          {rtl(`הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}`)}
-        </Text>
+        <View style={styles.footer}>
+          <Text>הופק אוטומטית על ידי מערכת חיים בתנועה</Text>
+          <Text>{todayStr()}</Text>
+        </View>
       </Page>
     </Document>
   );
@@ -514,9 +541,8 @@ export function CityReportDocument({ data }: { data: CityReportData }) {
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.title}>חיים בתנועה - דוח עיר חודשי</Text>
-          <Text style={styles.subtitle}>
-            {rtl(`${data.city} | ${MONTHS_HEBREW[data.month - 1]} ${data.year}`)}
-          </Text>
+          <Text style={styles.subtitle}>{data.city}</Text>
+          <Text style={styles.subtitle}>{MONTHS_HEBREW[data.month - 1]} {String(data.year)}</Text>
         </View>
 
         <View style={styles.divider} />
@@ -547,11 +573,11 @@ export function CityReportDocument({ data }: { data: CityReportData }) {
                       <Image src={lesson.signatureUrl} style={styles.signatureImage} />
                     ) : null}
                     <Text style={[styles.cell, { fontSize: 7, color: "#666" }]}>
-                      {rtl(`גננת: ${lesson.signerName}`)}
+                      {`גננת: ${lesson.signerName}`}
                     </Text>
                   </View>
                 ) : lesson.signerRole === "instructor" ? (
-                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"\u2713"} מדריכה</Text>
+                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"✓"} מדריכה</Text>
                 ) : (
                   <Text style={[styles.cell, { color: "#999" }]}>—</Text>
                 )}
@@ -561,14 +587,22 @@ export function CityReportDocument({ data }: { data: CityReportData }) {
         </View>
 
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>
-            {rtl(`סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConfirmed}`)}
-          </Text>
+          <View style={{ flexDirection: "row-reverse", flexWrap: "wrap" }}>
+            <Text style={seg}>{'סה"כ שיעורים: '}</Text>
+            <Text style={seg}>{data.lessons.length}</Text>
+            <Text style={seg}>{' | הושלמו: '}</Text>
+            <Text style={seg}>{completed}</Text>
+            <Text style={seg}>{' | בוטלו: '}</Text>
+            <Text style={seg}>{cancelled}</Text>
+            <Text style={seg}>{' | אישור גננת: '}</Text>
+            <Text style={seg}>{teacherConfirmed}</Text>
+          </View>
         </View>
 
-        <Text style={styles.footer}>
-          {rtl(`הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}`)}
-        </Text>
+        <View style={styles.footer}>
+          <Text>הופק אוטומטית על ידי מערכת חיים בתנועה</Text>
+          <Text>{todayStr()}</Text>
+        </View>
       </Page>
     </Document>
   );
@@ -588,9 +622,8 @@ export function MonthlyReportDocument({ data }: { data: ReportData }) {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>חיים בתנועה - דוח חודשי</Text>
-          <Text style={styles.subtitle}>
-            {rtl(`${data.instructorName} | ${MONTHS_HEBREW[data.month - 1]} ${data.year}`)}
-          </Text>
+          <Text style={styles.subtitle}>{data.instructorName}</Text>
+          <Text style={styles.subtitle}>{MONTHS_HEBREW[data.month - 1]} {String(data.year)}</Text>
         </View>
 
         <View style={styles.divider} />
@@ -642,12 +675,12 @@ export function MonthlyReportDocument({ data }: { data: ReportData }) {
                       />
                     ) : null}
                     <Text style={[styles.cell, { fontSize: 7, color: "#666" }]}>
-                      {rtl(`גננת: ${lesson.signerName}`)}
+                      {`גננת: ${lesson.signerName}`}
                     </Text>
                   </View>
                 ) : lesson.signerRole === "instructor" ? (
                   <Text style={[styles.cell, { color: "#2563eb" }]}>
-                    {"\u2713"} מדריכה
+                    {"✓"} מדריכה
                   </Text>
                 ) : (
                   <Text style={[styles.cell, { color: "#999" }]}>—</Text>
@@ -659,15 +692,25 @@ export function MonthlyReportDocument({ data }: { data: ReportData }) {
 
         {/* Summary */}
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>
-            {rtl(`סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConfirmed} | אישור מדריכה: ${instructorConfirmed}`)}
-          </Text>
+          <View style={{ flexDirection: "row-reverse", flexWrap: "wrap" }}>
+            <Text style={seg}>{'סה"כ שיעורים: '}</Text>
+            <Text style={seg}>{data.lessons.length}</Text>
+            <Text style={seg}>{' | הושלמו: '}</Text>
+            <Text style={seg}>{completed}</Text>
+            <Text style={seg}>{' | בוטלו: '}</Text>
+            <Text style={seg}>{cancelled}</Text>
+            <Text style={seg}>{' | אישור גננת: '}</Text>
+            <Text style={seg}>{teacherConfirmed}</Text>
+            <Text style={seg}>{' | אישור מדריכה: '}</Text>
+            <Text style={seg}>{instructorConfirmed}</Text>
+          </View>
         </View>
 
         {/* Footer */}
-        <Text style={styles.footer}>
-          {rtl(`הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}`)}
-        </Text>
+        <View style={styles.footer}>
+          <Text>הופק אוטומטית על ידי מערכת חיים בתנועה</Text>
+          <Text>{todayStr()}</Text>
+        </View>
       </Page>
     </Document>
   );
