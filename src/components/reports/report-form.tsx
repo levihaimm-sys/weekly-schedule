@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Download, Loader2 } from "lucide-react";
+import { Eye, Download, Loader2, Printer } from "lucide-react";
 import { ReportPreviewModal, type ReportPreviewData } from "./report-preview-modal";
+import { openLoadingWindow, fillPrintWindow, buildInstructorReportHtml } from "@/lib/pdf/print-html";
 
 interface ReportFormProps {
   instructors: { id: string; full_name: string }[];
@@ -15,6 +16,7 @@ const MONTHS = [
 
 export function ReportForm({ instructors }: ReportFormProps) {
   const [loading, setLoading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<ReportPreviewData | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -118,6 +120,41 @@ export function ReportForm({ instructors }: ReportFormProps) {
     }
   }
 
+  async function handlePrint() {
+    const form = document.getElementById("report-form") as HTMLFormElement | null;
+    if (!form) return;
+    const { instructorId, month, year } = getFormValues(form);
+    if (!instructorId) { setError("בחר מדריך"); return; }
+
+    // Open the window immediately (before await) so popup blocker won't block it
+    const win = openLoadingWindow();
+    if (!win) return;
+
+    setPrinting(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructorId, month, year, preview: true }),
+      });
+      if (!response.ok) {
+        win.close();
+        const data = await response.json().catch(() => ({}));
+        setError(data.error ?? "שגיאה");
+        return;
+      }
+      const data = await response.json();
+      const { title, body } = buildInstructorReportHtml(data);
+      fillPrintWindow(win, title, body);
+    } catch {
+      win.close();
+      setError("שגיאה בחיבור לשרת");
+    } finally {
+      setPrinting(false);
+    }
+  }
+
   return (
     <>
       <form id="report-form" onSubmit={handlePreview} className="space-y-4">
@@ -168,30 +205,22 @@ export function ReportForm({ instructors }: ReportFormProps) {
 
         <div className="flex gap-3">
           <button
-            type="submit"
-            disabled={loading || downloading}
+            type="button"
+            disabled={printing || loading}
+            onClick={handlePrint}
             className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            {loading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Eye size={16} />
-            )}
-            {loading ? "טוען..." : "תצוגה מקדימה"}
+            {printing ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+            {printing ? "מכין..." : "הדפס PDF"}
           </button>
 
           <button
-            type="button"
-            disabled={loading || downloading}
-            onClick={() => handleDownload()}
+            type="submit"
+            disabled={loading || printing}
             className="flex items-center gap-2 rounded-lg border border-border px-6 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
           >
-            {downloading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Download size={16} />
-            )}
-            {downloading ? "מוריד..." : "הורד PDF ישירות"}
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+            {loading ? "טוען..." : "תצוגה מקדימה"}
           </button>
         </div>
       </form>

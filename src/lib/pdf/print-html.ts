@@ -100,10 +100,8 @@ function signerCell(
   return "—";
 }
 
-function openPrintWindow(title: string, body: string): void {
-  const win = window.open("", "_blank");
-  if (!win) return;
-  win.document.write(`<!DOCTYPE html>
+function buildHtml(title: string, body: string): string {
+  return `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8">
@@ -113,13 +111,34 @@ function openPrintWindow(title: string, body: string): void {
   <style>${BASE_CSS}</style>
 </head>
 <body>${body}${AUTO_PRINT}</body>
-</html>`);
+</html>`;
+}
+
+function openPrintWindow(title: string, body: string): void {
+  const win = window.open("", "_blank");
+  if (!win) { alert("אנא אפשר חלונות קופצים בדפדפן כדי להדפיס"); return; }
+  win.document.write(buildHtml(title, body));
+  win.document.close();
+}
+
+// Opens window immediately (before async work) to avoid popup blockers,
+// then fills it once data is ready.
+export function openLoadingWindow(): Window | null {
+  const win = window.open("", "_blank");
+  if (!win) { alert("אנא אפשר חלונות קופצים בדפדפן כדי להדפיס"); return null; }
+  win.document.write("<!DOCTYPE html><html><body style='font-family:Arial;text-align:center;padding:60px;direction:rtl'><p>טוען נתונים...</p></body></html>");
+  return win;
+}
+
+export function fillPrintWindow(win: Window, title: string, body: string): void {
+  win.document.open();
+  win.document.write(buildHtml(title, body));
   win.document.close();
 }
 
 // ─── Instructor Report ───────────────────────────────────────────────────────
 
-export function printInstructorReport(data: ReportPreviewData): void {
+export function buildInstructorReportHtml(data: ReportPreviewData): { title: string; body: string } {
   const completed = data.lessons.filter((l) => l.status === "completed").length;
   const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;
   const teacherConf = data.lessons.filter((l) => l.signerRole === "teacher").length;
@@ -140,27 +159,33 @@ export function printInstructorReport(data: ReportPreviewData): void {
     )
     .join("");
 
-  const body = `
-    <h1>חיים בתנועה - דוח חודשי</h1>
-    <div class="subtitle">${data.instructorName}<br>${MONTHS_HEBREW[data.month - 1]} ${data.year}</div>
-    <hr>
-    <table>
-      <thead><tr>
-        <th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>עיר</th><th>סטטוס</th><th>אישור</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="summary">
-      סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConf} | אישור מדריכה: ${instrConf}
-    </div>
-    <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>`;
+  return {
+    title: `דוח חודשי — ${data.instructorName}`,
+    body: `
+      <h1>חיים בתנועה - דוח חודשי</h1>
+      <div class="subtitle">${data.instructorName}<br>${MONTHS_HEBREW[data.month - 1]} ${data.year}</div>
+      <hr>
+      <table>
+        <thead><tr>
+          <th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>עיר</th><th>סטטוס</th><th>אישור</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="summary">
+        סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConf} | אישור מדריכה: ${instrConf}
+      </div>
+      <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>`,
+  };
+}
 
-  openPrintWindow(`דוח חודשי — ${data.instructorName}`, body);
+export function printInstructorReport(data: ReportPreviewData): void {
+  const { title, body } = buildInstructorReportHtml(data);
+  openPrintWindow(title, body);
 }
 
 // ─── City Report ─────────────────────────────────────────────────────────────
 
-export function printCityReport(data: CityReportPreviewData): void {
+export function buildCityReportHtml(data: CityReportPreviewData): { title: string; body: string } {
   const completed = data.lessons.filter((l) => l.status === "completed").length;
   const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;
   const teacherConf = data.lessons.filter((l) => l.signerRole === "teacher").length;
@@ -180,22 +205,28 @@ export function printCityReport(data: CityReportPreviewData): void {
     )
     .join("");
 
-  const body = `
-    <h1>חיים בתנועה - דוח עיר חודשי</h1>
-    <div class="subtitle">${data.city}<br>${MONTHS_HEBREW[data.month - 1]} ${data.year}</div>
-    <hr>
-    <table>
-      <thead><tr>
-        <th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריך</th><th>סטטוס</th><th>אישור</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="summary">
-      סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConf}
-    </div>
-    <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>`;
+  return {
+    title: `דוח עיר — ${data.city}`,
+    body: `
+      <h1>חיים בתנועה - דוח עיר חודשי</h1>
+      <div class="subtitle">${data.city}<br>${MONTHS_HEBREW[data.month - 1]} ${data.year}</div>
+      <hr>
+      <table>
+        <thead><tr>
+          <th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריך</th><th>סטטוס</th><th>אישור</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="summary">
+        סה"כ שיעורים: ${data.lessons.length} | הושלמו: ${completed} | בוטלו: ${cancelled} | אישור גננת: ${teacherConf}
+      </div>
+      <div class="footer">הופק אוטומטית על ידי מערכת חיים בתנועה | ${new Date().toLocaleDateString("he-IL")}</div>`,
+  };
+}
 
-  openPrintWindow(`דוח עיר — ${data.city}`, body);
+export function printCityReport(data: CityReportPreviewData): void {
+  const { title, body } = buildCityReportHtml(data);
+  openPrintWindow(title, body);
 }
 
 // ─── Client Report ────────────────────────────────────────────────────────────
