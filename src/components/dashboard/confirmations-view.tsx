@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { AdminConfirmButton } from "./admin-confirm-button";
 import { AdminCancelButton } from "./admin-cancel-button";
+import { AdminRevokeApprovalButton } from "./admin-revoke-approval-button";
+import { DAYS_SHORT } from "@/lib/utils/constants";
 
 interface LessonData {
   id: string;
@@ -248,6 +250,7 @@ export function ConfirmationsView({
                   const isPast = lessonTime < now;
                   const status = getStatusInfo(lesson, sig);
                   const StatusIcon = status.icon;
+                  const dayName = DAYS_SHORT[lessonTime.getDay()];
 
                   return (
                     <div
@@ -257,8 +260,8 @@ export function ConfirmationsView({
                       }`}
                     >
                       <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="w-12 shrink-0 text-muted-foreground">
-                          {format(new Date(lesson.lesson_date), "dd/MM")}
+                        <span className="w-20 shrink-0 text-muted-foreground">
+                          {dayName} {format(lessonTime, "dd/MM")}
                         </span>
                         <Clock size={12} className="text-muted-foreground" />
                         <span className="w-12 shrink-0">
@@ -287,6 +290,9 @@ export function ConfirmationsView({
                             />
                             <AdminCancelButton lessonId={lesson.id} />
                           </>
+                        )}
+                        {isConfirmed && !isCancelled && (
+                          <AdminRevokeApprovalButton lessonId={lesson.id} />
                         )}
                       </div>
                     </div>
