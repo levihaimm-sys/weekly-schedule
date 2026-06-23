@@ -8,6 +8,7 @@ export async function createTask(formData: FormData) {
   const urgency = formData.get("urgency") as string;
   const assignedTo = formData.get("assigned_to") as string;
   const dueDate = (formData.get("due_date") as string) || null;
+  const statusNote = (formData.get("status_note") as string)?.trim() || "";
 
   if (!description) {
     return { error: "יש להזין תיאור למשימה" };
@@ -32,6 +33,7 @@ export async function createTask(formData: FormData) {
     assigned_to: assignedTo,
     created_by: user.id,
     due_date: dueDate,
+    status_note: statusNote,
   });
 
   if (error) {

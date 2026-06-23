@@ -231,6 +231,12 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
               rows={3}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none"
             />
+            <input
+              name="status_note"
+              type="text"
+              placeholder="סטטוס (לא חובה)..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
             <div className="flex flex-wrap gap-3">
               <select
                 name="urgency"
