@@ -361,6 +361,66 @@ export async function getMissingEquipmentReport(
 }
 
 /**
+ * Get equipment confirmation status per instructor for a specific week.
+ * Returns all instructors who had equipment distributed that week,
+ * along with their confirmation details.
+ */
+export async function getWeeklyEquipmentConfirmations(weekStartDate: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("equipment_confirmations")
+    .select(
+      `
+      id,
+      expected_quantity,
+      received_quantity,
+      is_confirmed,
+      confirmed_at,
+      is_extra,
+      notes,
+      equipment:equipment(id, name),
+      assignment:weekly_lesson_assignments!inner(
+        id,
+        week_start_date,
+        equipment_distributed_at,
+        instructor:instructors(id, full_name, route),
+        lesson_plan:lesson_plans(id, name, category)
+      )
+    `
+    )
+    .eq("assignment.week_start_date", weekStartDate);
+
+  if (error) {
+    console.error("Error fetching weekly equipment confirmations:", error);
+    return [];
+  }
+
+  return data as any[];
+}
+
+/**
+ * Get all distinct weeks that have equipment confirmations
+ */
+export async function getEquipmentConfirmationWeeks(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("weekly_lesson_assignments")
+    .select("week_start_date")
+    .eq("equipment_distributed", true)
+    .order("week_start_date", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching equipment weeks:", error);
+    return [];
+  }
+
+  const uniqueWeeks = [...new Set((data || []).map((d) => d.week_start_date))];
+  return uniqueWeeks;
+}
+
+/**
  * Get all lesson plans grouped by category
  */
 export async function getLessonPlansByCategory(): Promise<

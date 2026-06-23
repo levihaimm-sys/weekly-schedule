@@ -34,6 +34,8 @@ export async function confirmEquipmentReceipt(
   }
 
   revalidatePath("/my-lesson-plan");
+  revalidatePath("/today");
+  revalidatePath("/lesson-plans/equipment-report");
   return { success: true };
 }
 
@@ -78,6 +80,8 @@ export async function confirmAllEquipmentCorrect(assignmentId: string) {
   }
 
   revalidatePath("/my-lesson-plan");
+  revalidatePath("/today");
+  revalidatePath("/lesson-plans/equipment-report");
   return { success: true };
 }
 
@@ -94,6 +98,8 @@ export async function updateEquipmentQuantity(
     .from("equipment_confirmations")
     .update({
       received_quantity: receivedQuantity,
+      is_confirmed: true,
+      confirmed_at: new Date().toISOString(),
     })
     .eq("id", confirmationId);
 
@@ -103,6 +109,8 @@ export async function updateEquipmentQuantity(
   }
 
   revalidatePath("/my-lesson-plan");
+  revalidatePath("/today");
+  revalidatePath("/lesson-plans/equipment-report");
   return { success: true };
 }
 
@@ -229,7 +237,7 @@ export async function updateWeeklyAssignment(
  */
 export async function createWeeklyAssignment(
   instructorId: string,
-  lessonPlanId: string,
+  lessonPlanId: string | null,
   weekStartDate: string,
   isPermanentChange: boolean = false
 ) {
@@ -280,27 +288,38 @@ export async function deleteWeeklyAssignment(assignmentId: string) {
 
 /**
  * Mark equipment as distributed to instructor
- * This triggers the equipment confirmation flow for the instructor
+ * This triggers the equipment confirmation flow for the instructor.
+ * Pass null for lessonPlanId when distributing equipment without a lesson plan.
  */
 export async function distributeEquipmentToInstructor(
   assignmentId: string,
-  lessonPlanId: string
+  lessonPlanId: string | null
 ) {
   const supabase = await createClient();
 
-  // Update assignment to mark equipment as distributed
+  const updateData: Record<string, unknown> = {
+    equipment_distributed: true,
+    equipment_distributed_at: new Date().toISOString(),
+  };
+  if (lessonPlanId !== null) {
+    updateData.lesson_plan_id = lessonPlanId;
+  }
+
   const { error: updateError } = await supabase
     .from("weekly_lesson_assignments")
-    .update({
-      equipment_distributed: true,
-      equipment_distributed_at: new Date().toISOString(),
-      lesson_plan_id: lessonPlanId, // Update lesson plan if changed
-    })
+    .update(updateData)
     .eq("id", assignmentId);
 
   if (updateError) {
     console.error("Error marking equipment as distributed:", updateError);
     return { success: false, error: updateError.message };
+  }
+
+  // No lesson plan — skip equipment confirmations
+  if (!lessonPlanId) {
+    revalidatePath("/equipment-distribution");
+    revalidatePath("/today");
+    return { success: true };
   }
 
   // Get assignment details to create confirmations
@@ -349,6 +368,7 @@ export async function distributeEquipmentToInstructor(
 
   revalidatePath("/equipment-distribution");
   revalidatePath("/today");
+  revalidatePath("/lesson-plans/equipment-report");
   return { success: true };
 }
 
@@ -393,5 +413,6 @@ export async function addExtraEquipment(
 
   revalidatePath("/my-lesson-plan");
   revalidatePath("/today");
+  revalidatePath("/lesson-plans/equipment-report");
   return { success: true, data };
 }
