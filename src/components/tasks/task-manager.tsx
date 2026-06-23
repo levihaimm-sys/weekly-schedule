@@ -341,7 +341,9 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                     <StatusIcon size={16} />
                   </button>
 
-                  {/* Content */}
+                  {/* Content + Status note side by side */}
+                  <div className="flex-1 min-w-0 flex gap-4">
+                  {/* Task description */}
                   <div className="flex-1 min-w-0">
                     {isEditingDesc ? (
                       <div className="flex gap-2">
@@ -405,8 +407,8 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                     </div>
                   </div>
 
-                  {/* Status note — left side */}
-                  <div className="shrink-0 w-48 flex flex-col items-start gap-1">
+                  {/* Status note — middle area */}
+                  <div className="shrink-0 w-56 flex flex-col items-start gap-1 border-r border-border/40 pr-4">
                     <span className="text-[11px] font-semibold text-muted-foreground">סטטוס</span>
                     {editingNoteId === task.id ? (
                       <div className="flex w-full gap-1.5">
@@ -449,6 +451,7 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                         {task.status_note || "לחץ להוספה"}
                       </span>
                     )}
+                  </div>
                   </div>
 
                   {/* Expand/collapse + delete */}
