@@ -383,51 +383,6 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                         {task.description}
                       </p>
                     )}
-                    {/* Status note */}
-                    <div className="mt-1.5 flex items-start gap-1.5">
-                      <span className="shrink-0 text-xs font-semibold text-muted-foreground mt-0.5">סטטוס:</span>
-                      {editingNoteId === task.id ? (
-                        <div className="flex flex-1 gap-1.5">
-                          <input
-                            type="text"
-                            value={editNote}
-                            onChange={(e) => setEditNote(e.target.value)}
-                            className="flex-1 rounded-md border border-border bg-background px-2 py-0.5 text-sm"
-                            autoFocus
-                            placeholder="הזן סטטוס..."
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleNoteSave(task.id);
-                              }
-                              if (e.key === "Escape") setEditingNoteId(null);
-                            }}
-                          />
-                          <button
-                            onClick={() => handleNoteSave(task.id)}
-                            disabled={isPending}
-                            className="rounded-md bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                          </button>
-                        </div>
-                      ) : (
-                        <span
-                          className={`text-sm cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-orange-50 hover:text-orange-700 ${
-                            task.status_note
-                              ? "text-orange-700 bg-orange-50/50 font-medium"
-                              : "text-muted-foreground/50 italic"
-                          }`}
-                          onClick={() => {
-                            setEditingNoteId(task.id);
-                            setEditNote(task.status_note ?? "");
-                          }}
-                          title="לחץ לעדכון סטטוס"
-                        >
-                          {task.status_note || "ללא סטטוס — לחץ להוספה"}
-                        </span>
-                      )}
-                    </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <span
                         className={`rounded-md border px-2 py-0.5 text-xs font-medium ${urgency.color}`}
@@ -448,6 +403,52 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                           ` ע״י ${task.creator.display_name}`}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Status note — left side */}
+                  <div className="shrink-0 w-48 flex flex-col items-start gap-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground">סטטוס</span>
+                    {editingNoteId === task.id ? (
+                      <div className="flex w-full gap-1.5">
+                        <input
+                          type="text"
+                          value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)}
+                          className="flex-1 min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm"
+                          autoFocus
+                          placeholder="הזן סטטוס..."
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleNoteSave(task.id);
+                            }
+                            if (e.key === "Escape") setEditingNoteId(null);
+                          }}
+                        />
+                        <button
+                          onClick={() => handleNoteSave(task.id)}
+                          disabled={isPending}
+                          className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        className={`text-sm cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-orange-50 hover:text-orange-700 ${
+                          task.status_note
+                            ? "text-orange-700 bg-orange-50/50 font-medium"
+                            : "text-muted-foreground/40 italic text-xs"
+                        }`}
+                        onClick={() => {
+                          setEditingNoteId(task.id);
+                          setEditNote(task.status_note ?? "");
+                        }}
+                        title="לחץ לעדכון סטטוס"
+                      >
+                        {task.status_note || "לחץ להוספה"}
+                      </span>
+                    )}
                   </div>
 
                   {/* Expand/collapse + delete */}
