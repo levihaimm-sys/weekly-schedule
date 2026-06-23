@@ -103,6 +103,13 @@ export default async function ConfirmationsPage({
     ...new Set(flatLessons.map((l) => l.client_name)),
   ].sort((a, b) => a.localeCompare(b, "he"));
 
+  // Reverse map: client -> cities (for linking to weekly schedule)
+  const clientToCities: Record<string, string[]> = {};
+  for (const [city, client] of Object.entries(CITY_TO_CLIENT)) {
+    if (!clientToCities[client]) clientToCities[client] = [];
+    clientToCities[client].push(city);
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">
@@ -146,6 +153,7 @@ export default async function ConfirmationsPage({
         sigMap={sigMap}
         instructors={instructors}
         clients={clientsInData}
+        clientToCities={clientToCities}
       />
     </div>
   );

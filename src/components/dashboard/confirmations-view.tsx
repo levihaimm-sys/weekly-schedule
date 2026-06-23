@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { format, startOfWeek } from "date-fns";
 import { formatTime } from "@/lib/utils/date";
+import Link from "next/link";
 import {
   CheckCircle2,
   AlertCircle,
@@ -41,6 +42,7 @@ interface Props {
   sigMap: Record<string, SigData>;
   instructors: { id: string; name: string }[];
   clients: string[];
+  clientToCities: Record<string, string[]>;
 }
 
 type StatusFilter = "all" | "confirmed" | "pending" | "cancelled";
@@ -81,11 +83,19 @@ function getStatusInfo(lesson: LessonData, sig: SigData | undefined) {
   };
 }
 
+function getWeeklyScheduleUrl(lessonDate: string, clientName: string, clientToCities: Record<string, string[]>) {
+  const weekStart = format(startOfWeek(new Date(lessonDate), { weekStartsOn: 0 }), "yyyy-MM-dd");
+  const cities = clientToCities[clientName];
+  const cityParam = cities ? cities.join(",") : "";
+  return `/schedule/weekly?week=${weekStart}${cityParam ? `&city=${encodeURIComponent(cityParam)}` : ""}`;
+}
+
 export function ConfirmationsView({
   lessons,
   sigMap,
   instructors,
   clients,
+  clientToCities,
 }: Props) {
   const [instructorFilter, setInstructorFilter] = useState("all");
   const [clientFilter, setClientFilter] = useState("all");
@@ -260,9 +270,12 @@ export function ConfirmationsView({
                       }`}
                     >
                       <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="w-20 shrink-0 text-muted-foreground">
+                        <Link
+                          href={getWeeklyScheduleUrl(lesson.lesson_date, lesson.client_name, clientToCities)}
+                          className="w-20 shrink-0 text-muted-foreground hover:text-blue-600 hover:underline transition-colors"
+                        >
                           {dayName} {format(lessonTime, "dd/MM")}
-                        </span>
+                        </Link>
                         <Clock size={12} className="text-muted-foreground" />
                         <span className="w-12 shrink-0">
                           {formatTime(lesson.start_time)}
