@@ -281,6 +281,7 @@ export async function getInstructorRequests() {
       instructor_notes,
       instructor_request_type,
       instructor_request_handled,
+      instructor_absence_request,
       recurring_item_id,
       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
       location:locations!lessons_location_id_fkey(id, name, city)

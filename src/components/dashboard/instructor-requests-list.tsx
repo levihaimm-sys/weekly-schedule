@@ -15,6 +15,7 @@ interface RequestLesson {
   instructor_notes?: string | null;
   instructor_request_type?: string | null;
   instructor_request_handled?: boolean;
+  instructor_absence_request?: boolean;
   recurring_item_id?: string | null;
   instructor: { id: string; full_name: string } | null;
   location: { id: string; name: string; city: string } | null;

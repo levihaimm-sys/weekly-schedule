@@ -130,16 +130,8 @@ export async function updateLesson(
   const finalUpdates: Record<string, any> = { ...updates };
   // Mark as one-time change so the sync mechanism won't reset this lesson
   finalUpdates.is_one_time_change = true;
-  if (lesson?.instructor_absence_request) {
-    if (updates.instructor_id !== undefined) {
-      // New instructor assigned → fully clear the absence state so the lesson
-      // looks and behaves like a normal scheduled lesson again
-      finalUpdates.instructor_absence_request = false;
-      finalUpdates.instructor_request_handled = false;
-    } else if (!lesson.instructor_request_handled) {
-      // Other update (time, notes, etc.) on an unhandled absence → mark handled
-      finalUpdates.instructor_request_handled = true;
-    }
+  if (lesson?.instructor_absence_request && !lesson.instructor_request_handled) {
+    finalUpdates.instructor_request_handled = true;
   }
 
   const { error } = await supabase
@@ -933,6 +925,13 @@ export async function bulkUpdateLessons(
   const supabase = await createClient();
 
   const finalUpdates: Record<string, any> = { ...updates, is_one_time_change: true };
+
+  // Reassigning the instructor or moving the lesson to a different day resolves
+  // a pending absence — clear the flags so it no longer shows as an absence.
+  if (updates.instructor_id !== undefined || updates.lesson_date !== undefined) {
+    finalUpdates.instructor_absence_request = false;
+    finalUpdates.instructor_request_handled = false;
+  }
 
   const { error } = await supabase
     .from("lessons")

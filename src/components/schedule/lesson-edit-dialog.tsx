@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { X, Loader2, Trash2, Search, ChevronDown } from "lucide-react";
-import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem } from "@/lib/actions/schedule";
+import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, clearInstructorRequest } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 
@@ -18,6 +18,7 @@ interface LessonData {
   lesson_date?: string;
   day_of_week?: number;
   group_name?: string | null;
+  instructor_absence_request?: boolean;
 }
 
 interface LessonEditDialogProps {
@@ -42,6 +43,7 @@ export function LessonEditDialog({
   const [error, setError] = useState<string | null>(null);
   const [scopeChoice, setScopeChoice] = useState<SaveScope>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAbsenceRemoval, setShowAbsenceRemoval] = useState(false);
 
   const [instructorId, setInstructorId] = useState(item.instructor?.id ?? "");
   const [startTime, setStartTime] = useState(item.start_time?.slice(0, 5) ?? "");
@@ -129,11 +131,64 @@ export function LessonEditDialog({
       }
 
       router.refresh();
-      onClose();
+      if (item.instructor_absence_request) {
+        setShowAbsenceRemoval(true);
+      } else {
+        onClose();
+      }
     } catch {
       setError("שגיאה בשמירה");
     }
     setLoading(false);
+  }
+
+  async function handleRemoveAbsence() {
+    setLoading(true);
+    const result = await clearInstructorRequest(item.id);
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+    router.refresh();
+    onClose();
+  }
+
+  // Absence removal prompt (shown after saving changes to an absence-tagged lesson)
+  if (showAbsenceRemoval) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="mx-4 w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl">
+          <h3 className="text-lg font-bold text-orange-700">הסרת תגית חיסור</h3>
+          <p className="mt-3 text-sm text-muted-foreground">
+            השיעור עודכן בהצלחה. האם להסיר את תגית החיסור מהשיעור?
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            השיעור יסומן כשינוי במקום חיסור.
+          </p>
+
+          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={handleRemoveAbsence}
+              disabled={loading}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
+            >
+              {loading && <Loader2 size={14} className="animate-spin" />}
+              הסר תגית חיסור
+            </button>
+            <button
+              onClick={() => { router.refresh(); onClose(); }}
+              disabled={loading}
+              className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              השאר כחיסור
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Delete confirmation dialog
