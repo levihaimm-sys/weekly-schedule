@@ -66,6 +66,7 @@ export async function updateTask(taskId: string, formData: FormData) {
   const assignedTo = formData.get("assigned_to") as string;
   const dueDate = (formData.get("due_date") as string) || null;
   const status = formData.get("status") as string;
+  const statusNote = (formData.get("status_note") as string) ?? "";
 
   if (!description) {
     return { error: "יש להזין תיאור למשימה" };
@@ -81,6 +82,7 @@ export async function updateTask(taskId: string, formData: FormData) {
       assigned_to: assignedTo,
       due_date: dueDate,
       status,
+      status_note: statusNote,
       updated_at: new Date().toISOString(),
     })
     .eq("id", taskId);

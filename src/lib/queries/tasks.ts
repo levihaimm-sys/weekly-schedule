@@ -18,6 +18,7 @@ export async function getAllTasks(filters?: {
       created_by,
       due_date,
       status,
+      status_note,
       created_at,
       updated_at,
       assignee:profiles!tasks_assigned_to_fkey(id, display_name),

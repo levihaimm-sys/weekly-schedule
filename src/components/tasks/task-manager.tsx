@@ -58,6 +58,8 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingDescId, setEditingDescId] = useState<string | null>(null);
   const [editDescription, setEditDescription] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
@@ -118,6 +120,7 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     formData.set("assigned_to", task.assigned_to);
     formData.set("due_date", task.due_date ?? "");
     formData.set("status", task.status);
+    formData.set("status_note", task.status_note ?? "");
     formData.set(field, value);
 
     startTransition(async () => {
@@ -131,6 +134,11 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     if (!editDescription.trim()) return;
     await handleFieldUpdate(taskId, "description", editDescription);
     setEditingDescId(null);
+  }
+
+  async function handleNoteSave(taskId: string) {
+    await handleFieldUpdate(taskId, "status_note", editNote);
+    setEditingNoteId(null);
   }
 
   async function handleDelete(taskId: string) {
@@ -369,6 +377,51 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                         {task.description}
                       </p>
                     )}
+                    {/* Status note */}
+                    <div className="mt-1.5 flex items-start gap-1.5">
+                      <span className="shrink-0 text-xs font-semibold text-muted-foreground mt-0.5">סטטוס:</span>
+                      {editingNoteId === task.id ? (
+                        <div className="flex flex-1 gap-1.5">
+                          <input
+                            type="text"
+                            value={editNote}
+                            onChange={(e) => setEditNote(e.target.value)}
+                            className="flex-1 rounded-md border border-border bg-background px-2 py-0.5 text-sm"
+                            autoFocus
+                            placeholder="הזן סטטוס..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleNoteSave(task.id);
+                              }
+                              if (e.key === "Escape") setEditingNoteId(null);
+                            }}
+                          />
+                          <button
+                            onClick={() => handleNoteSave(task.id)}
+                            disabled={isPending}
+                            className="rounded-md bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          className={`text-sm cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-orange-50 hover:text-orange-700 ${
+                            task.status_note
+                              ? "text-orange-700 bg-orange-50/50 font-medium"
+                              : "text-muted-foreground/50 italic"
+                          }`}
+                          onClick={() => {
+                            setEditingNoteId(task.id);
+                            setEditNote(task.status_note ?? "");
+                          }}
+                          title="לחץ לעדכון סטטוס"
+                        >
+                          {task.status_note || "ללא סטטוס — לחץ להוספה"}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <span
                         className={`rounded-md border px-2 py-0.5 text-xs font-medium ${urgency.color}`}
