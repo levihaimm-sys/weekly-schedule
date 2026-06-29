@@ -164,7 +164,7 @@ export default async function MySchedulePage({
       {/* Monthly View Link */}
       <Link
         href="/my-schedule/monthly"
-        className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex items-center justify-center gap-1.5 rounded-xl bg-secondary/60 px-3 py-2 text-xs font-bold text-foreground/80 transition-colors hover:bg-secondary"
       >
         <CalendarDays size={14} />
         צפייה בלוז החודשי
