@@ -341,8 +341,8 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                     <StatusIcon size={16} />
                   </button>
 
-                  {/* Content + Status note side by side */}
-                  <div className="flex-1 min-w-0 flex gap-4">
+                  {/* Content + Status note: side by side on desktop, stacked on mobile */}
+                  <div className="flex-1 min-w-0 flex flex-col md:flex-row md:gap-4">
                   {/* Task description */}
                   <div className="flex-1 min-w-0">
                     {isEditingDesc ? (
@@ -407,8 +407,8 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                     </div>
                   </div>
 
-                  {/* Status note — middle area */}
-                  <div className="shrink-0 w-56 flex flex-col items-start gap-1 border-r border-border/40 pr-4">
+                  {/* Status note — below on mobile, middle on desktop */}
+                  <div className="mt-2 md:mt-0 md:shrink-0 md:w-56 flex flex-col items-start gap-1 border-t md:border-t-0 md:border-r border-border/40 pt-2 md:pt-0 md:pr-4">
                     <span className="text-[11px] font-semibold text-muted-foreground">סטטוס</span>
                     {editingNoteId === task.id ? (
                       <div className="flex w-full gap-1.5">
