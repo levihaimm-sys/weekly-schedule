@@ -4,6 +4,7 @@ import { formatTime } from "@/lib/utils/date";
 import { redirect } from "next/navigation";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { MonthNavigator } from "@/components/instructor/month-navigator";
+import { DownloadMonthlyPdf } from "@/components/instructor/download-monthly-pdf";
 
 export const dynamic = "force-dynamic";
 
@@ -65,49 +66,55 @@ export default async function MonthlySchedulePage({
   const totalLessons = lessons?.length ?? 0;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold text-[#1C1917]">
-          תצוגה חודשית - {profile.display_name}
-        </h2>
-      </div>
-
-      <MonthNavigator year={year} month={month} />
-
-      <div className="rounded-2xl bg-card px-5 py-4 shadow-sm">
-        <span className="text-sm text-muted-foreground">
-          <span className="font-bold text-foreground text-lg">{totalLessons}</span>{" "}
-          שיעורים בחודש
-        </span>
+    <div className="-m-6 min-h-screen bg-background p-3 pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[#1C1917]">
+            תצוגה חודשית - {profile.display_name}
+          </h2>
+          <MonthNavigator year={year} month={month} />
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            <span className="font-bold text-foreground">{totalLessons}</span> שיעורים
+          </span>
+          {totalLessons > 0 && (
+            <DownloadMonthlyPdf
+              instructorId={profile.instructor_id}
+              year={year}
+              month={month}
+            />
+          )}
+        </div>
       </div>
 
       {totalLessons === 0 ? (
-        <div className="rounded-2xl bg-card/50 p-8 text-center shadow-sm">
+        <div className="mt-4 rounded-2xl bg-card/50 p-8 text-center shadow-sm">
           <p className="text-base font-medium text-muted-foreground">
             אין שיעורים בחודש זה
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl bg-card shadow-sm">
-          <table className="w-full text-sm">
+        <div className="mt-3 overflow-x-auto rounded-xl bg-card shadow-sm">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-right font-semibold text-foreground/70">
+                <th className="px-2 py-2 text-right font-semibold text-foreground/70">
                   תאריך
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground/70">
+                <th className="px-2 py-2 text-right font-semibold text-foreground/70">
                   יום
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground/70">
+                <th className="px-2 py-2 text-right font-semibold text-foreground/70">
                   שעה
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground/70">
+                <th className="px-2 py-2 text-right font-semibold text-foreground/70">
                   שם הגן
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground/70">
+                <th className="px-2 py-2 text-right font-semibold text-foreground/70">
                   עיר
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground/70">
+                <th className="px-2 py-2 text-right font-semibold text-foreground/70">
                   כתובת
                 </th>
               </tr>
@@ -116,7 +123,7 @@ export default async function MonthlySchedulePage({
               {(lessons ?? []).map((lesson: any, idx: number) => {
                 const date = new Date(lesson.lesson_date + "T00:00:00");
                 const dayOfWeek = date.getDay();
-                const dateDisplay = format(date, "dd/MM/yyyy");
+                const dateDisplay = format(date, "dd/MM");
 
                 return (
                   <tr
@@ -125,18 +132,18 @@ export default async function MonthlySchedulePage({
                       idx % 2 === 0 ? "bg-card" : "bg-muted/20"
                     }`}
                   >
-                    <td className="px-4 py-3 font-medium">{dateDisplay}</td>
-                    <td className="px-4 py-3">{DAYS_HEBREW[dayOfWeek]}</td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-2 py-1.5 font-medium">{dateDisplay}</td>
+                    <td className="px-2 py-1.5">{DAYS_HEBREW[dayOfWeek]}</td>
+                    <td className="px-2 py-1.5 font-medium">
                       {formatTime(lesson.start_time)}
                     </td>
-                    <td className="px-4 py-3 font-semibold">
+                    <td className="px-2 py-1.5 font-semibold">
                       {lesson.location?.name ?? "-"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-1.5">
                       {lesson.location?.city ?? "-"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-1.5">
                       {lesson.location?.street ?? "-"}
                     </td>
                   </tr>

@@ -5,8 +5,13 @@ import { usePathname } from "next/navigation";
 import { Home, CalendarDays, ClipboardCheck, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
+const HIDDEN_PATHS = ["/my-schedule/monthly"];
+
 export function MobileBottomNav() {
   const pathname = usePathname();
+
+  if (HIDDEN_PATHS.some((p) => pathname.startsWith(p))) return null;
+
   const isTodayActive = pathname === "/today";
   const isLessonPlanActive = pathname.startsWith("/my-lesson-plan");
   const isScheduleActive =

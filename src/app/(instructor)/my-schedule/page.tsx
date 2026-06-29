@@ -130,13 +130,6 @@ export default async function MySchedulePage({
           weekEndStr={weekEndStr}
           basePath="/my-schedule"
         />
-        <Link
-          href="/my-schedule/monthly"
-          className="flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-secondary/80"
-        >
-          <CalendarDays size={16} />
-          תצוגה חודשית
-        </Link>
       </div>
 
       {/* Week Summary */}
@@ -167,6 +160,15 @@ export default async function MySchedulePage({
           )}
         </div>
       )}
+
+      {/* Monthly View Link */}
+      <Link
+        href="/my-schedule/monthly"
+        className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <CalendarDays size={14} />
+        צפייה בלוז החודשי
+      </Link>
 
       {/* Weekly Schedule */}
       <div className="space-y-5">
