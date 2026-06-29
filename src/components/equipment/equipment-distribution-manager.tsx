@@ -10,14 +10,14 @@ interface Instructor {
   route: string | null;
   assignment: {
     id: string;
-    lesson_plan_id: string;
+    lesson_plan_id: string | null;
     equipment_distributed: boolean;
     equipment_distributed_at: string | null;
     lesson_plan: {
       id: string;
       name: string;
       category: string;
-    };
+    } | null;
   } | null;
 }
 
@@ -83,7 +83,11 @@ export function EquipmentDistributionManager({
   ) => {
     setSelectedLessonPlan((prev) => ({ ...prev, [instructorId]: lessonPlanId }));
 
-    // Fetch equipment for this lesson plan
+    if (!lessonPlanId || lessonPlanId === "no-lesson-plan") {
+      setEquipmentData((prev) => ({ ...prev, [instructorId]: [] }));
+      return;
+    }
+
     const response = await fetch(
       `/api/lesson-plans/${lessonPlanId}/equipment`
     );
@@ -94,21 +98,21 @@ export function EquipmentDistributionManager({
   };
 
   const handleDistribute = (instructorId: string, assignmentId: string) => {
-    const lessonPlanId =
-      selectedLessonPlan[instructorId] ||
-      instructors.find((i) => i.id === instructorId)?.assignment?.lesson_plan_id;
+    const userSelection = selectedLessonPlan[instructorId];
+    const assignmentPlanId = instructors.find((i) => i.id === instructorId)?.assignment?.lesson_plan_id;
 
-    if (!lessonPlanId) {
+    // Determine effective selection: user's pick takes priority, then assignment's existing plan
+    const effectiveRaw = userSelection !== undefined ? userSelection : (assignmentPlanId ?? "");
+
+    if (!effectiveRaw) {
       alert("אנא בחר מערך");
       return;
     }
 
-    startTransition(async () => {
-      const result = await distributeEquipmentToInstructor(
-        assignmentId,
-        lessonPlanId
-      );
+    const lessonPlanId = effectiveRaw === "no-lesson-plan" ? null : effectiveRaw;
 
+    startTransition(async () => {
+      const result = await distributeEquipmentToInstructor(assignmentId, lessonPlanId);
       if (!result.success) {
         alert("שגיאה בחלוקת ציוד: " + result.error);
       }
@@ -116,15 +120,16 @@ export function EquipmentDistributionManager({
   };
 
   const handleCreateAndDistribute = (instructorId: string) => {
-    const lessonPlanId = selectedLessonPlan[instructorId];
+    const userSelection = selectedLessonPlan[instructorId];
 
-    if (!lessonPlanId) {
+    if (!userSelection) {
       alert("אנא בחר מערך");
       return;
     }
 
+    const lessonPlanId = userSelection === "no-lesson-plan" ? null : userSelection;
+
     startTransition(async () => {
-      // First create the assignment
       const createResult = await createWeeklyAssignment(
         instructorId,
         lessonPlanId,
@@ -136,7 +141,6 @@ export function EquipmentDistributionManager({
         return;
       }
 
-      // Then distribute equipment
       const distResult = await distributeEquipmentToInstructor(
         createResult.data.id,
         lessonPlanId
@@ -186,9 +190,20 @@ export function EquipmentDistributionManager({
               const assignment = instructor.assignment;
               const isDistributed = assignment?.equipment_distributed || false;
               const isExpanded = expandedInstructor === instructor.id;
-              const currentLessonPlanId =
-                selectedLessonPlan[instructor.id] || assignment?.lesson_plan_id;
               const equipment = equipmentData[instructor.id] || [];
+
+              // Determine what to show in the select
+              const userSelection = selectedLessonPlan[instructor.id];
+              let currentLessonPlanId: string;
+              if (userSelection !== undefined) {
+                currentLessonPlanId = userSelection;
+              } else if (!assignment) {
+                currentLessonPlanId = "";
+              } else if (!assignment.lesson_plan_id) {
+                currentLessonPlanId = "no-lesson-plan";
+              } else {
+                currentLessonPlanId = assignment.lesson_plan_id;
+              }
 
               return (
                 <div
@@ -218,7 +233,7 @@ export function EquipmentDistributionManager({
                             מערך:
                           </label>
                           <select
-                            value={currentLessonPlanId || ""}
+                            value={currentLessonPlanId}
                             onChange={(e) =>
                               handleLessonPlanChange(
                                 instructor.id,
@@ -229,6 +244,7 @@ export function EquipmentDistributionManager({
                             className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                           >
                             <option value="">בחר מערך</option>
+                            <option value="no-lesson-plan">ללא שיעור</option>
                             {allLessonPlans.map((plan) => (
                               <option key={plan.id} value={plan.id}>
                                 {plan.name} ({plan.category})
