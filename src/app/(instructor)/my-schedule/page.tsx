@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { DAYS_HEBREW, DAYS_SHORT, LESSON_STATUS } from "@/lib/utils/constants";
 import { formatTime, formatDateShort, getTodayInIsrael, getNowInIsrael } from "@/lib/utils/date";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Clock, CalendarDays } from "lucide-react";
+import Link from "next/link";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { redirect } from "next/navigation";
@@ -129,6 +130,13 @@ export default async function MySchedulePage({
           weekEndStr={weekEndStr}
           basePath="/my-schedule"
         />
+        <Link
+          href="/my-schedule/monthly"
+          className="flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-sm font-medium transition-colors hover:bg-secondary/80"
+        >
+          <CalendarDays size={16} />
+          תצוגה חודשית
+        </Link>
       </div>
 
       {/* Week Summary */}
