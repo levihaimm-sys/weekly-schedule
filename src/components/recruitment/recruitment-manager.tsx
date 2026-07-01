@@ -24,9 +24,10 @@ function formatDate(dateStr: string | null) {
 
 interface Props {
   candidates: CandidateFull[];
+  lastActivityMap: Record<string, string>;
 }
 
-export function RecruitmentManager({ candidates }: Props) {
+export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | "all">("all");
@@ -235,12 +236,13 @@ export function RecruitmentManager({ candidates }: Props) {
                 <th className="px-4 py-3">אזור</th>
                 <th className="px-4 py-3">תאריך פניה</th>
                 <th className="px-4 py-3">סטטוס</th>
+                <th className="px-4 py-3">עדכון אחרון</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
                     {showArchived ? "אין מועמדים בארכיון" : "אין מועמדים להצגה"}
                   </td>
                 </tr>
@@ -261,10 +263,10 @@ export function RecruitmentManager({ candidates }: Props) {
                         {c.first_name} {c.last_name}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground" dir="ltr">
+                    <td className="px-4 py-3 text-right text-muted-foreground">
                       {c.phone ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground" dir="ltr">
+                    <td className="px-4 py-3 text-right text-muted-foreground">
                       {c.email ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
@@ -279,6 +281,13 @@ export function RecruitmentManager({ candidates }: Props) {
                       >
                         {RECRUITMENT_STATUS[c.status as RecruitmentStatus] ?? c.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 max-w-[180px]">
+                      {lastActivityMap[c.id] ? (
+                        <p className="truncate text-xs text-muted-foreground">{lastActivityMap[c.id]}</p>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
                     </td>
                   </tr>
                 ))

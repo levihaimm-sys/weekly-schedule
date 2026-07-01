@@ -81,7 +81,6 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
   const [area, setArea] = useState(candidate.area ?? "");
   const [inquiryDate, setInquiryDate] = useState(candidate.inquiry_date ?? "");
   const [status, setStatus] = useState<RecruitmentStatus>(candidate.status as RecruitmentStatus);
-  const [saved, setSaved] = useState(false);
 
   // CV
   const [cvUrl, setCvUrl] = useState(candidate.cv_url);
@@ -126,9 +125,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
         }),
         updateCandidateStatus(candidate.id, status),
       ]);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
       router.refresh();
+      onClose();
     });
   }
 
@@ -293,14 +291,6 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
               </div>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={isPending}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-            >
-              {isPending ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Check size={14} />}
-              {saved ? "נשמר!" : "שמור שינויים"}
-            </button>
           </section>
 
           {/* --- CV section --- */}
@@ -390,6 +380,14 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
                 ))
               )}
             </div>
+            <button
+              onClick={handleSave}
+              disabled={isPending}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              שמור שינויים
+            </button>
           </section>
         </div>
 
