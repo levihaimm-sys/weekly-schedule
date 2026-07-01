@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   Building2,
   ClipboardCheck,
+  UserSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { href: "/schedule/weekly", label: "לוח שבועי", icon: CalendarClock },
   { href: "/schedule", label: "לוח קבוע", icon: CalendarDays },
   { href: "/instructors", label: "מדריכים", icon: Users },
+  { href: "/recruitment", label: "גיוס", icon: UserSearch },
   { href: "/clients", label: "לקוחות", icon: Building2 },
   { href: "/lesson-plans", label: "ציוד", icon: Package },
   { href: "/lesson-plans/manage", label: "ניהול מערכי שיעור", icon: BookOpen },

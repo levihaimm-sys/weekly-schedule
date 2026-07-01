@@ -61,6 +61,16 @@ export const CLIENT_CITIES: Record<string, string[]> = {
   "ינוקא": ["נס ציונה"],
 };
 
+export const RECRUITMENT_STATUS = {
+  pending: "טרם נעשה פניה",
+  called: "שיחת טלפון",
+  no_answer: "לא ענה",
+  interview: "תואם ראיון",
+  not_suitable: "לא מתאים",
+} as const;
+
+export type RecruitmentStatus = keyof typeof RECRUITMENT_STATUS;
+
 export const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
   "גבעתיים": "טומשין",
