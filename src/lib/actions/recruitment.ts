@@ -147,6 +147,19 @@ export async function addActivity(candidateId: string, note: string) {
   return { success: true };
 }
 
+export async function deleteCandidate(candidateId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("recruitment_candidates")
+    .delete()
+    .eq("id", candidateId);
+
+  if (error) return { error: "שגיאה במחיקה: " + error.message };
+
+  revalidatePath("/recruitment");
+  return { success: true };
+}
+
 export async function uploadCandidateCV(formData: FormData) {
   const candidateId = formData.get("candidateId") as string;
   const file = formData.get("file") as File;

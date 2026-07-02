@@ -113,51 +113,66 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
             <h3 className="mb-3 font-medium">מועמד חדש</h3>
             <div className="space-y-3">
               <div className="flex flex-wrap gap-3">
-                <input
-                  name="first_name"
-                  type="text"
-                  required
-                  placeholder="שם פרטי"
-                  className="flex-1 min-w-[120px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
-                <input
-                  name="last_name"
-                  type="text"
-                  required
-                  placeholder="שם משפחה"
-                  className="flex-1 min-w-[120px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">שם פרטי</label>
+                  <input
+                    name="first_name"
+                    type="text"
+                    required
+                    placeholder="ישראל"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">שם משפחה</label>
+                  <input
+                    name="last_name"
+                    type="text"
+                    required
+                    placeholder="ישראלי"
+                    className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">טלפון</label>
+                  <input
+                    name="phone"
+                    type="tel"
+                    placeholder="050-0000000"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">אזור מגורים</label>
+                  <input
+                    name="area"
+                    type="text"
+                    placeholder="תל אביב"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
               </div>
               <div className="flex flex-wrap gap-3">
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="אימייל"
-                  className="flex-1 min-w-[180px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  dir="ltr"
-                />
-                <input
-                  name="phone"
-                  type="tel"
-                  placeholder="טלפון"
-                  className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  dir="ltr"
-                />
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <input
-                  name="area"
-                  type="text"
-                  placeholder="אזור מגורים"
-                  className="flex-1 min-w-[150px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
-                <input
-                  name="inquiry_date"
-                  type="date"
-                  defaultValue={new Date().toISOString().slice(0, 10)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  dir="ltr"
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">אימייל</label>
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="example@gmail.com"
+                    className="w-56 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">תאריך פניה</label>
+                  <input
+                    name="inquiry_date"
+                    type="date"
+                    defaultValue={new Date().toISOString().slice(0, 10)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    dir="ltr"
+                  />
+                </div>
               </div>
               <div className="flex gap-2">
                 <button

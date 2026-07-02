@@ -13,6 +13,7 @@ import {
   FileText,
   ExternalLink,
   Send,
+  Trash2,
 } from "lucide-react";
 import { RECRUITMENT_STATUS, RecruitmentStatus } from "@/lib/utils/constants";
 import {
@@ -22,6 +23,7 @@ import {
   convertCandidateToInstructor,
   addActivity,
   uploadCandidateCV,
+  deleteCandidate,
 } from "@/lib/actions/recruitment";
 import { createClient } from "@/lib/supabase/client";
 
@@ -94,9 +96,14 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
 
-  // Convert/archive
+  // Activities error
+  const [noteError, setNoteError] = useState<string | null>(null);
+
+  // Convert/archive/delete
   const [converting, setConverting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [convertError, setConvertError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -106,7 +113,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
       .select("id, note, created_at")
       .eq("candidate_id", candidate.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error("Activities fetch error:", error.message);
         setActivities(data ?? []);
         setLoadingActivities(false);
       });
@@ -149,15 +157,26 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
   async function handleAddNote() {
     if (!newNote.trim()) return;
     setAddingNote(true);
+    setNoteError(null);
     const result = await addActivity(candidate.id, newNote);
     setAddingNote(false);
-    if (!result.error) {
+    if ("error" in result && result.error) {
+      setNoteError(result.error);
+    } else {
       setActivities((prev) => [
         { id: Date.now().toString(), note: newNote.trim(), created_at: new Date().toISOString() },
         ...prev,
       ]);
       setNewNote("");
     }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    await deleteCandidate(candidate.id);
+    setDeleting(false);
+    router.refresh();
+    onClose();
   }
 
   async function handleArchive() {
@@ -363,6 +382,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
               </button>
             </div>
 
+            {noteError && <p className="text-xs text-red-600">{noteError}</p>}
+
             {/* Activity list */}
             <div className="space-y-2">
               {loadingActivities ? (
@@ -426,6 +447,33 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
             )}
             {candidate.is_archived ? "הוצא מארכיון" : "העבר לארכיון"}
           </button>
+
+          {confirmDelete ? (
+            <div className="flex gap-2">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                אישור מחיקה
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg border border-border px-4 py-2.5 text-sm hover:bg-muted"
+              >
+                ביטול
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+            >
+              <Trash2 size={15} />
+              מחק מועמד
+            </button>
+          )}
         </div>
       </div>
     </>
