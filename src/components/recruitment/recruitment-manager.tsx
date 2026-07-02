@@ -352,34 +352,33 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
 
         {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-border bg-background">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-3">
+                <th className="px-3 py-2.5 whitespace-nowrap">
                   <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground transition-colors">
                     שם <SortIcon field="name" current={sortBy} dir={sortDir} />
                   </button>
                 </th>
-                <th className="px-4 py-3">טלפון</th>
-                <th className="px-4 py-3">אימייל</th>
-                <th className="px-4 py-3">אזור</th>
-                <th className="px-4 py-3">
+                <th className="px-3 py-2.5 whitespace-nowrap">טלפון</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">אזור</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">
                   <button onClick={() => handleSort("date")} className="flex items-center gap-1 hover:text-foreground transition-colors">
                     תאריך פניה <SortIcon field="date" current={sortBy} dir={sortDir} />
                   </button>
                 </th>
-                <th className="px-4 py-3">
+                <th className="px-3 py-2.5 whitespace-nowrap">
                   <button onClick={() => handleSort("status")} className="flex items-center gap-1 hover:text-foreground transition-colors">
                     סטטוס <SortIcon field="status" current={sortBy} dir={sortDir} />
                   </button>
                 </th>
-                <th className="px-4 py-3">עדכון אחרון</th>
+                <th className="px-3 py-2.5 w-full">עדכון אחרון</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
                     {showArchived ? "אין מועמדים בארכיון" : "אין מועמדים להצגה"}
                   </td>
                 </tr>
@@ -392,7 +391,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                     onClick={() => openCandidate(c.id)}
                     className={`cursor-pointer transition-colors hover:bg-muted/40 ${isNew ? "bg-blue-50/60" : ""}`}
                   >
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-3 py-2.5 font-medium whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {isNew && (
                           <span className="inline-flex shrink-0 items-center rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -407,26 +406,23 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                         {c.first_name} {c.last_name}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
                       {c.phone ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">
-                      {c.email ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
                       {c.area ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
                       {formatDate(c.inquiry_date)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status as RecruitmentStatus] ?? STATUS_COLORS.pending}`}
                       >
                         {RECRUITMENT_STATUS[c.status as RecruitmentStatus] ?? c.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 max-w-[180px]">
+                    <td className="px-3 py-2.5 w-full">
                       {lastActivityMap[c.id] ? (
                         <p className="truncate text-xs text-muted-foreground">{lastActivityMap[c.id]}</p>
                       ) : (

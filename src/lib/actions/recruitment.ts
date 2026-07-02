@@ -143,7 +143,6 @@ export async function addActivity(candidateId: string, note: string) {
 
   if (error) return { error: "שגיאה בשמירה: " + error.message };
 
-  revalidatePath("/recruitment");
   return { success: true };
 }
 

@@ -161,18 +161,21 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
 
   async function handleAddNote() {
     if (!newNote.trim()) return;
-    setAddingNote(true);
+    const note = newNote.trim();
+    const tempId = `temp-${Date.now()}`;
+    // Optimistic update — show immediately without waiting for the server
+    setActivities((prev) => [
+      { id: tempId, note, created_at: new Date().toISOString() },
+      ...prev,
+    ]);
+    setNewNote("");
     setNoteError(null);
-    const result = await addActivity(candidate.id, newNote);
-    setAddingNote(false);
+    const result = await addActivity(candidate.id, note);
     if ("error" in result && result.error) {
+      // Revert on failure
+      setActivities((prev) => prev.filter((a) => a.id !== tempId));
+      setNewNote(note);
       setNoteError(result.error);
-    } else {
-      setActivities((prev) => [
-        { id: Date.now().toString(), note: newNote.trim(), created_at: new Date().toISOString() },
-        ...prev,
-      ]);
-      setNewNote("");
     }
   }
 
