@@ -2,10 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter, Check, Loader2, Archive, User } from "lucide-react";
+import { Plus, Search, Filter, Check, Loader2, Archive, User, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { RECRUITMENT_STATUS, RecruitmentStatus } from "@/lib/utils/constants";
 import { addCandidate } from "@/lib/actions/recruitment";
 import { CandidateDrawer, CandidateFull } from "./candidate-drawer";
+
+type SortField = "date" | "status" | "name";
+
+const STATUS_ORDER: Record<RecruitmentStatus, number> = {
+  pending: 0,
+  called: 1,
+  no_answer: 2,
+  interview: 3,
+  not_suitable: 4,
+};
 
 const STATUS_COLORS: Record<RecruitmentStatus | "all", string> = {
   all: "border-border bg-background hover:bg-muted",
@@ -15,6 +25,11 @@ const STATUS_COLORS: Record<RecruitmentStatus | "all", string> = {
   interview: "bg-green-50 text-green-700 border-green-200",
   not_suitable: "bg-red-50 text-red-700 border-red-200",
 };
+
+function SortIcon({ field, current, dir }: { field: SortField; current: SortField; dir: "asc" | "desc" }) {
+  if (current !== field) return <ChevronsUpDown size={12} className="opacity-40" />;
+  return dir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+}
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -31,23 +46,52 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | "all">("all");
+  const [areaFilter, setAreaFilter] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openCandidateId, setOpenCandidateId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const filtered = candidates.filter((c) => {
-    if (!showArchived && c.is_archived) return false;
-    if (showArchived && !c.is_archived) return false;
-    if (statusFilter !== "all" && c.status !== statusFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
-      return fullName.includes(q) || (c.email ?? "").toLowerCase().includes(q) || (c.phone ?? "").includes(q);
+  const areas = Array.from(
+    new Set(candidates.map((c) => c.area).filter(Boolean) as string[])
+  ).sort((a, b) => a.localeCompare(b, "he"));
+
+  function handleSort(field: SortField) {
+    if (sortBy === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir(field === "date" ? "desc" : "asc");
     }
-    return true;
-  });
+  }
+
+  const filtered = candidates
+    .filter((c) => {
+      if (!showArchived && c.is_archived) return false;
+      if (showArchived && !c.is_archived) return false;
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (areaFilter !== "all" && c.area !== areaFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
+        return fullName.includes(q) || (c.email ?? "").toLowerCase().includes(q) || (c.phone ?? "").includes(q);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "date") {
+        cmp = (a.inquiry_date ?? "").localeCompare(b.inquiry_date ?? "");
+      } else if (sortBy === "status") {
+        cmp = (STATUS_ORDER[a.status as RecruitmentStatus] ?? 0) - (STATUS_ORDER[b.status as RecruitmentStatus] ?? 0);
+      } else if (sortBy === "name") {
+        cmp = `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, "he");
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   const activeCandidates = candidates.filter((c) => !c.is_archived);
   const archivedCandidates = candidates.filter((c) => c.is_archived);
@@ -84,7 +128,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); }}
+              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setAreaFilter("all"); }}
               className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                 showArchived
                   ? "border-amber-300 bg-amber-50 text-amber-700"
@@ -198,45 +242,75 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
 
         {/* Filters */}
         {!showArchived && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
-            <div className="relative">
-              <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="חיפוש..."
-                className="w-44 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
-              />
-            </div>
-            <div className="mx-1 h-6 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm font-medium">
-              <Filter size={14} />
-              <span>סטטוס:</span>
-            </div>
-            <button
-              onClick={() => setStatusFilter("all")}
-              className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                statusFilter === "all"
-                  ? "border-primary bg-primary/10 text-primary font-medium"
-                  : "border-border bg-background hover:bg-muted text-muted-foreground"
-              }`}
-            >
-              הכל ({activeCandidates.length})
-            </button>
-            {(Object.keys(RECRUITMENT_STATUS) as RecruitmentStatus[]).map((s) => (
+          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="חיפוש..."
+                  className="w-44 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
+                />
+              </div>
+              <div className="mx-1 h-6 w-px bg-border" />
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Filter size={14} />
+                <span>סטטוס:</span>
+              </div>
               <button
-                key={s}
-                onClick={() => setStatusFilter(s === statusFilter ? "all" : s)}
+                onClick={() => setStatusFilter("all")}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                  statusFilter === s
-                    ? STATUS_COLORS[s] + " font-medium"
+                  statusFilter === "all"
+                    ? "border-primary bg-primary/10 text-primary font-medium"
                     : "border-border bg-background hover:bg-muted text-muted-foreground"
                 }`}
               >
-                {RECRUITMENT_STATUS[s]} ({statusCounts[s]})
+                הכל ({activeCandidates.length})
               </button>
-            ))}
+              {(Object.keys(RECRUITMENT_STATUS) as RecruitmentStatus[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s === statusFilter ? "all" : s)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                    statusFilter === s
+                      ? STATUS_COLORS[s] + " font-medium"
+                      : "border-border bg-background hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {RECRUITMENT_STATUS[s]} ({statusCounts[s]})
+                </button>
+              ))}
+            </div>
+            {areas.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">אזור:</span>
+                <button
+                  onClick={() => setAreaFilter("all")}
+                  className={`rounded-lg border px-3 py-1 text-xs transition-all ${
+                    areaFilter === "all"
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border bg-background hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  הכל
+                </button>
+                {areas.map((area) => (
+                  <button
+                    key={area}
+                    onClick={() => setAreaFilter(area === areaFilter ? "all" : area)}
+                    className={`rounded-lg border px-3 py-1 text-xs transition-all ${
+                      areaFilter === area
+                        ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
+                        : "border-border bg-background hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {area}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -245,12 +319,24 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-3">שם</th>
+                <th className="px-4 py-3">
+                  <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    שם <SortIcon field="name" current={sortBy} dir={sortDir} />
+                  </button>
+                </th>
                 <th className="px-4 py-3">טלפון</th>
                 <th className="px-4 py-3">אימייל</th>
                 <th className="px-4 py-3">אזור</th>
-                <th className="px-4 py-3">תאריך פניה</th>
-                <th className="px-4 py-3">סטטוס</th>
+                <th className="px-4 py-3">
+                  <button onClick={() => handleSort("date")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    תאריך פניה <SortIcon field="date" current={sortBy} dir={sortDir} />
+                  </button>
+                </th>
+                <th className="px-4 py-3">
+                  <button onClick={() => handleSort("status")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    סטטוס <SortIcon field="status" current={sortBy} dir={sortDir} />
+                  </button>
+                </th>
                 <th className="px-4 py-3">עדכון אחרון</th>
               </tr>
             </thead>
