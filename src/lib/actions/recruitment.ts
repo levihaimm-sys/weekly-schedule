@@ -147,6 +147,16 @@ export async function addActivity(candidateId: string, note: string) {
   return { success: true };
 }
 
+export async function markCandidateSeen(candidateId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("recruitment_candidates")
+    .update({ is_new: false })
+    .eq("id", candidateId)
+    .eq("is_new", true);
+  // no revalidatePath — called silently in background, next refresh picks it up
+}
+
 export async function deleteCandidate(candidateId: string) {
   const supabase = await createClient();
   const { error } = await supabase

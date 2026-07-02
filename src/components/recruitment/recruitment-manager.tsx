@@ -54,6 +54,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openCandidateId, setOpenCandidateId] = useState<string | null>(null);
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -101,8 +102,14 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       return sortDir === "asc" ? cmp : -cmp;
     });
 
+  function openCandidate(id: string) {
+    setOpenCandidateId(id);
+    setSeenIds((prev) => new Set([...prev, id]));
+  }
+
   const activeCandidates = candidates.filter((c) => !c.is_archived);
   const archivedCandidates = candidates.filter((c) => c.is_archived);
+  const newCount = activeCandidates.filter((c) => c.is_new && !seenIds.has(c.id)).length;
 
   const statusCounts = (Object.keys(RECRUITMENT_STATUS) as RecruitmentStatus[]).reduce(
     (acc, s) => ({ ...acc, [s]: activeCandidates.filter((c) => c.status === s).length }),
@@ -131,9 +138,20 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            {activeCandidates.length} מועמדים פעילים | {archivedCandidates.length} בארכיון
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              {activeCandidates.length} מועמדים פעילים | {archivedCandidates.length} בארכיון
+            </p>
+            {newCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500 px-2.5 py-0.5 text-xs font-bold text-white">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+                </span>
+                {newCount} חדשים
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setSelectedAreas([]); }}
@@ -366,14 +384,21 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((c) => (
+                filtered.map((c) => {
+                  const isNew = c.is_new && !seenIds.has(c.id);
+                  return (
                   <tr
                     key={c.id}
-                    onClick={() => setOpenCandidateId(c.id)}
-                    className="cursor-pointer transition-colors hover:bg-muted/40"
+                    onClick={() => openCandidate(c.id)}
+                    className={`cursor-pointer transition-colors hover:bg-muted/40 ${isNew ? "bg-blue-50/60" : ""}`}
                   >
                     <td className="px-4 py-3 font-medium">
                       <div className="flex items-center gap-2">
+                        {isNew && (
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                            חדש
+                          </span>
+                        )}
                         {c.converted_instructor_id && (
                           <span title="הומר למדריך" className="text-green-600">
                             <User size={13} />
@@ -409,7 +434,8 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

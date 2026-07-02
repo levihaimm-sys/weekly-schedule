@@ -7,7 +7,7 @@ export default async function RecruitmentPage() {
   const [{ data: candidates }, { data: activities }] = await Promise.all([
     supabase
       .from("recruitment_candidates")
-      .select("id, first_name, last_name, email, phone, area, inquiry_date, status, is_archived, cv_url, converted_instructor_id, created_at")
+      .select("id, first_name, last_name, email, phone, area, inquiry_date, status, is_archived, is_new, cv_url, converted_instructor_id, created_at")
       .order("created_at", { ascending: false }),
     supabase
       .from("recruitment_activities")
