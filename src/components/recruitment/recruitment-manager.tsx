@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter, Check, Loader2, Archive, User, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, Search, Filter, Check, Loader2, Archive, User, ChevronUp, ChevronDown, ChevronsUpDown, Copy, CheckCheck, X } from "lucide-react";
 import { RECRUITMENT_STATUS, RecruitmentStatus } from "@/lib/utils/constants";
 import { addCandidate } from "@/lib/actions/recruitment";
 import { CandidateDrawer, CandidateFull } from "./candidate-drawer";
@@ -46,8 +46,10 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | "all">("all");
-  const [areaFilter, setAreaFilter] = useState<string>("all");
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,12 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const areas = Array.from(
     new Set(candidates.map((c) => c.area).filter(Boolean) as string[])
   ).sort((a, b) => a.localeCompare(b, "he"));
+
+  function toggleArea(area: string) {
+    setSelectedAreas((prev) =>
+      prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
+    );
+  }
 
   function handleSort(field: SortField) {
     if (sortBy === field) {
@@ -73,7 +81,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       if (!showArchived && c.is_archived) return false;
       if (showArchived && !c.is_archived) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
-      if (areaFilter !== "all" && c.area !== areaFilter) return false;
+      if (selectedAreas.length > 0 && !selectedAreas.includes(c.area ?? "")) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
@@ -128,7 +136,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setAreaFilter("all"); }}
+              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setSelectedAreas([]); }}
               className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                 showArchived
                   ? "border-amber-300 bg-amber-50 text-amber-700"
@@ -287,9 +295,9 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">אזור:</span>
                 <button
-                  onClick={() => setAreaFilter("all")}
+                  onClick={() => setSelectedAreas([])}
                   className={`rounded-lg border px-3 py-1 text-xs transition-all ${
-                    areaFilter === "all"
+                    selectedAreas.length === 0
                       ? "border-primary bg-primary/10 text-primary font-medium"
                       : "border-border bg-background hover:bg-muted text-muted-foreground"
                   }`}
@@ -299,9 +307,9 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                 {areas.map((area) => (
                   <button
                     key={area}
-                    onClick={() => setAreaFilter(area === areaFilter ? "all" : area)}
+                    onClick={() => toggleArea(area)}
                     className={`rounded-lg border px-3 py-1 text-xs transition-all ${
-                      areaFilter === area
+                      selectedAreas.includes(area)
                         ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
                         : "border-border bg-background hover:bg-muted text-muted-foreground"
                     }`}
@@ -311,6 +319,16 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                 ))}
               </div>
             )}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-muted-foreground">{filtered.length} מועמדים בחיתוך הנוכחי</span>
+              <button
+                onClick={() => setShowExport(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Copy size={12} />
+                ייצוא מספרים ({filtered.filter((c) => c.phone).length})
+              </button>
+            </div>
           </div>
         )}
 
@@ -404,6 +422,75 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           onClose={() => setOpenCandidateId(null)}
         />
       )}
+
+      {showExport && (
+        <ExportModal
+          candidates={filtered}
+          onClose={() => { setShowExport(false); setCopied(false); }}
+          copied={copied}
+          onCopy={async () => {
+            const text = filtered
+              .filter((c) => c.phone)
+              .map((c) => `${c.first_name} ${c.last_name}: ${c.phone}`)
+              .join("\n");
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2500);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function ExportModal({
+  candidates,
+  onClose,
+  copied,
+  onCopy,
+}: {
+  candidates: CandidateFull[];
+  onClose: () => void;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const withPhone = candidates.filter((c) => c.phone);
+  const text = withPhone.map((c) => `${c.first_name} ${c.last_name}: ${c.phone}`).join("\n");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">ייצוא מספרי טלפון</h2>
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="mb-2 text-xs text-muted-foreground">
+          {withPhone.length} מועמדים עם מספר טלפון (מתוך {candidates.length} בחיתוך)
+        </p>
+        <textarea
+          readOnly
+          value={text}
+          dir="rtl"
+          rows={Math.min(withPhone.length + 1, 14)}
+          className="mb-3 w-full rounded-lg border border-border bg-muted/30 p-3 text-sm font-mono leading-relaxed resize-none focus:outline-none"
+        />
+        <button
+          onClick={onCopy}
+          className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+            copied
+              ? "bg-green-600 text-white"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
+          }`}
+        >
+          {copied ? <CheckCheck size={15} /> : <Copy size={15} />}
+          {copied ? "הועתק!" : "העתק הכל"}
+        </button>
+      </div>
+    </div>
   );
 }
