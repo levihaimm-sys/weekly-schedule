@@ -300,10 +300,8 @@ export async function distributeEquipmentToInstructor(
   const updateData: Record<string, unknown> = {
     equipment_distributed: true,
     equipment_distributed_at: new Date().toISOString(),
+    lesson_plan_id: lessonPlanId,
   };
-  if (lessonPlanId !== null) {
-    updateData.lesson_plan_id = lessonPlanId;
-  }
 
   const { error: updateError } = await supabase
     .from("weekly_lesson_assignments")

@@ -1,10 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EquipmentDistributionManager } from "@/components/equipment/equipment-distribution-manager";
+import { WeekNavigator } from "@/components/equipment/week-navigator";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-export default async function EquipmentDistributionPage() {
+export default async function EquipmentDistributionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const supabase = await createClient();
 
   const {
@@ -13,7 +18,6 @@ export default async function EquipmentDistributionPage() {
 
   if (!user) redirect("/login");
 
-  // Get user profile to check role
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -24,13 +28,20 @@ export default async function EquipmentDistributionPage() {
     redirect("/today");
   }
 
-  // Get current week's Sunday
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - dayOfWeek);
-  sunday.setHours(0, 0, 0, 0);
-  const weekStartDate = sunday.toISOString().split("T")[0];
+  // Parse week from query param or fall back to current week's Sunday
+  const { week } = await searchParams;
+  let weekStartDate: string;
+
+  if (week && /^\d{4}-\d{2}-\d{2}$/.test(week)) {
+    weekStartDate = week;
+  } else {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - dayOfWeek);
+    sunday.setHours(0, 0, 0, 0);
+    weekStartDate = sunday.toISOString().split("T")[0];
+  }
 
   // Get all instructors with their current week assignments
   const { data: instructors } = await supabase
@@ -45,7 +56,7 @@ export default async function EquipmentDistributionPage() {
     .order("route", { ascending: true })
     .order("full_name");
 
-  // Get current week assignments
+  // Get assignments for the selected week
   const { data: assignments } = await supabase
     .from("weekly_lesson_assignments")
     .select(
@@ -99,9 +110,11 @@ export default async function EquipmentDistributionPage() {
       <div>
         <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">חלוקת ציוד</h2>
         <p className="text-muted-foreground mt-1">
-          ניהול חלוקת ציוד למדריכים לשבוע הנוכחי
+          ניהול חלוקת ציוד למדריכים לשבוע הנבחר
         </p>
       </div>
+
+      <WeekNavigator currentWeek={weekStartDate} />
 
       <EquipmentDistributionManager
         instructors={instructorData}

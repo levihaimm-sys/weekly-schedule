@@ -74,8 +74,12 @@ export function EquipmentDistributionManager({
   const routes = Object.keys(groupedInstructors).sort();
 
   // Counts for filter badges
-  const hasEquipmentCount = instructors.filter((i) => i.assignment?.equipment_distributed).length;
-  const noEquipmentCount = instructors.length - hasEquipmentCount;
+  const hasEquipmentCount = instructors.filter(
+    (i) => i.assignment?.equipment_distributed && i.assignment?.lesson_plan_id
+  ).length;
+  const noEquipmentCount = instructors.filter(
+    (i) => !i.assignment?.equipment_distributed
+  ).length;
 
   const handleLessonPlanChange = async (
     instructorId: string,
@@ -189,6 +193,8 @@ export function EquipmentDistributionManager({
             {groupedInstructors[route].map((instructor) => {
               const assignment = instructor.assignment;
               const isDistributed = assignment?.equipment_distributed || false;
+              const isNotTeaching = isDistributed && !assignment?.lesson_plan_id;
+              const isDistributedWithLesson = isDistributed && !!assignment?.lesson_plan_id;
               const isExpanded = expandedInstructor === instructor.id;
               const equipment = equipmentData[instructor.id] || [];
 
@@ -209,8 +215,10 @@ export function EquipmentDistributionManager({
                 <div
                   key={instructor.id}
                   className={`rounded-lg border p-4 ${
-                    isDistributed
+                    isDistributedWithLesson
                       ? "border-green-300 bg-green-50/50"
+                      : isNotTeaching
+                      ? "border-gray-300 bg-gray-50/50"
                       : "border-border bg-background"
                   }`}
                 >
@@ -218,10 +226,15 @@ export function EquipmentDistributionManager({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold">{instructor.full_name}</h3>
-                        {isDistributed && (
+                        {isDistributedWithLesson && (
                           <span className="flex items-center gap-1 text-xs text-green-600">
                             <Check size={14} />
                             חולק
+                          </span>
+                        )}
+                        {isNotTeaching && (
+                          <span className="text-xs text-muted-foreground border border-gray-300 rounded px-1.5 py-0.5">
+                            לא מלמד
                           </span>
                         )}
                       </div>
@@ -302,7 +315,11 @@ export function EquipmentDistributionManager({
                         disabled={isPending || !currentLessonPlanId}
                         className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
-                        {isPending ? "מחלק..." : "אשר חלוקה"}
+                        {isPending
+                          ? "שומר..."
+                          : currentLessonPlanId === "no-lesson-plan"
+                          ? "סמן ריק"
+                          : "אשר חלוקה"}
                       </button>
                     )}
 
@@ -313,7 +330,11 @@ export function EquipmentDistributionManager({
                         disabled={isPending || !selectedLessonPlan[instructor.id]}
                         className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
-                        {isPending ? "מחלק..." : "הקצה וחלק"}
+                        {isPending
+                          ? "שומר..."
+                          : selectedLessonPlan[instructor.id] === "no-lesson-plan"
+                          ? "סמן ריק"
+                          : "הקצה וחלק"}
                       </button>
                     )}
 
