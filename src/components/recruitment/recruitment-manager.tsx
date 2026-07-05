@@ -102,7 +102,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       return sortDir === "asc" ? cmp : -cmp;
     });
 
-  function openCandidate(id: string) {
+  function handleOpenCandidate(id: string) {
     setOpenCandidateId(id);
     setSeenIds((prev) => new Set([...prev, id]));
   }
@@ -388,7 +388,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                   return (
                   <tr
                     key={c.id}
-                    onClick={() => openCandidate(c.id)}
+                    onClick={() => handleOpenCandidate(c.id)}
                     className={`cursor-pointer transition-colors hover:bg-muted/40 ${isNew ? "bg-blue-50/60" : ""}`}
                   >
                     <td className="px-3 py-2.5 font-medium whitespace-nowrap">
