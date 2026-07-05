@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { RecruitmentManager } from "@/components/recruitment/recruitment-manager";
 
 export default async function RecruitmentPage() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  const [{ data: candidates }, { data: activities }] = await Promise.all([
+  const [{ data: candidates, error: candidatesError }, { data: activities }] = await Promise.all([
     supabase
       .from("recruitment_candidates")
       .select("id, first_name, last_name, email, phone, area, inquiry_date, status, is_archived, is_new, cv_url, converted_instructor_id, created_at")
@@ -14,6 +14,10 @@ export default async function RecruitmentPage() {
       .select("candidate_id, note, created_at")
       .order("created_at", { ascending: false }),
   ]);
+
+  if (candidatesError) {
+    console.error("recruitment_candidates fetch error:", candidatesError);
+  }
 
   // Latest activity note per candidate
   const lastActivityMap: Record<string, string> = {};
