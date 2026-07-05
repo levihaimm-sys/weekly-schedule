@@ -464,10 +464,18 @@ export async function getAssignmentsOverview() {
   const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const currentWeekStart = formatDate(sunday);
 
-  // 3 weeks back, all future weeks
+  // Generate weeks: 3 back + current + 12 ahead (covers ~3.5 months)
   const rangeStart = new Date(sunday);
   rangeStart.setDate(rangeStart.getDate() - 3 * 7);
-  const rangeStartStr = formatDate(rangeStart);
+  const weeksCount = 16; // 3 back + 1 current + 12 ahead
+  const weeks: string[] = [];
+  for (let i = 0; i < weeksCount; i++) {
+    const d = new Date(rangeStart);
+    d.setDate(d.getDate() + i * 7);
+    weeks.push(formatDate(d));
+  }
+  const rangeStartStr = weeks[0];
+  const rangeEndStr = weeks[weeks.length - 1];
 
   const { data: assignments, error } = await supabase
     .from("weekly_lesson_assignments")
@@ -479,6 +487,7 @@ export async function getAssignmentsOverview() {
     `
     )
     .gte("week_start_date", rangeStartStr)
+    .lte("week_start_date", rangeEndStr)
     .order("week_start_date");
 
   if (error) {
@@ -508,7 +517,7 @@ export async function getAssignmentsOverview() {
     }
   }
 
-  return { assignments: assignments as any[] ?? [], instructorCities, currentWeekStart };
+  return { assignments: assignments as any[] ?? [], instructorCities, currentWeekStart, weeks };
 }
 
 /**

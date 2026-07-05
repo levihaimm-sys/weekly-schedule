@@ -129,7 +129,7 @@ export async function updateEquipmentQuantity(
  */
 export async function updateWeeklyAssignment(
   assignmentId: string,
-  lessonPlanId: string,
+  lessonPlanId: string | null,
   isPermanentChange: boolean = false
 ) {
   const supabase = await createClient();
@@ -162,7 +162,7 @@ export async function updateWeeklyAssignment(
     return { success: false, error: updateError.message };
   }
 
-  if (isPermanentChange && oldLessonPlanId !== lessonPlanId) {
+  if (isPermanentChange && oldLessonPlanId !== lessonPlanId && oldLessonPlanId && lessonPlanId) {
     // Swap: find who had the NEW lesson plan in this week, give them the OLD one
     const { data: swapTarget } = await supabase
       .from("weekly_lesson_assignments")

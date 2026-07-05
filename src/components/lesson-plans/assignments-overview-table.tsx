@@ -10,11 +10,12 @@ import type { LessonPlan } from "@/types/database";
 interface Assignment {
   id: string;
   instructor_id: string;
+  lesson_plan_id: string | null;
   week_start_date: string;
   is_permanent_change: boolean;
   equipment_distributed: boolean;
   instructor: { id: string; full_name: string };
-  lesson_plan: { id: string; name: string; category: string; pdf_path: string | null; week_number: number };
+  lesson_plan: { id: string; name: string; category: string; pdf_path: string | null; week_number: number } | null;
 }
 
 interface OrderedInstructor {
@@ -45,6 +46,7 @@ interface AssignmentsOverviewTableProps {
   currentWeekStart: string;
   lessonPlansByCategory: Record<string, LessonPlan[]>;
   orderedInstructors: OrderedInstructor[];
+  weeks: string[];
 }
 
 export function AssignmentsOverviewTable({
@@ -53,6 +55,7 @@ export function AssignmentsOverviewTable({
   currentWeekStart,
   lessonPlansByCategory,
   orderedInstructors,
+  weeks,
 }: AssignmentsOverviewTableProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -105,17 +108,13 @@ export function AssignmentsOverviewTable({
     return [...map.values()];
   }, [orderedInstructors, assignments, instructorCities]);
 
-  const { weeks, assignmentMap } = useMemo(() => {
-    const weekSet = new Set<string>();
-    const assignmentMap: Record<string, Record<string, Assignment>> = {};
-
+  const assignmentMap = useMemo(() => {
+    const map: Record<string, Record<string, Assignment>> = {};
     for (const a of assignments) {
-      weekSet.add(a.week_start_date);
-      if (!assignmentMap[a.week_start_date]) assignmentMap[a.week_start_date] = {};
-      assignmentMap[a.week_start_date][a.instructor_id] = a;
+      if (!map[a.week_start_date]) map[a.week_start_date] = {};
+      map[a.week_start_date][a.instructor_id] = a;
     }
-
-    return { weeks: [...weekSet].sort(), assignmentMap };
+    return map;
   }, [assignments]);
 
   // Determine which weeks are in the past (before current week) - these are read-only
@@ -129,21 +128,26 @@ export function AssignmentsOverviewTable({
   async function handleCellClick(week: string, inst: { id: string; name: string }) {
     if (isPastWeek(week)) return;
     const assignment = assignmentMap[week]?.[inst.id];
-    const lessonPlanId = assignment?.lesson_plan?.id ?? "";
+    const currentLessonPlanId = assignment?.lesson_plan_id ?? null;
+    const currentLessonPlanName = assignment?.lesson_plan?.name ?? "";
+    // If assignment exists but has no lesson plan → show "__none__"; if no assignment → show ""
+    const initialSelection = assignment
+      ? (currentLessonPlanId ?? "__none__")
+      : "";
     setEditingCell({
       week,
       instructorId: inst.id,
       instructorName: inst.name,
       assignmentId: assignment?.id ?? null,
-      currentLessonPlanId: lessonPlanId || null,
-      currentLessonPlanName: assignment?.lesson_plan?.name ?? "",
+      currentLessonPlanId,
+      currentLessonPlanName,
       isDistributed: assignment?.equipment_distributed ?? false,
     });
-    setSelectedLessonPlanId(lessonPlanId);
+    setSelectedLessonPlanId(initialSelection);
     setDialogEquipment([]);
-    if (lessonPlanId) {
+    if (currentLessonPlanId) {
       setLoadingEquipment(true);
-      const res = await fetch(`/api/lesson-plans/${lessonPlanId}/equipment`);
+      const res = await fetch(`/api/lesson-plans/${currentLessonPlanId}/equipment`);
       if (res.ok) {
         const data = await res.json();
         setDialogEquipment(data.equipment ?? []);
@@ -153,16 +157,18 @@ export function AssignmentsOverviewTable({
   }
 
   async function handleSave(isPermanent: boolean) {
-    if (!editingCell || !selectedLessonPlanId) return;
+    if (!editingCell || selectedLessonPlanId === "") return;
     setSaving(true);
+
+    const lessonPlanId = selectedLessonPlanId === "__none__" ? null : selectedLessonPlanId;
 
     try {
       if (editingCell.assignmentId) {
-        await updateWeeklyAssignment(editingCell.assignmentId, selectedLessonPlanId, isPermanent);
+        await updateWeeklyAssignment(editingCell.assignmentId, lessonPlanId, isPermanent);
       } else {
         await createWeeklyAssignment(
           editingCell.instructorId,
-          selectedLessonPlanId,
+          lessonPlanId,
           editingCell.week,
           isPermanent
         );
@@ -270,7 +276,7 @@ export function AssignmentsOverviewTable({
   async function handleLessonPlanSelect(lessonPlanId: string) {
     setSelectedLessonPlanId(lessonPlanId);
     setDialogEquipment([]);
-    if (!lessonPlanId) return;
+    if (!lessonPlanId || lessonPlanId === "__none__") return;
     setLoadingEquipment(true);
     const res = await fetch(`/api/lesson-plans/${lessonPlanId}/equipment`);
     if (res.ok) {
@@ -682,6 +688,7 @@ export function AssignmentsOverviewTable({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               >
                 <option value="">-- בחר מערך --</option>
+                <option value="__none__">ללא שיעור (לא מלמד שבוע זה)</option>
                 {Object.entries(lessonPlansByCategory).map(([category, plans]) => (
                   <optgroup key={category} label={category}>
                     {plans.map((plan) => (
@@ -723,8 +730,14 @@ export function AssignmentsOverviewTable({
             )}
 
             {/* Action buttons */}
-            <div className="flex flex-col gap-2">
-              {/* Distribute button */}
+            {(() => {
+              const nothingSelected = selectedLessonPlanId === "";
+              const effectivePlanId = selectedLessonPlanId === "__none__" ? null : (selectedLessonPlanId || null);
+              const noChange = effectivePlanId === editingCell.currentLessonPlanId;
+              return (
+              <div className="flex flex-col gap-2">
+              {/* Distribute button — only for real lesson plans */}
+              {selectedLessonPlanId !== "__none__" && (
               <button
                 onClick={handleDistribute}
                 disabled={!selectedLessonPlanId || distributing || saving}
@@ -732,24 +745,17 @@ export function AssignmentsOverviewTable({
               >
                 {distributing ? "מאשר..." : editingCell.isDistributed ? "חלק ציוד מחדש" : "אשר חלוקת ציוד"}
               </button>
+              )}
               <button
                 onClick={() => handleSave(false)}
-                disabled={
-                  !selectedLessonPlanId ||
-                  selectedLessonPlanId === editingCell.currentLessonPlanId ||
-                  saving || distributing
-                }
+                disabled={nothingSelected || noChange || saving || distributing}
                 className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "שומר..." : "שינוי חד-פעמי (ללא חלוקת ציוד)"}
               </button>
               <button
                 onClick={() => handleSave(true)}
-                disabled={
-                  !selectedLessonPlanId ||
-                  selectedLessonPlanId === editingCell.currentLessonPlanId ||
-                  saving || distributing
-                }
+                disabled={nothingSelected || noChange || selectedLessonPlanId === "__none__" || saving || distributing}
                 className="w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "שומר..." : "שינוי קבוע (משפיע על כל המדריכות)"}
@@ -762,6 +768,8 @@ export function AssignmentsOverviewTable({
                 ביטול
               </button>
             </div>
+              );
+            })()}
           </div>
         </div>
       )}

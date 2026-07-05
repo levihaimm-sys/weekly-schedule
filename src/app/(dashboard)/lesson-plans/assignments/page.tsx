@@ -60,6 +60,7 @@ export default async function AssignmentsPage() {
         currentWeekStart={overviewData.currentWeekStart}
         lessonPlansByCategory={lessonPlansByCategory}
         orderedInstructors={(allInstructors ?? []) as any}
+        weeks={overviewData.weeks}
       />
     </div>
   );
