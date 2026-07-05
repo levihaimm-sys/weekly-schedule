@@ -733,7 +733,8 @@ export function AssignmentsOverviewTable({
             {(() => {
               const nothingSelected = selectedLessonPlanId === "";
               const effectivePlanId = selectedLessonPlanId === "__none__" ? null : (selectedLessonPlanId || null);
-              const noChange = effectivePlanId === editingCell.currentLessonPlanId;
+              // noChange only applies when an assignment already exists — without one, any selection creates a new record
+              const noChange = editingCell.assignmentId !== null && effectivePlanId === editingCell.currentLessonPlanId;
               return (
               <div className="flex flex-col gap-2">
               {/* Distribute button — only for real lesson plans */}
