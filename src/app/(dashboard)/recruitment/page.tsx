@@ -30,6 +30,12 @@ export default async function RecruitmentPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">גיוס</h2>
+      {candidatesError && (
+        <pre className="rounded-lg bg-red-50 p-4 text-xs text-red-700 border border-red-200 overflow-auto">
+          {JSON.stringify(candidatesError, null, 2)}
+        </pre>
+      )}
+      <p className="text-xs text-muted-foreground">debug: {candidates?.length ?? "null"} rows</p>
       <RecruitmentManager candidates={candidates ?? []} lastActivityMap={lastActivityMap} />
     </div>
   );
