@@ -24,7 +24,6 @@ import {
   addActivity,
   uploadCandidateCV,
   deleteCandidate,
-  markCandidateSeen,
 } from "@/lib/actions/recruitment";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,7 +37,6 @@ export interface CandidateFull {
   inquiry_date: string | null;
   status: string;
   is_archived: boolean;
-  is_new: boolean;
   cv_url: string | null;
   converted_instructor_id: string | null;
   created_at: string;
@@ -109,9 +107,6 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
   const [convertError, setConvertError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mark as seen (fire-and-forget, clears is_new flag in DB)
-    if (candidate.is_new) markCandidateSeen(candidate.id);
-
     const supabase = createClient();
     supabase
       .from("recruitment_activities")

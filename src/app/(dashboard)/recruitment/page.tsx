@@ -4,20 +4,16 @@ import { RecruitmentManager } from "@/components/recruitment/recruitment-manager
 export default async function RecruitmentPage() {
   const supabase = createAdminClient();
 
-  const [{ data: candidates, error: candidatesError }, { data: activities }] = await Promise.all([
+  const [{ data: candidates }, { data: activities }] = await Promise.all([
     supabase
       .from("recruitment_candidates")
-      .select("id, first_name, last_name, email, phone, area, inquiry_date, status, is_archived, is_new, cv_url, converted_instructor_id, created_at")
+      .select("id, first_name, last_name, email, phone, area, inquiry_date, status, is_archived, cv_url, converted_instructor_id, created_at")
       .order("created_at", { ascending: false }),
     supabase
       .from("recruitment_activities")
       .select("candidate_id, note, created_at")
       .order("created_at", { ascending: false }),
   ]);
-
-  if (candidatesError) {
-    console.error("recruitment_candidates fetch error:", candidatesError);
-  }
 
   // Latest activity note per candidate
   const lastActivityMap: Record<string, string> = {};
@@ -30,12 +26,6 @@ export default async function RecruitmentPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">גיוס</h2>
-      {candidatesError && (
-        <pre className="rounded-lg bg-red-50 p-4 text-xs text-red-700 border border-red-200 overflow-auto">
-          {JSON.stringify(candidatesError, null, 2)}
-        </pre>
-      )}
-      <p className="text-xs text-muted-foreground">debug: {candidates?.length ?? "null"} rows</p>
       <RecruitmentManager candidates={candidates ?? []} lastActivityMap={lastActivityMap} />
     </div>
   );
