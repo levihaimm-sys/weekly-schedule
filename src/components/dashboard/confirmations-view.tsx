@@ -318,46 +318,49 @@ export function ConfirmationsView({
                 const nonCancelled = iLessons.filter(
                   (l) => l.status !== "cancelled"
                 );
-                const byClient = new Map<
+                const byClientCity = new Map<
                   string,
-                  { confirmed: number; pending: number }
+                  { client: string; city: string; confirmed: number; pending: number }
                 >();
                 for (const l of nonCancelled) {
-                  if (!byClient.has(l.client_name))
-                    byClient.set(l.client_name, { confirmed: 0, pending: 0 });
-                  const entry = byClient.get(l.client_name)!;
+                  const key = `${l.client_name}__${l.location_city}`;
+                  if (!byClientCity.has(key))
+                    byClientCity.set(key, { client: l.client_name, city: l.location_city, confirmed: 0, pending: 0 });
+                  const entry = byClientCity.get(key)!;
                   if (sigMap[l.id]) entry.confirmed++;
                   else entry.pending++;
                 }
-                const rows = [...byClient.entries()].sort((a, b) =>
-                  a[0].localeCompare(b[0], "he")
+                const rows = [...byClientCity.values()].sort((a, b) =>
+                  `${a.client}${a.city}`.localeCompare(`${b.client}${b.city}`, "he")
                 );
                 if (rows.length === 0) return null;
                 return (
                   <div className="border-t border-border bg-muted/20 px-4 py-3">
                     <p className="mb-2 text-xs font-semibold text-muted-foreground">
-                      סיכום לפי לקוח
+                      סיכום לפי לקוח ועיר
                     </p>
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border text-xs text-muted-foreground">
                           <th className="pb-1 text-right">לקוח</th>
+                          <th className="pb-1 text-right">עיר</th>
                           <th className="pb-1 text-center">אושרו</th>
                           <th className="pb-1 text-center">לא אושרו</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map(([client, counts]) => (
+                        {rows.map((row) => (
                           <tr
-                            key={client}
+                            key={`${row.client}__${row.city}`}
                             className="border-b border-border/50 last:border-0"
                           >
-                            <td className="py-1 font-medium">{client}</td>
+                            <td className="py-1 font-medium">{row.client}</td>
+                            <td className="py-1 text-muted-foreground">{row.city}</td>
                             <td className="py-1 text-center font-medium text-green-700">
-                              {counts.confirmed}
+                              {row.confirmed}
                             </td>
                             <td className="py-1 text-center font-medium text-orange-700">
-                              {counts.pending}
+                              {row.pending}
                             </td>
                           </tr>
                         ))}
