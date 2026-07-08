@@ -1,6 +1,5 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { RecruitmentStatus } from "@/lib/utils/constants";
@@ -17,7 +16,7 @@ export async function addCandidate(formData: FormData) {
     return { error: "יש להזין שם פרטי ושם משפחה" };
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("recruitment_candidates").insert({
     first_name: firstName,
     last_name: lastName,
@@ -45,7 +44,7 @@ export async function updateCandidate(
     inquiry_date?: string | null;
   }
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase
     .from("recruitment_candidates")
     .update(data)
@@ -61,7 +60,7 @@ export async function updateCandidateStatus(
   candidateId: string,
   status: RecruitmentStatus
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase
     .from("recruitment_candidates")
     .update({ status })
@@ -77,7 +76,7 @@ export async function toggleCandidateArchive(
   candidateId: string,
   isArchived: boolean
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase
     .from("recruitment_candidates")
     .update({ is_archived: isArchived })
@@ -90,7 +89,7 @@ export async function toggleCandidateArchive(
 }
 
 export async function convertCandidateToInstructor(candidateId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: candidate, error: fetchError } = await supabase
     .from("recruitment_candidates")
@@ -121,10 +120,7 @@ export async function convertCandidateToInstructor(candidateId: string) {
 
   await supabase
     .from("recruitment_candidates")
-    .update({
-      converted_instructor_id: newInstructor.id,
-      is_archived: true,
-    })
+    .update({ converted_instructor_id: newInstructor.id, is_archived: true })
     .eq("id", candidateId);
 
   revalidatePath("/recruitment");
@@ -135,7 +131,7 @@ export async function convertCandidateToInstructor(candidateId: string) {
 export async function addActivity(candidateId: string, note: string) {
   if (!note.trim()) return { error: "יש להזין תוכן" };
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("recruitment_activities").insert({
     candidate_id: candidateId,
     note: note.trim(),
@@ -144,16 +140,6 @@ export async function addActivity(candidateId: string, note: string) {
   if (error) return { error: "שגיאה בשמירה: " + error.message };
 
   return { success: true };
-}
-
-export async function markCandidateSeen(candidateId: string) {
-  const supabase = await createClient();
-  await supabase
-    .from("recruitment_candidates")
-    .update({ is_new: false })
-    .eq("id", candidateId)
-    .eq("is_new", true);
-  // no revalidatePath — called silently in background, next refresh picks it up
 }
 
 export async function bulkDeleteCandidates(ids: string[]) {
@@ -181,7 +167,7 @@ export async function bulkArchiveCandidates(ids: string[], isArchived: boolean) 
 }
 
 export async function deleteCandidate(candidateId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase
     .from("recruitment_candidates")
     .delete()
@@ -218,8 +204,7 @@ export async function uploadCandidateCV(formData: FormData) {
     .from("recruitment-documents")
     .getPublicUrl(path);
 
-  const supabase = await createClient();
-  await supabase
+  await admin
     .from("recruitment_candidates")
     .update({ cv_url: urlData.publicUrl })
     .eq("id", candidateId);
