@@ -156,6 +156,30 @@ export async function markCandidateSeen(candidateId: string) {
   // no revalidatePath — called silently in background, next refresh picks it up
 }
 
+export async function bulkDeleteCandidates(ids: string[]) {
+  if (!ids.length) return { success: true };
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("recruitment_candidates")
+    .delete()
+    .in("id", ids);
+  if (error) return { error: error.message };
+  revalidatePath("/recruitment");
+  return { success: true };
+}
+
+export async function bulkArchiveCandidates(ids: string[], isArchived: boolean) {
+  if (!ids.length) return { success: true };
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("recruitment_candidates")
+    .update({ is_archived: isArchived })
+    .in("id", ids);
+  if (error) return { error: error.message };
+  revalidatePath("/recruitment");
+  return { success: true };
+}
+
 export async function deleteCandidate(candidateId: string) {
   const supabase = await createClient();
   const { error } = await supabase

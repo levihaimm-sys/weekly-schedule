@@ -2,19 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Filter, Check, Loader2, Archive, User, ChevronUp, ChevronDown, ChevronsUpDown, Copy, CheckCheck, X } from "lucide-react";
+import {
+  Plus, Search, Filter, Check, Loader2, Archive, ArchiveRestore,
+  User, ChevronUp, ChevronDown, ChevronsUpDown, Copy, CheckCheck,
+  X, Download, Trash2, Calendar,
+} from "lucide-react";
 import { RECRUITMENT_STATUS, RecruitmentStatus } from "@/lib/utils/constants";
-import { addCandidate } from "@/lib/actions/recruitment";
+import { addCandidate, bulkDeleteCandidates, bulkArchiveCandidates } from "@/lib/actions/recruitment";
 import { CandidateDrawer, CandidateFull } from "./candidate-drawer";
 
 type SortField = "date" | "status" | "name";
 
 const STATUS_ORDER: Record<RecruitmentStatus, number> = {
-  pending: 0,
-  called: 1,
-  no_answer: 2,
-  interview: 3,
-  not_suitable: 4,
+  pending: 0, called: 1, no_answer: 2, interview: 3, not_suitable: 4,
 };
 
 const STATUS_COLORS: Record<RecruitmentStatus | "all", string> = {
@@ -47,6 +47,8 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | "all">("all");
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -56,6 +58,9 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const [openCandidateId, setOpenCandidateId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const areas = Array.from(
     new Set(candidates.map((c) => c.area).filter(Boolean) as string[])
@@ -82,6 +87,8 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       if (showArchived && !c.is_archived) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
       if (selectedAreas.length > 0 && !selectedAreas.includes(c.area ?? "")) return false;
+      if (dateFrom && (c.inquiry_date ?? "") < dateFrom) return false;
+      if (dateTo && (c.inquiry_date ?? "") > dateTo) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
@@ -100,6 +107,44 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
+
+  const filteredIds = filtered.map((c) => c.id);
+  const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredIds));
+    }
+  }
+
+  function toggleSelect(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkArchive() {
+    setBulkPending(true);
+    await bulkArchiveCandidates([...selectedIds], !showArchived);
+    setSelectedIds(new Set());
+    setBulkPending(false);
+    router.refresh();
+  }
+
+  async function handleBulkDelete() {
+    setBulkPending(true);
+    await bulkDeleteCandidates([...selectedIds]);
+    setSelectedIds(new Set());
+    setConfirmBulkDelete(false);
+    setBulkPending(false);
+    router.refresh();
+  }
 
   const activeCandidates = candidates.filter((c) => !c.is_archived);
   const archivedCandidates = candidates.filter((c) => c.is_archived);
@@ -126,6 +171,8 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
     ? candidates.find((c) => c.id === openCandidateId) ?? null
     : null;
 
+  const hasDateFilter = dateFrom || dateTo;
+
   return (
     <>
       <div className="space-y-4">
@@ -136,7 +183,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setSelectedAreas([]); }}
+              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setSelectedAreas([]); setSelectedIds(new Set()); }}
               className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                 showArchived
                   ? "border-amber-300 bg-amber-50 text-amber-700"
@@ -167,79 +214,46 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
               <div className="flex flex-wrap gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">שם פרטי</label>
-                  <input
-                    name="first_name"
-                    type="text"
-                    required
-                    placeholder="ישראל"
-                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <input name="first_name" type="text" required placeholder="ישראל"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">שם משפחה</label>
-                  <input
-                    name="last_name"
-                    type="text"
-                    required
-                    placeholder="ישראלי"
-                    className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <input name="last_name" type="text" required placeholder="ישראלי"
+                    className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">טלפון</label>
-                  <input
-                    name="phone"
-                    type="tel"
-                    placeholder="050-0000000"
-                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <input name="phone" type="tel" placeholder="050-0000000"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">אזור מגורים</label>
-                  <input
-                    name="area"
-                    type="text"
-                    placeholder="תל אביב"
-                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <input name="area" type="text" placeholder="תל אביב"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">אימייל</label>
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="example@gmail.com"
-                    className="w-56 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    dir="ltr"
-                  />
+                  <input name="email" type="email" placeholder="example@gmail.com" dir="ltr"
+                    className="w-56 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-muted-foreground">תאריך פניה</label>
-                  <input
-                    name="inquiry_date"
-                    type="date"
+                  <input name="inquiry_date" type="date" dir="ltr"
                     defaultValue={new Date().toISOString().slice(0, 10)}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    dir="ltr"
-                  />
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                >
+                <button type="submit" disabled={isPending}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
                   {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                   הוסף
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setAddFormOpen(false); setError(null); }}
-                  className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
-                >
+                <button type="button" onClick={() => { setAddFormOpen(false); setError(null); }}
+                  className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted">
                   ביטול
                 </button>
               </div>
@@ -251,6 +265,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
         {/* Filters */}
         {!showArchived && (
           <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+            {/* Search + Status */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -291,6 +306,44 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                 </button>
               ))}
             </div>
+
+            {/* Date range */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Calendar size={14} />
+                <span>תאריך פניה:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">מ-</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  dir="ltr"
+                  className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">עד-</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  dir="ltr"
+                  className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
+                />
+              </div>
+              {hasDateFilter && (
+                <button
+                  onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                >
+                  <X size={11} /> נקה
+                </button>
+              )}
+            </div>
+
+            {/* Area filter */}
             {areas.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">אזור:</span>
@@ -319,16 +372,65 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                 ))}
               </div>
             )}
+
             <div className="flex items-center justify-between pt-1">
               <span className="text-xs text-muted-foreground">{filtered.length} מועמדים בחיתוך הנוכחי</span>
               <button
                 onClick={() => setShowExport(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                <Copy size={12} />
-                ייצוא מספרים ({filtered.filter((c) => c.phone).length})
+                <Download size={12} />
+                ייצוא CSV ({filtered.filter((c) => c.phone).length})
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {someSelected && (
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+            <span className="text-sm font-medium">{selectedIds.size} נבחרו</span>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              בטל בחירה
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={handleBulkArchive}
+              disabled={bulkPending}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+            >
+              {bulkPending ? <Loader2 size={13} className="animate-spin" /> : showArchived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+              {showArchived ? "הוצא מארכיון" : "העבר לארכיון"}
+            </button>
+            {confirmBulkDelete ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={bulkPending}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {bulkPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  אישור מחיקה
+                </button>
+                <button
+                  onClick={() => setConfirmBulkDelete(false)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
+                >
+                  ביטול
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmBulkDelete(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+              >
+                <Trash2 size={13} />
+                מחק ({selectedIds.size})
+              </button>
+            )}
           </div>
         )}
 
@@ -337,6 +439,14 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+                <th className="px-3 py-2.5 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="cursor-pointer accent-primary"
+                  />
+                </th>
                 <th className="px-3 py-2.5 whitespace-nowrap">
                   <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground transition-colors">
                     שם <SortIcon field="name" current={sortBy} dir={sortDir} />
@@ -360,7 +470,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
                     {showArchived ? "אין מועמדים בארכיון" : "אין מועמדים להצגה"}
                   </td>
                 </tr>
@@ -369,8 +479,17 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                   <tr
                     key={c.id}
                     onClick={() => setOpenCandidateId(c.id)}
-                    className="cursor-pointer transition-colors hover:bg-muted/40"
+                    className={`cursor-pointer transition-colors hover:bg-muted/40 ${selectedIds.has(c.id) ? "bg-primary/5" : ""}`}
                   >
+                    <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={(e) => toggleSelect(c.id, e as unknown as React.MouseEvent)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer accent-primary"
+                      />
+                    </td>
                     <td className="px-3 py-2.5 font-medium whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {c.converted_instructor_id && (
@@ -381,19 +500,11 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                         {c.first_name} {c.last_name}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                      {c.phone ?? "—"}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                      {c.area ?? "—"}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                      {formatDate(c.inquiry_date)}
-                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{c.phone ?? "—"}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{c.area ?? "—"}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{formatDate(c.inquiry_date)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status as RecruitmentStatus] ?? STATUS_COLORS.pending}`}
-                      >
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status as RecruitmentStatus] ?? STATUS_COLORS.pending}`}>
                         {RECRUITMENT_STATUS[c.status as RecruitmentStatus] ?? c.status}
                       </span>
                     </td>
@@ -425,11 +536,8 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           onClose={() => { setShowExport(false); setCopied(false); }}
           copied={copied}
           onCopy={async () => {
-            const text = filtered
-              .filter((c) => c.phone)
-              .map((c) => `${c.first_name} ${c.last_name}: ${c.phone}`)
-              .join("\n");
-            await navigator.clipboard.writeText(text);
+            const csv = buildCsv(filtered);
+            await navigator.clipboard.writeText(csv);
             setCopied(true);
             setTimeout(() => setCopied(false), 2500);
           }}
@@ -437,6 +545,13 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       )}
     </>
   );
+}
+
+function buildCsv(candidates: CandidateFull[]) {
+  const rows = candidates
+    .filter((c) => c.phone)
+    .map((c) => `"${c.first_name} ${c.last_name}","${c.area ?? ""}","${c.phone ?? ""}"`);
+  return ["שם,עיר,טלפון", ...rows].join("\n");
 }
 
 function ExportModal({
@@ -451,7 +566,18 @@ function ExportModal({
   onCopy: () => void;
 }) {
   const withPhone = candidates.filter((c) => c.phone);
-  const text = withPhone.map((c) => `${c.first_name} ${c.last_name}: ${c.phone}`).join("\n");
+  const csv = buildCsv(candidates);
+
+  function handleDownload() {
+    const bom = "﻿"; // UTF-8 BOM so Excel opens Hebrew correctly
+    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "מועמדים.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -460,32 +586,39 @@ function ExportModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">ייצוא מספרי טלפון</h2>
+          <h2 className="font-semibold">ייצוא CSV</h2>
           <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
             <X size={16} />
           </button>
         </div>
         <p className="mb-2 text-xs text-muted-foreground">
-          {withPhone.length} מועמדים עם מספר טלפון (מתוך {candidates.length} בחיתוך)
+          {withPhone.length} מועמדים עם מספר טלפון (מתוך {candidates.length} בחיתוך) · פורמט: שם, עיר, טלפון
         </p>
         <textarea
           readOnly
-          value={text}
-          dir="rtl"
-          rows={Math.min(withPhone.length + 1, 14)}
-          className="mb-3 w-full rounded-lg border border-border bg-muted/30 p-3 text-sm font-mono leading-relaxed resize-none focus:outline-none"
+          value={csv}
+          dir="ltr"
+          rows={Math.min(withPhone.length + 2, 14)}
+          className="mb-3 w-full rounded-lg border border-border bg-muted/30 p-3 text-xs font-mono leading-relaxed resize-none focus:outline-none"
         />
-        <button
-          onClick={onCopy}
-          className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
-            copied
-              ? "bg-green-600 text-white"
-              : "bg-primary text-primary-foreground hover:bg-primary/90"
-          }`}
-        >
-          {copied ? <CheckCheck size={15} /> : <Copy size={15} />}
-          {copied ? "הועתק!" : "העתק הכל"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownload}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Download size={15} />
+            הורד קובץ CSV
+          </button>
+          <button
+            onClick={onCopy}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+              copied ? "bg-green-600 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
+            }`}
+          >
+            {copied ? <CheckCheck size={15} /> : <Copy size={15} />}
+            {copied ? "הועתק!" : "העתק"}
+          </button>
+        </div>
       </div>
     </div>
   );
