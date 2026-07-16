@@ -94,7 +94,7 @@ export async function getClientReportData(
       instructorName: l.instructor?.full_name ?? "—",
       locationName: l.location?.name ?? "—",
       city: l.location?.city ?? "—",
-      signerRole: (sig?.signer_role as "teacher" | "instructor" | null) ?? null,
+      signerRole: (sig?.signer_role === "admin" ? "instructor" : sig?.signer_role as "teacher" | "instructor" | null) ?? null,
       signerName: sig?.signer_name ?? null,
       signatureUrl: sig?.signature_url ?? null,
     };
@@ -188,7 +188,7 @@ export async function getMonthlyClientSummary(
 
     const sig = (lesson.signatures as any)?.[0];
     if (sig?.signer_role === "teacher") stats.teacherConfirmed++;
-    if (sig?.signer_role === "instructor") stats.instructorConfirmed++;
+    if (sig?.signer_role === "instructor" || sig?.signer_role === "admin") stats.instructorConfirmed++;
   }
 
   const result: ClientMonthlySummary[] = [];
@@ -287,7 +287,7 @@ export async function getInstructorMonthlySummary(
 
     const sig = (lesson.signatures as any)?.[0];
     if (sig?.signer_role === "teacher") stats.teacherConfirmed++;
-    if (sig?.signer_role === "instructor") stats.instructorConfirmed++;
+    if (sig?.signer_role === "instructor" || sig?.signer_role === "admin") stats.instructorConfirmed++;
   }
 
   const result: InstructorMonthlySummary[] = [];

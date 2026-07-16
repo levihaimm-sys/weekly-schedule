@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     if (lesson.status === "completed") d.completed++;
     if (lesson.status === "cancelled") d.cancelled++;
     if (sig?.signer_role === "teacher") d.teacherConf++;
-    if (sig?.signer_role === "instructor") d.instrConf++;
+    if (sig?.signer_role === "instructor" || sig?.signer_role === "admin") d.instrConf++;
     d.lessons.push({ lesson, sig });
   }
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
           if (sig?.signer_role === "teacher") {
             return `<td>${sig.signature_url ? `<img src="${sig.signature_url}" style="max-height:22px;max-width:60px;display:block;margin:0 auto">` : ""}<div style="font-size:7pt;color:#666">${sig.signer_name ?? ""}</div></td>`;
           } else if (sig?.signer_role) {
-            return `<td style="color:#2563eb">מאושר</td>`;
+            return `<td style="color:#2563eb">✓ ידני</td>`;
           }
           return "<td>—</td>";
         })() : "";

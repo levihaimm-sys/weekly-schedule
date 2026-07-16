@@ -90,8 +90,8 @@ function signerCell(
       <div class="sig-name">גננת: ${signerName ?? ""}</div>
     </div>`;
   }
-  if (signerRole === "instructor") {
-    return `<span class="instructor-ack">✓ מדריכה</span>`;
+  if (signerRole === "instructor" || signerRole === "admin") {
+    return `<span class="instructor-ack">✓ ידני</span>`;
   }
   return "—";
 }
@@ -169,7 +169,7 @@ export function buildInstructorReportHtml(data: ReportPreviewData): { title: str
   const completed = data.lessons.filter((l) => l.status === "completed").length;
   const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;
   const teacherConf = data.lessons.filter((l) => l.signerRole === "teacher").length;
-  const instrConf = data.lessons.filter((l) => l.signerRole === "instructor").length;
+  const instrConf = data.lessons.filter((l) => l.signerRole === "instructor" || l.signerRole === "admin").length;
 
   const rows = data.lessons
     .map(
@@ -286,7 +286,7 @@ export function printClientReport(
       const cc = lessons.filter((l) => l.status === "completed").length;
       const ca = lessons.filter((l) => l.status === "cancelled").length;
       const tc = lessons.filter((l) => l.signerRole === "teacher").length;
-      const ic = lessons.filter((l) => l.signerRole === "instructor").length;
+      const ic = lessons.filter((l) => l.signerRole === "instructor" || l.signerRole === "admin").length;
 
       tableHtml += `
         <div class="city-header">
@@ -332,7 +332,7 @@ export function printClientReport(
               <td style="color:#16a34a">${lessons.filter((l) => l.status === "completed").length}</td>
               <td style="color:#dc2626">${lessons.filter((l) => l.status === "cancelled").length}</td>
               <td>${lessons.filter((l) => l.signerRole === "teacher").length}</td>
-              <td>${lessons.filter((l) => l.signerRole === "instructor").length}</td>
+              <td>${lessons.filter((l) => l.signerRole === "instructor" || l.signerRole === "admin").length}</td>
             </tr>`,
             )
             .join("")}

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       if ((lesson as any).status === "completed") d.completed++;
       if ((lesson as any).status === "cancelled") d.cancelled++;
       if (sig?.signer_role === "teacher") d.teacherConfirmed++;
-      if (sig?.signer_role === "instructor") d.instructorConfirmed++;
+      if (sig?.signer_role === "instructor" || sig?.signer_role === "admin") d.instructorConfirmed++;
 
       const lessonDate = new Date((lesson as any).lesson_date);
       d.lessons.push({
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         status: (lesson as any).status,
         signatureUrl: sig?.signature_url ?? null,
         signerName: sig?.signer_name ?? null,
-        signerRole: sig?.signer_role ?? null,
+        signerRole: sig?.signer_role === "admin" ? "instructor" : (sig?.signer_role ?? null),
       });
     }
 

@@ -93,8 +93,8 @@ export function CityReportPreviewModal({
                         )}
                         <span className="text-xs text-muted-foreground">גננת: {lesson.signerName}</span>
                       </div>
-                    ) : lesson.signerRole === "instructor" ? (
-                      <span className="text-blue-600">&#10003; מדריכה</span>
+                    ) : lesson.signerRole === "instructor" || lesson.signerRole === "admin" ? (
+                      <span className="text-blue-600">&#10003; ידני</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -188,7 +188,7 @@ export function ReportPreviewModal({
   const completed = data.lessons.filter((l) => l.status === "completed").length;
   const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;
   const teacherConfirmed = data.lessons.filter((l) => l.signerRole === "teacher").length;
-  const instructorConfirmed = data.lessons.filter((l) => l.signerRole === "instructor").length;
+  const instructorConfirmed = data.lessons.filter((l) => l.signerRole === "instructor" || l.signerRole === "admin").length;
 
   return (
     <div
@@ -257,8 +257,8 @@ export function ReportPreviewModal({
                           גננת: {lesson.signerName}
                         </span>
                       </div>
-                    ) : lesson.signerRole === "instructor" ? (
-                      <span className="text-blue-600">&#10003; מדריכה</span>
+                    ) : lesson.signerRole === "instructor" || lesson.signerRole === "admin" ? (
+                      <span className="text-blue-600">&#10003; ידני</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

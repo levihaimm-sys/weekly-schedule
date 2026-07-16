@@ -326,9 +326,9 @@ export function ClientReportDocument({
                             {`גננת: ${lesson.signerName}`}
                           </Text>
                         </View>
-                      ) : lesson.signerRole === "instructor" ? (
+                      ) : lesson.signerRole === "instructor" || lesson.signerRole === "admin" ? (
                         <Text style={[styles.cell, { color: "#2563eb" }]}>
-                          {"✓"} מדריכה
+                          {"✓"} ידני
                         </Text>
                       ) : (
                         <Text style={[styles.cell, { color: "#999" }]}>—</Text>
@@ -480,8 +480,8 @@ export function LocationReportDocument({ data }: { data: LocationReportData }) {
                       {`גננת: ${lesson.signerName}`}
                     </Text>
                   </View>
-                ) : lesson.signerRole === "instructor" ? (
-                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"✓"} מדריכה</Text>
+                ) : lesson.signerRole === "instructor" || lesson.signerRole === "admin" ? (
+                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"✓"} ידני</Text>
                 ) : (
                   <Text style={[styles.cell, { color: "#999" }]}>—</Text>
                 )}
@@ -576,8 +576,8 @@ export function CityReportDocument({ data }: { data: CityReportData }) {
                       {`גננת: ${lesson.signerName}`}
                     </Text>
                   </View>
-                ) : lesson.signerRole === "instructor" ? (
-                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"✓"} מדריכה</Text>
+                ) : lesson.signerRole === "instructor" || lesson.signerRole === "admin" ? (
+                  <Text style={[styles.cell, { color: "#2563eb" }]}>{"✓"} ידני</Text>
                 ) : (
                   <Text style={[styles.cell, { color: "#999" }]}>—</Text>
                 )}
@@ -614,7 +614,7 @@ export function MonthlyReportDocument({ data }: { data: ReportData }) {
   const completed = data.lessons.filter((l) => l.status === "completed").length;
   const cancelled = data.lessons.filter((l) => l.status === "cancelled").length;
   const teacherConfirmed = data.lessons.filter((l) => l.signerRole === "teacher").length;
-  const instructorConfirmed = data.lessons.filter((l) => l.signerRole === "instructor").length;
+  const instructorConfirmed = data.lessons.filter((l) => l.signerRole === "instructor" || (l as any).signerRole === "admin").length;
 
   return (
     <Document>
@@ -678,9 +678,9 @@ export function MonthlyReportDocument({ data }: { data: ReportData }) {
                       {`גננת: ${lesson.signerName}`}
                     </Text>
                   </View>
-                ) : lesson.signerRole === "instructor" ? (
+                ) : lesson.signerRole === "instructor" || lesson.signerRole === "admin" ? (
                   <Text style={[styles.cell, { color: "#2563eb" }]}>
-                    {"✓"} מדריכה
+                    {"✓"} ידני
                   </Text>
                 ) : (
                   <Text style={[styles.cell, { color: "#999" }]}>—</Text>
