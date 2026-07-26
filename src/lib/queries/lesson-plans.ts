@@ -464,10 +464,10 @@ export async function getAssignmentsOverview() {
   const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const currentWeekStart = formatDate(sunday);
 
-  // Generate weeks: 3 back + current + 12 ahead (covers ~3.5 months)
+  // Generate weeks: 8 back + current + 8 ahead (covers ~2 months each direction)
   const rangeStart = new Date(sunday);
-  rangeStart.setDate(rangeStart.getDate() - 3 * 7);
-  const weeksCount = 16; // 3 back + 1 current + 12 ahead
+  rangeStart.setDate(rangeStart.getDate() - 8 * 7);
+  const weeksCount = 17; // 8 back + 1 current + 8 ahead
   const weeks: string[] = [];
   for (let i = 0; i < weeksCount; i++) {
     const d = new Date(rangeStart);
