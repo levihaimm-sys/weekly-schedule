@@ -15,10 +15,16 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
-import { RECRUITMENT_STATUS, RecruitmentStatus } from "@/lib/utils/constants";
+import {
+  RECRUITMENT_STATUS,
+  RecruitmentStatus,
+  RECRUITMENT_SERIOUSNESS,
+  RecruitmentSeriousness,
+} from "@/lib/utils/constants";
 import {
   updateCandidate,
   updateCandidateStatus,
+  updateCandidateSeriousness,
   toggleCandidateArchive,
   convertCandidateToInstructor,
   addActivity,
@@ -36,6 +42,8 @@ export interface CandidateFull {
   area: string | null;
   inquiry_date: string | null;
   status: string;
+  seriousness_status: string;
+  details: string | null;
   is_archived: boolean;
   cv_url: string | null;
   converted_instructor_id: string | null;
@@ -71,6 +79,13 @@ const STATUS_COLORS: Record<RecruitmentStatus, string> = {
   not_suitable: "bg-red-100 text-red-700 border-red-200",
 };
 
+const SERIOUSNESS_COLORS: Record<RecruitmentSeriousness, string> = {
+  inactive: "bg-gray-100 text-gray-700 border-gray-200",
+  initial_screening: "bg-blue-100 text-blue-700 border-blue-200",
+  question_mark: "bg-amber-100 text-amber-700 border-amber-200",
+  hot_active: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
 export function CandidateDrawer({ candidate, onClose }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -83,6 +98,10 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
   const [area, setArea] = useState(candidate.area ?? "");
   const [inquiryDate, setInquiryDate] = useState(candidate.inquiry_date ?? "");
   const [status, setStatus] = useState<RecruitmentStatus>(candidate.status as RecruitmentStatus);
+  const [seriousness, setSeriousness] = useState<RecruitmentSeriousness>(
+    candidate.seriousness_status as RecruitmentSeriousness
+  );
+  const [details, setDetails] = useState(candidate.details ?? "");
 
   // CV
   const [cvUrl, setCvUrl] = useState(candidate.cv_url);
@@ -122,7 +141,7 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
 
   async function handleSave() {
     startTransition(async () => {
-      await Promise.all([
+      const ops: Promise<unknown>[] = [
         updateCandidate(candidate.id, {
           first_name: firstName.trim() || candidate.first_name,
           last_name: lastName.trim() || candidate.last_name,
@@ -130,9 +149,22 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           phone: phone.trim() || null,
           area: area.trim() || null,
           inquiry_date: inquiryDate || null,
+          details: details.trim() || null,
         }),
         updateCandidateStatus(candidate.id, status),
-      ]);
+        updateCandidateSeriousness(candidate.id, seriousness),
+      ];
+      // If there's a pending note, save it alongside the details
+      if (newNote.trim()) {
+        const note = newNote.trim();
+        setActivities((prev) => [
+          { id: `temp-${Date.now()}`, note, created_at: new Date().toISOString() },
+          ...prev,
+        ]);
+        setNewNote("");
+        ops.push(addActivity(candidate.id, note));
+      }
+      await Promise.all(ops);
       router.refresh();
       onClose();
     });
@@ -218,11 +250,18 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
             </div>
             <div>
               <p className="font-semibold">{candidate.first_name} {candidate.last_name}</p>
-              <span
-                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status] ?? STATUS_COLORS.pending}`}
-              >
-                {RECRUITMENT_STATUS[status] ?? status}
-              </span>
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status] ?? STATUS_COLORS.pending}`}
+                >
+                  {RECRUITMENT_STATUS[status] ?? status}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${SERIOUSNESS_COLORS[seriousness] ?? SERIOUSNESS_COLORS.initial_screening}`}
+                >
+                  {RECRUITMENT_SERIOUSNESS[seriousness] ?? seriousness}
+                </span>
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
@@ -300,7 +339,7 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">סטטוס</label>
+                <label className="mb-1 block text-xs text-muted-foreground">סטטוס התקדמות</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as RecruitmentStatus)}
@@ -313,6 +352,31 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
               </div>
             </div>
 
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">סטטוס רצינות</label>
+              <select
+                value={seriousness}
+                onChange={(e) => setSeriousness(e.target.value as RecruitmentSeriousness)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                {(Object.keys(RECRUITMENT_SERIOUSNESS) as RecruitmentSeriousness[]).map((s) => (
+                  <option key={s} value={s}>{RECRUITMENT_SERIOUSNESS[s]}</option>
+                ))}
+              </select>
+            </div>
+
+          </section>
+
+          {/* --- Candidate details / notes --- */}
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">פירוט על המועמד</h3>
+            <textarea
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="תיאור כללי על המועמד: ניסיון, זמינות, התרשמות..."
+              rows={8}
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground/60"
+            />
           </section>
 
           {/* --- CV section --- */}

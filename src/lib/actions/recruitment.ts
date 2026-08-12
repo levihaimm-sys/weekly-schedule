@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { RecruitmentStatus } from "@/lib/utils/constants";
+import { RecruitmentStatus, RecruitmentSeriousness } from "@/lib/utils/constants";
 
 export async function addCandidate(formData: FormData) {
   const firstName = (formData.get("first_name") as string)?.trim();
@@ -42,6 +42,7 @@ export async function updateCandidate(
     phone?: string | null;
     area?: string | null;
     inquiry_date?: string | null;
+    details?: string | null;
   }
 ) {
   const supabase = createAdminClient();
@@ -64,6 +65,22 @@ export async function updateCandidateStatus(
   const { error } = await supabase
     .from("recruitment_candidates")
     .update({ status })
+    .eq("id", candidateId);
+
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
+
+  revalidatePath("/recruitment");
+  return { success: true };
+}
+
+export async function updateCandidateSeriousness(
+  candidateId: string,
+  seriousness: RecruitmentSeriousness
+) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("recruitment_candidates")
+    .update({ seriousness_status: seriousness })
     .eq("id", candidateId);
 
   if (error) return { error: "שגיאה בעדכון: " + error.message };

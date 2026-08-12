@@ -71,6 +71,15 @@ export const RECRUITMENT_STATUS = {
 
 export type RecruitmentStatus = keyof typeof RECRUITMENT_STATUS;
 
+export const RECRUITMENT_SERIOUSNESS = {
+  inactive: "לא פעיל",
+  initial_screening: "תהליכי סינון ראשוניים",
+  question_mark: "בסימן שאלה",
+  hot_active: "מועמד חם ופעיל",
+} as const;
+
+export type RecruitmentSeriousness = keyof typeof RECRUITMENT_SERIOUSNESS;
+
 export const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
   "גבעתיים": "טומשין",

@@ -5,9 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   Plus, Search, Filter, Check, Loader2, Archive, ArchiveRestore,
   User, ChevronUp, ChevronDown, ChevronsUpDown, Copy, CheckCheck,
-  X, Download, Trash2, Calendar,
+  X, Download, Trash2, Calendar, MapPin,
 } from "lucide-react";
-import { RECRUITMENT_STATUS, RecruitmentStatus } from "@/lib/utils/constants";
+import {
+  RECRUITMENT_STATUS,
+  RecruitmentStatus,
+  RECRUITMENT_SERIOUSNESS,
+  RecruitmentSeriousness,
+} from "@/lib/utils/constants";
 import { addCandidate, bulkDeleteCandidates, bulkArchiveCandidates } from "@/lib/actions/recruitment";
 import { CandidateDrawer, CandidateFull } from "./candidate-drawer";
 
@@ -24,6 +29,14 @@ const STATUS_COLORS: Record<RecruitmentStatus | "all", string> = {
   no_answer: "bg-orange-50 text-orange-700 border-orange-200",
   interview: "bg-green-50 text-green-700 border-green-200",
   not_suitable: "bg-red-50 text-red-700 border-red-200",
+};
+
+const SERIOUSNESS_COLORS: Record<RecruitmentSeriousness | "all", string> = {
+  all: "border-border bg-background hover:bg-muted",
+  inactive: "bg-gray-50 text-gray-700 border-gray-200",
+  initial_screening: "bg-blue-50 text-blue-700 border-blue-200",
+  question_mark: "bg-amber-50 text-amber-700 border-amber-200",
+  hot_active: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 function SortIcon({ field, current, dir }: { field: SortField; current: SortField; dir: "asc" | "desc" }) {
@@ -46,7 +59,9 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | "all">("all");
+  const [seriousnessFilter, setSeriousnessFilter] = useState<RecruitmentSeriousness | "all">("all");
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
+  const [showAreaFilter, setShowAreaFilter] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -86,6 +101,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
       if (!showArchived && c.is_archived) return false;
       if (showArchived && !c.is_archived) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (seriousnessFilter !== "all" && c.seriousness_status !== seriousnessFilter) return false;
       if (selectedAreas.length > 0 && !selectedAreas.includes(c.area ?? "")) return false;
       if (dateFrom && (c.inquiry_date ?? "") < dateFrom) return false;
       if (dateTo && (c.inquiry_date ?? "") > dateTo) return false;
@@ -154,6 +170,11 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
     {} as Record<RecruitmentStatus, number>
   );
 
+  const seriousnessCounts = (Object.keys(RECRUITMENT_SERIOUSNESS) as RecruitmentSeriousness[]).reduce(
+    (acc, s) => ({ ...acc, [s]: activeCandidates.filter((c) => c.seriousness_status === s).length }),
+    {} as Record<RecruitmentSeriousness, number>
+  );
+
   async function handleAdd(formData: FormData) {
     setError(null);
     setIsPending(true);
@@ -183,7 +204,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setSelectedAreas([]); setSelectedIds(new Set()); }}
+              onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); setSeriousnessFilter("all"); setSelectedAreas([]); setSelectedIds(new Set()); }}
               className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                 showArchived
                   ? "border-amber-300 bg-amber-50 text-amber-700"
@@ -307,6 +328,37 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
               ))}
             </div>
 
+            {/* Seriousness filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Filter size={14} />
+                <span>רצינות:</span>
+              </div>
+              <button
+                onClick={() => setSeriousnessFilter("all")}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                  seriousnessFilter === "all"
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border bg-background hover:bg-muted text-muted-foreground"
+                }`}
+              >
+                הכל ({activeCandidates.length})
+              </button>
+              {(Object.keys(RECRUITMENT_SERIOUSNESS) as RecruitmentSeriousness[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSeriousnessFilter(s === seriousnessFilter ? "all" : s)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                    seriousnessFilter === s
+                      ? SERIOUSNESS_COLORS[s] + " font-medium"
+                      : "border-border bg-background hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {RECRUITMENT_SERIOUSNESS[s]} ({seriousnessCounts[s]})
+                </button>
+              ))}
+            </div>
+
             {/* Date range */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -343,33 +395,49 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
               )}
             </div>
 
-            {/* Area filter */}
+            {/* Area filter (collapsed by default) */}
             {areas.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">אזור:</span>
+              <div className="space-y-2">
                 <button
-                  onClick={() => setSelectedAreas([])}
-                  className={`rounded-lg border px-3 py-1 text-xs transition-all ${
-                    selectedAreas.length === 0
-                      ? "border-primary bg-primary/10 text-primary font-medium"
+                  onClick={() => setShowAreaFilter((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                    selectedAreas.length > 0
+                      ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
                       : "border-border bg-background hover:bg-muted text-muted-foreground"
                   }`}
                 >
-                  הכל
+                  <MapPin size={14} />
+                  סינון אזור
+                  {selectedAreas.length > 0 && ` (${selectedAreas.length})`}
+                  {showAreaFilter ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
-                {areas.map((area) => (
-                  <button
-                    key={area}
-                    onClick={() => toggleArea(area)}
-                    className={`rounded-lg border px-3 py-1 text-xs transition-all ${
-                      selectedAreas.includes(area)
-                        ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
-                        : "border-border bg-background hover:bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {area}
-                  </button>
-                ))}
+                {showAreaFilter && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setSelectedAreas([])}
+                      className={`rounded-lg border px-3 py-1 text-xs transition-all ${
+                        selectedAreas.length === 0
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border bg-background hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      הכל
+                    </button>
+                    {areas.map((area) => (
+                      <button
+                        key={area}
+                        onClick={() => toggleArea(area)}
+                        className={`rounded-lg border px-3 py-1 text-xs transition-all ${
+                          selectedAreas.includes(area)
+                            ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
+                            : "border-border bg-background hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -436,7 +504,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
 
         {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-border bg-background">
-          <table className="w-full min-w-[520px] text-sm">
+          <table className="w-full min-w-[620px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
                 <th className="px-3 py-2.5 w-8">
@@ -464,13 +532,14 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                     סטטוס <SortIcon field="status" current={sortBy} dir={sortDir} />
                   </button>
                 </th>
+                <th className="px-3 py-2.5 whitespace-nowrap">רצינות</th>
                 <th className="px-3 py-2.5 w-full">עדכון אחרון</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={8} className="py-10 text-center text-muted-foreground">
                     {showArchived ? "אין מועמדים בארכיון" : "אין מועמדים להצגה"}
                   </td>
                 </tr>
@@ -506,6 +575,11 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status as RecruitmentStatus] ?? STATUS_COLORS.pending}`}>
                         {RECRUITMENT_STATUS[c.status as RecruitmentStatus] ?? c.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${SERIOUSNESS_COLORS[c.seriousness_status as RecruitmentSeriousness] ?? SERIOUSNESS_COLORS.initial_screening}`}>
+                        {RECRUITMENT_SERIOUSNESS[c.seriousness_status as RecruitmentSeriousness] ?? c.seriousness_status}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 w-full">
