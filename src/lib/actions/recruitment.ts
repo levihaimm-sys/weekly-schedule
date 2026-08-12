@@ -4,6 +4,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { RecruitmentStatus, RecruitmentSeriousness } from "@/lib/utils/constants";
 
+interface ImportCandidateRow {
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  email: string | null;
+  area: string | null;
+  inquiry_date: string | null;
+  status: RecruitmentStatus;
+  seriousness_status: RecruitmentSeriousness;
+  details: string | null;
+  is_archived: boolean;
+  cv_url: string | null;
+}
+
 export async function addCandidate(formData: FormData) {
   const firstName = (formData.get("first_name") as string)?.trim();
   const lastName = (formData.get("last_name") as string)?.trim();
@@ -157,6 +171,41 @@ export async function addActivity(candidateId: string, note: string) {
   if (error) return { error: "שגיאה בשמירה: " + error.message };
 
   return { success: true };
+}
+
+export async function importCandidates(rows: ImportCandidateRow[]) {
+  if (!rows.length) return { success: true, inserted: 0, updated: 0, errors: [] as string[] };
+
+  const supabase = createAdminClient();
+  const phones = Array.from(new Set(rows.map((r) => r.phone).filter((p): p is string => !!p)));
+
+  const { data: existing } = phones.length
+    ? await supabase.from("recruitment_candidates").select("id, phone").in("phone", phones)
+    : { data: [] as { id: string; phone: string | null }[] };
+
+  const phoneToId = new Map(
+    (existing ?? []).filter((e) => e.phone).map((e) => [e.phone as string, e.id as string])
+  );
+
+  let inserted = 0;
+  let updated = 0;
+  const errors: string[] = [];
+
+  for (const row of rows) {
+    const existingId = row.phone ? phoneToId.get(row.phone) : undefined;
+    if (existingId) {
+      const { error } = await supabase.from("recruitment_candidates").update(row).eq("id", existingId);
+      if (error) errors.push(`${row.first_name} ${row.last_name}: ${error.message}`);
+      else updated++;
+    } else {
+      const { error } = await supabase.from("recruitment_candidates").insert(row);
+      if (error) errors.push(`${row.first_name} ${row.last_name}: ${error.message}`);
+      else inserted++;
+    }
+  }
+
+  revalidatePath("/recruitment");
+  return { success: true, inserted, updated, errors };
 }
 
 export async function bulkDeleteCandidates(ids: string[]) {

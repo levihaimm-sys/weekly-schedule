@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Search, Filter, Check, Loader2, Archive, ArchiveRestore,
   User, ChevronUp, ChevronDown, ChevronsUpDown, Copy, CheckCheck,
-  X, Download, Trash2, Calendar, MapPin,
+  X, Download, Upload, Trash2, Calendar, MapPin,
 } from "lucide-react";
 import {
   RECRUITMENT_STATUS,
@@ -13,7 +13,12 @@ import {
   RECRUITMENT_SERIOUSNESS,
   RecruitmentSeriousness,
 } from "@/lib/utils/constants";
-import { addCandidate, bulkDeleteCandidates, bulkArchiveCandidates } from "@/lib/actions/recruitment";
+import {
+  addCandidate,
+  bulkDeleteCandidates,
+  bulkArchiveCandidates,
+  importCandidates,
+} from "@/lib/actions/recruitment";
 import { CandidateDrawer, CandidateFull } from "./candidate-drawer";
 
 type SortField = "date" | "status" | "name";
@@ -66,6 +71,7 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
   const [dateTo, setDateTo] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [copied, setCopied] = useState(false);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -447,13 +453,22 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
 
             <div className="flex items-center justify-between border-t border-border/60 pt-3">
               <span className="text-xs text-muted-foreground">{filtered.length} מועמדים בחיתוך הנוכחי</span>
-              <button
-                onClick={() => setShowExport(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Download size={12} />
-                ייצוא CSV ({filtered.filter((c) => c.phone).length})
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowImport(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Upload size={12} />
+                  ייבוא CSV
+                </button>
+                <button
+                  onClick={() => setShowExport(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Download size={12} />
+                  ייצוא CSV ({filtered.length})
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -621,15 +636,162 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
           }}
         />
       )}
+
+      {showImport && (
+        <ImportModal
+          existingCandidates={candidates}
+          onClose={() => setShowImport(false)}
+          onImported={() => router.refresh()}
+        />
+      )}
     </>
   );
 }
 
+const CSV_HEADERS = [
+  "שם פרטי", "שם משפחה", "טלפון", "אימייל", "אזור", "תאריך פניה",
+  "סטטוס התקדמות", "סטטוס רצינות", "פירוט", "ארכיון", "קישור קורות חיים",
+];
+
+const STATUS_LABEL_TO_KEY: Record<string, RecruitmentStatus> = Object.fromEntries(
+  (Object.keys(RECRUITMENT_STATUS) as RecruitmentStatus[]).map((k) => [RECRUITMENT_STATUS[k], k])
+);
+
+const SERIOUSNESS_LABEL_TO_KEY: Record<string, RecruitmentSeriousness> = Object.fromEntries(
+  (Object.keys(RECRUITMENT_SERIOUSNESS) as RecruitmentSeriousness[]).map((k) => [RECRUITMENT_SERIOUSNESS[k], k])
+);
+
+function csvField(value: string | null | undefined) {
+  const str = (value ?? "").toString();
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 function buildCsv(candidates: CandidateFull[]) {
-  const rows = candidates
-    .filter((c) => c.phone)
-    .map((c) => `"${c.first_name} ${c.last_name}","${c.area ?? ""}","${c.phone ?? ""}"`);
-  return ["שם,עיר,טלפון", ...rows].join("\n");
+  const headerRow = CSV_HEADERS.map(csvField).join(",");
+  const rows = candidates.map((c) =>
+    [
+      c.first_name,
+      c.last_name,
+      c.phone ?? "",
+      c.email ?? "",
+      c.area ?? "",
+      c.inquiry_date ?? "",
+      RECRUITMENT_STATUS[c.status as RecruitmentStatus] ?? c.status,
+      RECRUITMENT_SERIOUSNESS[c.seriousness_status as RecruitmentSeriousness] ?? c.seriousness_status,
+      c.details ?? "",
+      c.is_archived ? "כן" : "לא",
+      c.cv_url ?? "",
+    ]
+      .map(csvField)
+      .join(",")
+  );
+  return [headerRow, ...rows].join("\r\n");
+}
+
+// Minimal RFC4180-style CSV parser: handles quoted fields with embedded commas, quotes and newlines
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  const clean = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (clean[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\r") {
+      // ignore — line break handled on \n
+    } else if (char === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
+}
+
+interface ParsedImportRow {
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  email: string | null;
+  area: string | null;
+  inquiry_date: string | null;
+  status: RecruitmentStatus;
+  seriousness_status: RecruitmentSeriousness;
+  details: string | null;
+  is_archived: boolean;
+  cv_url: string | null;
+}
+
+function parseImportCsv(text: string): { rows: ParsedImportRow[]; skipped: number } {
+  const table = parseCsv(text);
+  if (table.length === 0) return { rows: [], skipped: 0 };
+
+  const headers = table[0].map((h) => h.trim());
+  const idx = (label: string) => headers.indexOf(label);
+  const iFirst = idx("שם פרטי");
+  const iLast = idx("שם משפחה");
+  const iPhone = idx("טלפון");
+  const iEmail = idx("אימייל");
+  const iArea = idx("אזור");
+  const iDate = idx("תאריך פניה");
+  const iStatus = idx("סטטוס התקדמות");
+  const iSeriousness = idx("סטטוס רצינות");
+  const iDetails = idx("פירוט");
+  const iArchived = idx("ארכיון");
+  const iCv = idx("קישור קורות חיים");
+
+  const cell = (line: string[], i: number) => (i >= 0 ? (line[i] ?? "").trim() : "");
+
+  const rows: ParsedImportRow[] = [];
+  let skipped = 0;
+
+  for (const line of table.slice(1)) {
+    const firstName = cell(line, iFirst);
+    const lastName = cell(line, iLast);
+    if (!firstName || !lastName) {
+      skipped++;
+      continue;
+    }
+    rows.push({
+      first_name: firstName,
+      last_name: lastName,
+      phone: cell(line, iPhone) || null,
+      email: cell(line, iEmail) || null,
+      area: cell(line, iArea) || null,
+      inquiry_date: cell(line, iDate) || null,
+      status: STATUS_LABEL_TO_KEY[cell(line, iStatus)] ?? "pending",
+      seriousness_status: SERIOUSNESS_LABEL_TO_KEY[cell(line, iSeriousness)] ?? "initial_screening",
+      details: cell(line, iDetails) || null,
+      is_archived: cell(line, iArchived) === "כן",
+      cv_url: cell(line, iCv) || null,
+    });
+  }
+
+  return { rows, skipped };
 }
 
 function ExportModal({
@@ -643,7 +805,6 @@ function ExportModal({
   copied: boolean;
   onCopy: () => void;
 }) {
-  const withPhone = candidates.filter((c) => c.phone);
   const csv = buildCsv(candidates);
 
   function handleDownload() {
@@ -670,13 +831,13 @@ function ExportModal({
           </button>
         </div>
         <p className="mb-2 text-xs text-muted-foreground">
-          {withPhone.length} מועמדים עם מספר טלפון (מתוך {candidates.length} בחיתוך) · פורמט: שם, עיר, טלפון
+          {candidates.length} מועמדים · כל השדות (שם, טלפון, אימייל, אזור, תאריך פניה, סטטוסים, פירוט, ארכיון, קורות חיים)
         </p>
         <textarea
           readOnly
           value={csv}
           dir="ltr"
-          rows={Math.min(withPhone.length + 2, 14)}
+          rows={Math.min(candidates.length + 2, 14)}
           className="mb-3 w-full rounded-lg border border-border bg-muted/30 p-3 text-xs font-mono leading-relaxed resize-none focus:outline-none"
         />
         <div className="flex gap-2">
@@ -697,6 +858,135 @@ function ExportModal({
             {copied ? "הועתק!" : "העתק"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportModal({
+  existingCandidates,
+  onClose,
+  onImported,
+}: {
+  existingCandidates: CandidateFull[];
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parsedRows, setParsedRows] = useState<ParsedImportRow[]>([]);
+  const [skipped, setSkipped] = useState(0);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ inserted: number; updated: number; errors: string[] } | null>(null);
+
+  const existingPhones = new Set(existingCandidates.map((c) => c.phone).filter(Boolean) as string[]);
+  const updateCount = parsedRows.filter((r) => r.phone && existingPhones.has(r.phone)).length;
+  const newCount = parsedRows.length - updateCount;
+
+  function handleFile(file: File) {
+    setParseError(null);
+    setResult(null);
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      const { rows, skipped: skippedCount } = parseImportCsv(text);
+      if (rows.length === 0) {
+        setParseError("לא נמצאו שורות תקינות בקובץ. יש לוודא שיש כותרות בעברית (שם פרטי, שם משפחה וכו') ושבכל שורה יש שם פרטי ושם משפחה.");
+      }
+      setParsedRows(rows);
+      setSkipped(skippedCount);
+    };
+    reader.readAsText(file, "UTF-8");
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    const res = await importCandidates(parsedRows);
+    setImporting(false);
+    setResult({ inserted: res.inserted, updated: res.updated, errors: res.errors });
+    onImported();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">ייבוא CSV</h2>
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+
+        {result ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800">
+              נוספו {result.inserted} מועמדים חדשים ועודכנו {result.updated} מועמדים קיימים.
+            </div>
+            {result.errors.length > 0 && (
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                {result.errors.map((e, i) => (
+                  <p key={i}>{e}</p>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              סגור
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-muted-foreground">
+              יש לייבא קובץ CSV באותו פורמט של הייצוא. מועמדים עם מספר טלפון שכבר קיים במערכת יעודכנו, שאר השורות ייווספו כמועמדים חדשים.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-4 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <Upload size={16} />
+              {fileName ?? "בחר קובץ CSV"}
+            </button>
+
+            {parseError && <p className="mb-3 text-xs text-red-600">{parseError}</p>}
+
+            {parsedRows.length > 0 && (
+              <div className="mb-3 space-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+                <p>
+                  {parsedRows.length} שורות תקינות · {newCount} מועמדים חדשים · {updateCount} עדכונים למועמדים קיימים (לפי טלפון)
+                </p>
+                {skipped > 0 && <p className="text-amber-700">{skipped} שורות דולגו (חסר שם פרטי או שם משפחה)</p>}
+              </div>
+            )}
+
+            <button
+              onClick={handleImport}
+              disabled={parsedRows.length === 0 || importing}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {importing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+              {parsedRows.length > 0 ? `ייבא ${parsedRows.length} מועמדים` : "ייבא"}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
