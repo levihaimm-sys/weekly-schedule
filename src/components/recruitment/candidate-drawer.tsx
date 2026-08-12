@@ -92,11 +92,11 @@ const SERIOUSNESS_COLORS: Record<RecruitmentSeriousness, string> = {
 
 function SectionHeader({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 border-b border-border pb-2">
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-        <Icon size={13} />
+    <div className="flex items-center gap-2.5 border-b-2 border-primary/30 pb-2.5">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <Icon size={14} />
       </div>
-      <h3 className="text-sm font-bold text-foreground">{children}</h3>
+      <h3 className="text-base font-extrabold tracking-tight text-foreground">{children}</h3>
     </div>
   );
 }
@@ -288,7 +288,7 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
           {/* --- Details section --- */}
-          <section className="space-y-3 rounded-xl border border-border bg-muted/10 p-4">
+          <section className="space-y-3 rounded-xl border-2 border-border bg-muted/10 p-4 shadow-sm">
             <SectionHeader icon={User}>פרטים</SectionHeader>
 
             <div className="grid grid-cols-2 gap-3">
@@ -383,7 +383,7 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           </section>
 
           {/* --- Candidate details / notes --- */}
-          <section className="space-y-2 rounded-xl border border-border bg-muted/10 p-4">
+          <section className="space-y-2 rounded-xl border-2 border-border bg-muted/10 p-4 shadow-sm">
             <SectionHeader icon={StickyNote}>פירוט על המועמד</SectionHeader>
             <textarea
               value={details}
@@ -395,7 +395,7 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           </section>
 
           {/* --- CV section --- */}
-          <section className="space-y-2 rounded-xl border border-border bg-muted/10 p-4">
+          <section className="space-y-2 rounded-xl border-2 border-border bg-muted/10 p-4 shadow-sm">
             <SectionHeader icon={FileText}>קורות חיים</SectionHeader>
             {cvUrl ? (
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
@@ -437,7 +437,7 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           </section>
 
           {/* --- Activity log --- */}
-          <section className="space-y-3 rounded-xl border border-border bg-muted/10 p-4">
+          <section className="space-y-3 rounded-xl border-2 border-border bg-muted/10 p-4 shadow-sm">
             <SectionHeader icon={History}>יומן פעולות</SectionHeader>
 
             {/* New note input */}
