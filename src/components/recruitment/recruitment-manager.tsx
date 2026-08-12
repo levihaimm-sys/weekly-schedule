@@ -285,163 +285,167 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
 
         {/* Filters */}
         {!showArchived && (
-          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-            {/* Search + Status */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="חיפוש..."
-                  className="w-44 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
-                />
-              </div>
-              <div className="mx-1 h-6 w-px bg-border" />
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <Filter size={14} />
-                <span>סטטוס:</span>
-              </div>
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                  statusFilter === "all"
-                    ? "border-primary bg-primary/10 text-primary font-medium"
-                    : "border-border bg-background hover:bg-muted text-muted-foreground"
-                }`}
-              >
-                הכל ({activeCandidates.length})
-              </button>
-              {(Object.keys(RECRUITMENT_STATUS) as RecruitmentStatus[]).map((s) => (
+          <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+            {/* Primary filters — emphasized */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <Filter size={15} className="text-primary" />
+                  <span>סטטוס</span>
+                </div>
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s === statusFilter ? "all" : s)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                    statusFilter === s
-                      ? STATUS_COLORS[s] + " font-medium"
+                  onClick={() => setStatusFilter("all")}
+                  className={`rounded-lg border px-3.5 py-1.5 text-sm transition-all ${
+                    statusFilter === "all"
+                      ? "border-primary bg-primary/10 text-primary font-semibold shadow-sm"
                       : "border-border bg-background hover:bg-muted text-muted-foreground"
                   }`}
                 >
-                  {RECRUITMENT_STATUS[s]} ({statusCounts[s]})
+                  הכל ({activeCandidates.length})
                 </button>
-              ))}
-            </div>
-
-            {/* Seriousness filter */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <Filter size={14} />
-                <span>רצינות:</span>
+                {(Object.keys(RECRUITMENT_STATUS) as RecruitmentStatus[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s === statusFilter ? "all" : s)}
+                    className={`rounded-lg border px-3.5 py-1.5 text-sm transition-all ${
+                      statusFilter === s
+                        ? STATUS_COLORS[s] + " font-semibold shadow-sm"
+                        : "border-border bg-background hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {RECRUITMENT_STATUS[s]} ({statusCounts[s]})
+                  </button>
+                ))}
               </div>
-              <button
-                onClick={() => setSeriousnessFilter("all")}
-                className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                  seriousnessFilter === "all"
-                    ? "border-primary bg-primary/10 text-primary font-medium"
-                    : "border-border bg-background hover:bg-muted text-muted-foreground"
-                }`}
-              >
-                הכל ({activeCandidates.length})
-              </button>
-              {(Object.keys(RECRUITMENT_SERIOUSNESS) as RecruitmentSeriousness[]).map((s) => (
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <Filter size={15} className="text-primary" />
+                  <span>רצינות</span>
+                </div>
                 <button
-                  key={s}
-                  onClick={() => setSeriousnessFilter(s === seriousnessFilter ? "all" : s)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                    seriousnessFilter === s
-                      ? SERIOUSNESS_COLORS[s] + " font-medium"
+                  onClick={() => setSeriousnessFilter("all")}
+                  className={`rounded-lg border px-3.5 py-1.5 text-sm transition-all ${
+                    seriousnessFilter === "all"
+                      ? "border-primary bg-primary/10 text-primary font-semibold shadow-sm"
                       : "border-border bg-background hover:bg-muted text-muted-foreground"
                   }`}
                 >
-                  {RECRUITMENT_SERIOUSNESS[s]} ({seriousnessCounts[s]})
+                  הכל ({activeCandidates.length})
                 </button>
-              ))}
+                {(Object.keys(RECRUITMENT_SERIOUSNESS) as RecruitmentSeriousness[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSeriousnessFilter(s === seriousnessFilter ? "all" : s)}
+                    className={`rounded-lg border px-3.5 py-1.5 text-sm transition-all ${
+                      seriousnessFilter === s
+                        ? SERIOUSNESS_COLORS[s] + " font-semibold shadow-sm"
+                        : "border-border bg-background hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {RECRUITMENT_SERIOUSNESS[s]} ({seriousnessCounts[s]})
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <Calendar size={15} className="text-primary" />
+                  <span>תאריך פניה</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">מ-</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    dir="ltr"
+                    className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">עד-</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    dir="ltr"
+                    className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
+                  />
+                </div>
+                {hasDateFilter && (
+                  <button
+                    onClick={() => { setDateFrom(""); setDateTo(""); }}
+                    className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                  >
+                    <X size={11} /> נקה
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Date range */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <Calendar size={14} />
-                <span>תאריך פניה:</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">מ-</span>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  dir="ltr"
-                  className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">עד-</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  dir="ltr"
-                  className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
-                />
-              </div>
-              {hasDateFilter && (
-                <button
-                  onClick={() => { setDateFrom(""); setDateTo(""); }}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
-                >
-                  <X size={11} /> נקה
-                </button>
-              )}
-            </div>
-
-            {/* Area filter (collapsed by default) */}
-            {areas.length > 0 && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowAreaFilter((v) => !v)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                    selectedAreas.length > 0
-                      ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
-                      : "border-border bg-background hover:bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <MapPin size={14} />
-                  סינון אזור
-                  {selectedAreas.length > 0 && ` (${selectedAreas.length})`}
-                  {showAreaFilter ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </button>
-                {showAreaFilter && (
-                  <div className="flex flex-wrap items-center gap-2">
+            {/* Secondary group — search + area, clearly separated from the filters above */}
+            <div className="space-y-2 rounded-lg border border-dashed border-border bg-background/60 p-2.5">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative">
+                  <Search size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="חיפוש לפי שם, טלפון או אימייל..."
+                    className="w-56 rounded-lg border border-border bg-background py-1.5 pr-8 pl-3 text-sm placeholder:text-muted-foreground/60"
+                  />
+                </div>
+                {areas.length > 0 && (
+                  <>
+                    <div className="h-6 w-px bg-border" />
                     <button
-                      onClick={() => setSelectedAreas([])}
-                      className={`rounded-lg border px-3 py-1 text-xs transition-all ${
-                        selectedAreas.length === 0
-                          ? "border-primary bg-primary/10 text-primary font-medium"
+                      onClick={() => setShowAreaFilter((v) => !v)}
+                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-all ${
+                        selectedAreas.length > 0
+                          ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
                           : "border-border bg-background hover:bg-muted text-muted-foreground"
                       }`}
                     >
-                      הכל
+                      <MapPin size={14} />
+                      סינון אזור
+                      {selectedAreas.length > 0 && ` (${selectedAreas.length})`}
+                      {showAreaFilter ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
-                    {areas.map((area) => (
-                      <button
-                        key={area}
-                        onClick={() => toggleArea(area)}
-                        className={`rounded-lg border px-3 py-1 text-xs transition-all ${
-                          selectedAreas.includes(area)
-                            ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
-                            : "border-border bg-background hover:bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {area}
-                      </button>
-                    ))}
-                  </div>
+                  </>
                 )}
               </div>
-            )}
+              {showAreaFilter && areas.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    onClick={() => setSelectedAreas([])}
+                    className={`rounded-lg border px-3 py-1 text-xs transition-all ${
+                      selectedAreas.length === 0
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border bg-background hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    הכל
+                  </button>
+                  {areas.map((area) => (
+                    <button
+                      key={area}
+                      onClick={() => toggleArea(area)}
+                      className={`rounded-lg border px-3 py-1 text-xs transition-all ${
+                        selectedAreas.includes(area)
+                          ? "border-secondary bg-secondary/10 text-secondary-foreground font-medium"
+                          : "border-border bg-background hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {area}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between border-t border-border/60 pt-3">
               <span className="text-xs text-muted-foreground">{filtered.length} מועמדים בחיתוך הנוכחי</span>
               <button
                 onClick={() => setShowExport(true)}

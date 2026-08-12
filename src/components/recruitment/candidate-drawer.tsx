@@ -8,12 +8,16 @@ import {
   Loader2,
   Archive,
   ArchiveRestore,
+  User,
   UserCheck,
   Upload,
   FileText,
+  StickyNote,
+  History,
   ExternalLink,
   Send,
   Trash2,
+  type LucideIcon,
 } from "lucide-react";
 import {
   RECRUITMENT_STATUS,
@@ -85,6 +89,17 @@ const SERIOUSNESS_COLORS: Record<RecruitmentSeriousness, string> = {
   question_mark: "bg-amber-100 text-amber-700 border-amber-200",
   hot_active: "bg-rose-100 text-rose-700 border-rose-200",
 };
+
+function SectionHeader({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-border pb-2">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon size={13} />
+      </div>
+      <h3 className="text-sm font-bold text-foreground">{children}</h3>
+    </div>
+  );
+}
 
 export function CandidateDrawer({ candidate, onClose }: Props) {
   const router = useRouter();
@@ -273,8 +288,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
           {/* --- Details section --- */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">פרטים</h3>
+          <section className="space-y-3 rounded-xl border border-border bg-muted/10 p-4">
+            <SectionHeader icon={User}>פרטים</SectionHeader>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -368,8 +383,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           </section>
 
           {/* --- Candidate details / notes --- */}
-          <section className="space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">פירוט על המועמד</h3>
+          <section className="space-y-2 rounded-xl border border-border bg-muted/10 p-4">
+            <SectionHeader icon={StickyNote}>פירוט על המועמד</SectionHeader>
             <textarea
               value={details}
               onChange={(e) => setDetails(e.target.value)}
@@ -380,8 +395,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           </section>
 
           {/* --- CV section --- */}
-          <section className="space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">קורות חיים</h3>
+          <section className="space-y-2 rounded-xl border border-border bg-muted/10 p-4">
+            <SectionHeader icon={FileText}>קורות חיים</SectionHeader>
             {cvUrl ? (
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
                 <FileText size={16} className="shrink-0 text-muted-foreground" />
@@ -422,8 +437,8 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
           </section>
 
           {/* --- Activity log --- */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">יומן פעולות</h3>
+          <section className="space-y-3 rounded-xl border border-border bg-muted/10 p-4">
+            <SectionHeader icon={History}>יומן פעולות</SectionHeader>
 
             {/* New note input */}
             <div className="flex gap-2">
@@ -468,15 +483,19 @@ export function CandidateDrawer({ candidate, onClose }: Props) {
                 ))
               )}
             </div>
+          </section>
+
+          {/* --- Save action --- */}
+          <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-border bg-background/95 px-5 py-3 backdrop-blur-sm">
             <button
               onClick={handleSave}
               disabled={isPending}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               שמור שינויים
             </button>
-          </section>
+          </div>
         </div>
 
         {/* Footer actions */}

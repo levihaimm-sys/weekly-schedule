@@ -73,7 +73,7 @@ export type RecruitmentStatus = keyof typeof RECRUITMENT_STATUS;
 
 export const RECRUITMENT_SERIOUSNESS = {
   inactive: "לא פעיל",
-  initial_screening: "תהליכי סינון ראשוניים",
+  initial_screening: "סינון ראשוני",
   question_mark: "בסימן שאלה",
   hot_active: "מועמד חם ופעיל",
 } as const;
