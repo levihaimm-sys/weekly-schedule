@@ -80,6 +80,22 @@ export const RECRUITMENT_SERIOUSNESS = {
 
 export type RecruitmentSeriousness = keyof typeof RECRUITMENT_SERIOUSNESS;
 
+export const CLIENT_STATUS = {
+  existing_client: "לקוח קיים",
+  potential_client: "לקוח פוטנציאלי",
+  not_relevant: "לא רלוונטי",
+} as const;
+
+export type ClientStatus = keyof typeof CLIENT_STATUS;
+
+export const CLIENT_PRIORITY = {
+  high: "גבוהה",
+  medium: "בינונית",
+  low: "נמוכה",
+} as const;
+
+export type ClientPriority = keyof typeof CLIENT_PRIORITY;
+
 export const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
   "גבעתיים": "טומשין",

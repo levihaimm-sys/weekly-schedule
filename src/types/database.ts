@@ -191,13 +191,29 @@ export interface WeeklyLessonAssignmentWithDetails extends WeeklyLessonAssignmen
 export interface ClientRecord {
   id: string;
   name: string;
+  legal_name: string | null;
+  org_type: string | null;
+  category: string | null;
+  region: string | null;
   primary_contact_name: string | null;
   primary_contact_phone: string | null;
   primary_contact_email: string | null;
   secondary_contact_name: string | null;
   secondary_contact_phone: string | null;
   secondary_contact_email: string | null;
+  website: string | null;
+  notes: string | null;
+  priority: string | null;
+  status: string;
+  is_archived: boolean;
   monthly_report_link: string | null;
+  created_at: string;
+}
+
+export interface ClientActivity {
+  id: string;
+  client_id: string;
+  note: string;
   created_at: string;
 }
 
