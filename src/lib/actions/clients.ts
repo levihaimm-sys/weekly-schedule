@@ -13,6 +13,7 @@ export async function addClient(formData: FormData) {
   const orgType = (formData.get("org_type") as string)?.trim();
   const category = (formData.get("category") as string)?.trim();
   const region = (formData.get("region") as string)?.trim();
+  const contactName = (formData.get("contact_name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();
   const email = (formData.get("email") as string)?.trim();
   const website = (formData.get("website") as string)?.trim();
@@ -26,6 +27,7 @@ export async function addClient(formData: FormData) {
     org_type: orgType || null,
     category: category || null,
     region: region || null,
+    primary_contact_name: contactName || null,
     primary_contact_phone: phone || null,
     primary_contact_email: email || null,
     website: website || null,

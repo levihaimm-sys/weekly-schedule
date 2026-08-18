@@ -205,6 +205,7 @@ export interface ClientRecord {
   notes: string | null;
   priority: string | null;
   status: string;
+  last_contact_date: string | null;
   is_archived: boolean;
   monthly_report_link: string | null;
   created_at: string;

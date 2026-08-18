@@ -57,7 +57,7 @@ export function ClientDrawer({ client, onClose }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [showContactSection, setShowContactSection] = useState(
-    !!(client.primary_contact_name || client.secondary_contact_name || client.secondary_contact_phone || client.secondary_contact_email || client.monthly_report_link)
+    !!(client.secondary_contact_name || client.secondary_contact_phone || client.secondary_contact_email || client.monthly_report_link)
   );
 
   // Core fields — every column from the supplier research sheet
@@ -66,15 +66,16 @@ export function ClientDrawer({ client, onClose }: Props) {
   const [orgType, setOrgType] = useState(client.org_type ?? "");
   const [category, setCategory] = useState(client.category ?? "");
   const [region, setRegion] = useState(client.region ?? "");
+  const [contactName, setContactName] = useState(client.primary_contact_name ?? "");
   const [phone, setPhone] = useState(client.primary_contact_phone ?? "");
   const [email, setEmail] = useState(client.primary_contact_email ?? "");
   const [website, setWebsite] = useState(client.website ?? "");
   const [status, setStatus] = useState<ClientStatus>((client.status as ClientStatus) ?? "potential_client");
   const [priority, setPriority] = useState<ClientPriority | "">((client.priority as ClientPriority) ?? "");
+  const [lastContactDate, setLastContactDate] = useState(client.last_contact_date ?? "");
   const [notes, setNotes] = useState(client.notes ?? "");
 
   // Secondary / report-contact fields (less common, collapsed by default)
-  const [primaryName, setPrimaryName] = useState(client.primary_contact_name ?? "");
   const [secondaryName, setSecondaryName] = useState(client.secondary_contact_name ?? "");
   const [secondaryPhone, setSecondaryPhone] = useState(client.secondary_contact_phone ?? "");
   const [secondaryEmail, setSecondaryEmail] = useState(client.secondary_contact_email ?? "");
@@ -113,8 +114,9 @@ export function ClientDrawer({ client, onClose }: Props) {
           website: website.trim() || null,
           status,
           priority: priority || null,
+          last_contact_date: lastContactDate || null,
           notes: notes.trim() || null,
-          primary_contact_name: primaryName.trim() || null,
+          primary_contact_name: contactName.trim() || null,
           secondary_contact_name: secondaryName.trim() || null,
           secondary_contact_phone: secondaryPhone.trim() || null,
           secondary_contact_email: secondaryEmail.trim() || null,
@@ -230,7 +232,16 @@ export function ClientDrawer({ client, onClose }: Props) {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">טלפון</label>
+              <label className="mb-1 block text-xs text-muted-foreground">שם איש קשר</label>
+              <div className="flex items-center gap-2">
+                <User size={14} className="shrink-0 text-muted-foreground" />
+                <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="שם איש קשר"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">טלפון איש קשר</label>
               <div className="flex items-center gap-2">
                 <Phone size={14} className="shrink-0 text-muted-foreground" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="050-0000000" dir="ltr" type="tel"
@@ -281,6 +292,13 @@ export function ClientDrawer({ client, onClose }: Props) {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">תאריך פניה אחרון</label>
+              <input value={lastContactDate} onChange={(e) => setLastContactDate(e.target.value)} type="date" dir="ltr"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <p className="mt-1 text-xs text-muted-foreground/70">מתעדכן ידנית בלבד — לא משתנה אוטומטית כשמוסיפים הערה ביומן</p>
             </div>
           </section>
 
@@ -354,20 +372,13 @@ export function ClientDrawer({ client, onClose }: Props) {
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <User size={14} />
                 </div>
-                <h3 className="text-base font-extrabold tracking-tight text-foreground">איש קשר ודוחות חודשיים</h3>
+                <h3 className="text-base font-extrabold tracking-tight text-foreground">איש קשר משני ודוחות חודשיים</h3>
               </div>
               <ChevronDown size={16} className={`text-muted-foreground transition-transform ${showContactSection ? "rotate-180" : ""}`} />
             </button>
 
             {showContactSection && (
               <div className="space-y-3 p-4 pt-0">
-                <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">שם איש קשר</label>
-                  <input value={primaryName} onChange={(e) => setPrimaryName(e.target.value)} placeholder="שם איש קשר"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                </div>
-
-                <p className="pt-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">איש קשר משני</p>
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">שם</label>
                   <input value={secondaryName} onChange={(e) => setSecondaryName(e.target.value)} placeholder="שם איש קשר"

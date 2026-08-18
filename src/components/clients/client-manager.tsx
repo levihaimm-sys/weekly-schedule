@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Loader2, Check, Phone, Search,
-  Filter, Archive, ArchiveRestore, Trash2, MapPin, ChevronUp, ChevronDown,
+  Filter, Archive, ArchiveRestore, Trash2, MapPin, ChevronUp, ChevronDown, User,
 } from "lucide-react";
 import { CLIENT_STATUS, ClientStatus, CLIENT_PRIORITY, ClientPriority } from "@/lib/utils/constants";
 import { addClient, bulkArchiveClients, bulkDeleteClients } from "@/lib/actions/clients";
@@ -18,11 +18,11 @@ const STATUS_COLORS: Record<ClientStatus | "all", string> = {
   not_relevant: "bg-red-50 text-red-700 border-red-200",
 };
 
-const PRIORITY_COLORS: Record<ClientPriority, string> = {
-  high: "bg-rose-50 text-rose-700 border-rose-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  low: "bg-gray-50 text-gray-700 border-gray-200",
-};
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+}
 
 interface Props {
   clients: ClientRecord[];
@@ -214,7 +214,12 @@ export function ClientManager({ clients, lastActivityMap }: Props) {
               </div>
               <div className="flex flex-wrap gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground">טלפון</label>
+                  <label className="text-xs text-muted-foreground">שם איש קשר</label>
+                  <input name="contact_name" type="text" placeholder="שם איש קשר"
+                    className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">טלפון איש קשר</label>
                   <input name="phone" type="tel" placeholder="050-0000000" dir="ltr"
                     className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
@@ -460,18 +465,17 @@ export function ClientManager({ clients, lastActivityMap }: Props) {
                   <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="cursor-pointer accent-primary" />
                 </th>
                 <th className="px-3 py-2.5 whitespace-nowrap">שם</th>
-                <th className="px-3 py-2.5 whitespace-nowrap">קטגוריה</th>
-                <th className="px-3 py-2.5 whitespace-nowrap">אזור</th>
-                <th className="px-3 py-2.5 whitespace-nowrap">טלפון</th>
-                <th className="px-3 py-2.5 whitespace-nowrap">עדיפות</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">שם איש קשר</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">טלפון איש קשר</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">תאריך פניה אחרון</th>
                 <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
-                <th className="px-3 py-2.5 w-full">עדכון אחרון</th>
+                <th className="px-3 py-2.5 w-full">יומן ההתקשרות</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={7} className="py-10 text-center text-muted-foreground">
                     {showArchived ? "אין לקוחות בארכיון" : "אין לקוחות להצגה"}
                   </td>
                 </tr>
@@ -497,8 +501,16 @@ export function ClientManager({ clients, lastActivityMap }: Props) {
                         <p className="text-xs text-muted-foreground/70">{client.legal_name}</p>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{client.category ?? "—"}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{client.region ?? "—"}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                      {client.primary_contact_name ? (
+                        <span className="flex items-center gap-1">
+                          <User size={12} className="shrink-0" />
+                          {client.primary_contact_name}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground" dir="ltr">
                       {client.primary_contact_phone ? (
                         <span className="flex items-center gap-1">
@@ -509,14 +521,8 @@ export function ClientManager({ clients, lastActivityMap }: Props) {
                         <span className="text-muted-foreground/40">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {client.priority ? (
-                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${PRIORITY_COLORS[client.priority as ClientPriority] ?? PRIORITY_COLORS.low}`}>
-                          {CLIENT_PRIORITY[client.priority as ClientPriority] ?? client.priority}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/40">—</span>
-                      )}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                      {formatDate(client.last_contact_date) ?? <span className="text-muted-foreground/40">—</span>}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[client.status as ClientStatus] ?? STATUS_COLORS.potential_client}`}>
