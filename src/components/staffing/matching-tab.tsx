@@ -120,7 +120,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">אזור / מיקום</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">אזור</th>
               <th className="px-3 py-2.5 whitespace-nowrap">מועד</th>
               <th className="px-3 py-2.5 whitespace-nowrap">חוג</th>
               <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
@@ -174,10 +174,7 @@ function NeedRow({
           {need.client_name}
         </button>
       </td>
-      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-        {need.region ?? "—"}
-        {need.location_name ? ` · ${need.location_name}` : ""}
-      </td>
+      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{need.region ?? "—"}</td>
       <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
         {dayLabel(need.day_of_week)} · {timePeriodLabel(need.time_period)}
         {need.start_time ? ` (${need.start_time})` : ""}
