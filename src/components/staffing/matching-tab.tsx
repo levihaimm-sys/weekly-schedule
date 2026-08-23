@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, MapPin, UserPlus, Loader2 } from "lucide-react";
-import { DAYS_HEBREW, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
+import { Check, X, Plus, Loader2 } from "lucide-react";
+import { DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch } from "@/lib/utils/staffing";
 import {
   addAssignmentCandidate,
@@ -11,6 +11,7 @@ import {
   unconfirmAssignment,
   deleteAssignment,
 } from "@/lib/actions/staffing";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
 
 interface Props {
@@ -26,69 +27,182 @@ const STATUS_COLORS: Record<NeedStatus, string> = {
 };
 
 export function MatchingTab({ availability, needs, assignments }: Props) {
-  const router = useRouter();
-  const [selectedNeedId, setSelectedNeedId] = useState<string | null>(needs[0]?.id ?? null);
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [manualName, setManualName] = useState("");
-  const [dayChoice, setDayChoice] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState<string[]>([]);
+  const [clientFilter, setClientFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
-  const openNeeds = needs.filter((n) => n.status !== "filled");
-  const filledNeeds = needs.filter((n) => n.status === "filled");
-  const sortedNeeds = [...openNeeds, ...filledNeeds];
+  const regionOptions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
+  const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) => a.localeCompare(b, "he"));
 
-  const selectedNeed = needs.find((n) => n.id === selectedNeedId) ?? null;
-
-  const needAssignments = useMemo(
-    () => assignments.filter((a) => a.need_id === selectedNeedId),
-    [assignments, selectedNeedId]
-  );
-
-  const compatibleSlots = useMemo(() => {
-    if (!selectedNeed) return [];
-    const alreadyLinked = new Set(needAssignments.map((a) => a.availability_id).filter(Boolean));
-    return availability.filter((a) => {
-      if (a.status !== "available") return false;
-      if (alreadyLinked.has(a.id)) return false;
-      if (!regionsMatch(a.region, selectedNeed.region)) return false;
-      if (selectedNeed.day_of_week !== null && a.day_of_week !== null && a.day_of_week !== selectedNeed.day_of_week)
-        return false;
+  const filtered = useMemo(() => {
+    return needs.filter((n) => {
+      if (regionFilter.length > 0 && !regionFilter.includes(n.region ?? "")) return false;
+      if (clientFilter.length > 0 && !clientFilter.includes(n.client_name)) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(n.status)) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const match =
+          n.client_name.toLowerCase().includes(q) ||
+          (n.region ?? "").toLowerCase().includes(q) ||
+          (n.location_name ?? "").toLowerCase().includes(q) ||
+          (n.field ?? "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
       return true;
     });
-  }, [availability, selectedNeed, needAssignments]);
+  }, [needs, regionFilter, clientFilter, statusFilter, search]);
 
-  async function handleAddFromSlot(slot: StaffingAvailability) {
-    if (!selectedNeed) return;
-    setPendingId(slot.id);
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש לקוח / אזור / חוג"
+          className="w-52 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+        <MultiSelectFilter
+          options={regionOptions.map((r) => ({ value: r, label: r }))}
+          selected={regionFilter}
+          onChange={setRegionFilter}
+          placeholder="כל האזורים"
+        />
+        <MultiSelectFilter
+          options={clientOptions.map((c) => ({ value: c, label: c }))}
+          selected={clientFilter}
+          onChange={setClientFilter}
+          placeholder="כל הלקוחות"
+        />
+        <MultiSelectFilter
+          options={(Object.keys(NEED_STATUS) as NeedStatus[]).map((s) => ({ value: s, label: NEED_STATUS[s] }))}
+          selected={statusFilter}
+          onChange={setStatusFilter}
+          placeholder="כל הסטטוסים"
+        />
+        <span className="text-sm text-muted-foreground">{filtered.length} שיעורים</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <table className="w-full min-w-[920px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+              <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">אזור / מיקום</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">מועד</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">חוג</th>
+              <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
+              <th className="px-3 py-2.5 min-w-[220px]">מדריך/ה משובץ/ת</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                  אין שיעורים נדרשים תואמים
+                </td>
+              </tr>
+            ) : (
+              filtered.map((n) => (
+                <NeedRow
+                  key={n.id}
+                  need={n}
+                  availability={availability}
+                  assignments={assignments.filter((a) => a.need_id === n.id)}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function NeedRow({
+  need,
+  availability,
+  assignments,
+}: {
+  need: StaffingNeed;
+  availability: StaffingAvailability[];
+  assignments: StaffingAssignment[];
+}) {
+  return (
+    <tr>
+      <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">{need.client_name}</td>
+      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+        {need.region ?? "—"}
+        {need.location_name ? ` · ${need.location_name}` : ""}
+      </td>
+      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+        {dayLabel(need.day_of_week)} · {timePeriodLabel(need.time_period)}
+        {need.start_time ? ` (${need.start_time})` : ""}
+      </td>
+      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{need.field ?? "—"}</td>
+      <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{need.lessons_count}</td>
+      <td className="px-3 py-2.5 align-top whitespace-nowrap">
+        <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[need.status as NeedStatus]}`}>
+          {NEED_STATUS[need.status as NeedStatus]}
+        </span>
+      </td>
+      <td className="px-3 py-2 align-top">
+        <AssignmentCell need={need} availability={availability} assignments={assignments} />
+      </td>
+    </tr>
+  );
+}
+
+function AssignmentCell({
+  need,
+  availability,
+  assignments,
+}: {
+  need: StaffingNeed;
+  availability: StaffingAvailability[];
+  assignments: StaffingAssignment[];
+}) {
+  const router = useRouter();
+  const [newName, setNewName] = useState("");
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [dayChoice, setDayChoice] = useState<Record<string, string>>({});
+
+  const linkedAvailabilityIds = new Set(assignments.map((a) => a.availability_id).filter(Boolean));
+  const compatibleSlots = availability.filter(
+    (a) =>
+      a.status === "available" &&
+      !linkedAvailabilityIds.has(a.id) &&
+      regionsMatch(a.region, need.region) &&
+      (need.day_of_week === null || a.day_of_week === null || a.day_of_week === need.day_of_week)
+  );
+  const suggestedNames = Array.from(new Set(compatibleSlots.map((s) => s.instructor_name)));
+  const datalistId = `staffing-suggest-${need.id}`;
+
+  async function handleAdd() {
+    const name = newName.trim();
+    if (!name) return;
+    setPendingId("new");
+    const matchedSlot = compatibleSlots.find((s) => s.instructor_name === name) ?? null;
     await addAssignmentCandidate({
-      need_id: selectedNeed.id,
-      instructor_name: slot.instructor_name,
-      availability_id: slot.id,
+      need_id: need.id,
+      instructor_name: name,
+      availability_id: matchedSlot?.id ?? null,
     });
     setPendingId(null);
+    setNewName("");
     router.refresh();
   }
 
-  async function handleAddManual() {
-    if (!selectedNeed || !manualName.trim()) return;
-    setPendingId("manual");
-    await addAssignmentCandidate({
-      need_id: selectedNeed.id,
-      instructor_name: manualName,
-    });
-    setPendingId(null);
-    setManualName("");
-    router.refresh();
-  }
+  async function handleConfirm(assignment: StaffingAssignment, dayOverride?: number) {
+    const slot = assignment.availability_id ? availability.find((s) => s.id === assignment.availability_id) ?? null : null;
+    const needsDay = need.day_of_week === null && (slot?.day_of_week ?? null) === null;
+    let dayToUse: number | null = need.day_of_week ?? slot?.day_of_week ?? null;
 
-  async function handleConfirm(assignment: StaffingAssignment, availabilitySlot: StaffingAvailability | null) {
-    const needDay = selectedNeed?.day_of_week ?? null;
-    const slotDay = availabilitySlot?.day_of_week ?? null;
-    let dayToUse: number | null = needDay ?? slotDay;
-
-    if (dayToUse === null) {
-      const chosen = dayChoice[assignment.id];
-      if (chosen === undefined || chosen === "") return;
-      dayToUse = Number(chosen);
+    if (needsDay) {
+      const chosen = dayOverride ?? (dayChoice[assignment.id] ? Number(dayChoice[assignment.id]) : undefined);
+      if (chosen === undefined) return;
+      dayToUse = chosen;
     }
 
     setPendingId(assignment.id);
@@ -112,183 +226,74 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-[320px_1fr]">
-      {/* Needs list */}
-      <div className="space-y-1.5 md:max-h-[calc(100vh-260px)] md:overflow-y-auto">
-        {sortedNeeds.map((n) => {
-          const count = assignments.filter((a) => a.need_id === n.id && a.is_confirmed).length;
-          return (
-            <button
-              key={n.id}
-              onClick={() => setSelectedNeedId(n.id)}
-              className={`w-full rounded-lg border p-3 text-start text-sm transition-colors ${
-                selectedNeedId === n.id ? "border-primary bg-secondary/10" : "border-border bg-background hover:bg-muted/40"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium">{n.client_name}</p>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[n.status as NeedStatus]}`}>
-                  {count}/{n.lessons_count}
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {n.region ?? "—"} · {dayLabel(n.day_of_week)} · {timePeriodLabel(n.time_period)}
-                {n.field ? ` · ${n.field}` : ""}
-              </p>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {assignments.map((a) => {
+        const slot = a.availability_id ? availability.find((s) => s.id === a.availability_id) ?? null : null;
+        const needsDay = !a.is_confirmed && need.day_of_week === null && (slot?.day_of_week ?? null) === null;
+        return (
+          <span
+            key={a.id}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap ${
+              a.is_confirmed ? "border-green-200 bg-green-50 text-green-800" : "border-border bg-muted/30 text-muted-foreground"
+            }`}
+          >
+            {a.instructor_name}
+            {a.is_confirmed ? (
+              <button onClick={() => handleUnconfirm(a.id)} title="בטל אישור" className="hover:text-amber-700">
+                {pendingId === a.id ? <Loader2 size={11} className="animate-spin" /> : "✓"}
+              </button>
+            ) : needsDay ? (
+              <select
+                value={dayChoice[a.id] ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDayChoice((prev) => ({ ...prev, [a.id]: val }));
+                  if (val) handleConfirm(a, Number(val));
+                }}
+                className="rounded border border-border bg-background text-[10px]"
+              >
+                <option value="">יום?</option>
+                {DAYS_SHORT.map((d, i) => (
+                  <option key={d} value={i}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <button onClick={() => handleConfirm(a)} title="אשר שיבוץ" className="hover:text-green-700">
+                {pendingId === a.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+              </button>
+            )}
+            <button onClick={() => handleRemove(a.id)} title="הסר" className="hover:text-red-600">
+              <X size={11} />
             </button>
-          );
-        })}
-        {sortedNeeds.length === 0 && <p className="text-sm text-muted-foreground">אין שיעורים נדרשים עדיין</p>}
-      </div>
+          </span>
+        );
+      })}
 
-      {/* Selected need detail */}
-      <div className="space-y-4">
-        {!selectedNeed ? (
-          <p className="text-sm text-muted-foreground">בחר שיעור נדרש מהרשימה</p>
-        ) : (
-          <>
-            <div className="rounded-xl border border-border bg-background p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-lg font-bold">{selectedNeed.client_name}</h3>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[selectedNeed.status as NeedStatus]}`}>
-                  {NEED_STATUS[selectedNeed.status as NeedStatus]}
-                </span>
-              </div>
-              <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin size={13} />
-                {selectedNeed.region ?? "—"}
-                {selectedNeed.location_name ? ` · ${selectedNeed.location_name}` : ""}
-                {" · "}
-                {dayLabel(selectedNeed.day_of_week)} · {timePeriodLabel(selectedNeed.time_period)}
-                {selectedNeed.start_time ? ` (${selectedNeed.start_time})` : ""}
-                {selectedNeed.field ? ` · ${selectedNeed.field}` : ""}
-                {` · נדרשים ${selectedNeed.lessons_count} שיעורים`}
-              </p>
-              {selectedNeed.notes && <p className="mt-1 text-sm text-muted-foreground">{selectedNeed.notes}</p>}
-            </div>
-
-            {/* Current candidates / confirmed */}
-            <div className="rounded-xl border border-border bg-background p-4">
-              <h4 className="mb-2 font-medium">מדריכים משויכים</h4>
-              {needAssignments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">עדיין לא נבחרו מועמדים לשיעור זה</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {needAssignments.map((a) => {
-                    const slot = a.availability_id ? availability.find((s) => s.id === a.availability_id) ?? null : null;
-                    const needsDay = a.is_confirmed
-                      ? null
-                      : selectedNeed.day_of_week === null && (slot?.day_of_week ?? null) === null;
-                    return (
-                      <div
-                        key={a.id}
-                        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
-                          a.is_confirmed ? "border-green-200 bg-green-50" : "border-border bg-muted/20"
-                        }`}
-                      >
-                        <div>
-                          <span className="font-medium">{a.instructor_name}</span>
-                          <span className="ms-2 text-xs text-muted-foreground">
-                            {a.is_confirmed ? dayLabel(a.assigned_day_of_week) : dayLabel(slot?.day_of_week ?? null)}
-                            {a.is_confirmed && " · מאושר"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!a.is_confirmed && needsDay && (
-                            <select
-                              value={dayChoice[a.id] ?? ""}
-                              onChange={(e) => setDayChoice((prev) => ({ ...prev, [a.id]: e.target.value }))}
-                              className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
-                            >
-                              <option value="">בחר יום...</option>
-                              {DAYS_HEBREW.map((d, i) => (
-                                <option key={d} value={i}>
-                                  {d}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                          {a.is_confirmed ? (
-                            <button
-                              onClick={() => handleUnconfirm(a.id)}
-                              disabled={pendingId === a.id}
-                              className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                            >
-                              בטל אישור
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleConfirm(a, slot)}
-                              disabled={pendingId === a.id || (needsDay && !dayChoice[a.id])}
-                              className="flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
-                            >
-                              {pendingId === a.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                              אשר שיבוץ
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleRemove(a.id)}
-                            disabled={pendingId === a.id}
-                            className="text-muted-foreground hover:text-red-600 disabled:opacity-50"
-                            title="הסר"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Compatible availability slots */}
-            <div className="rounded-xl border border-border bg-background p-4">
-              <h4 className="mb-2 font-medium">מדריכים פנויים מתאימים</h4>
-              {compatibleSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">אין משבצות זמינות תואמות כרגע</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {compatibleSlots.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-1.5 text-sm">
-                      <span>
-                        {s.instructor_name}
-                        <span className="ms-2 text-xs text-muted-foreground">
-                          {s.region} · {dayLabel(s.day_of_week)} · {timePeriodLabel(s.time_period)}
-                        </span>
-                      </span>
-                      <button
-                        onClick={() => handleAddFromSlot(s)}
-                        disabled={pendingId === s.id}
-                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                      >
-                        {pendingId === s.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
-                        הוסף כמועמד
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-                <input
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  placeholder="הוסף מדריך אחר ידנית (שם)..."
-                  className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
-                />
-                <button
-                  onClick={handleAddManual}
-                  disabled={!manualName.trim() || pendingId === "manual"}
-                  className="rounded-lg border border-border px-2 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
-                >
-                  הוסף
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      <span className="inline-flex items-center gap-1">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          list={datalistId}
+          placeholder="הוסף מדריך/ה..."
+          className="w-32 rounded-lg border border-border bg-background px-2 py-1 text-xs"
+        />
+        <datalist id={datalistId}>
+          {suggestedNames.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+        <button
+          onClick={handleAdd}
+          disabled={!newName.trim() || pendingId === "new"}
+          className="rounded-lg border border-border p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
+          title="הוסף"
+        >
+          {pendingId === "new" ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+        </button>
+      </span>
     </div>
   );
 }
