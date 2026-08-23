@@ -12,7 +12,7 @@ export default async function StaffingPage() {
     supabase
       .from("staffing_needs")
       .select(
-        "id, client_name, region, location_name, address, day_of_week, time_period, start_time, field, lessons_count, status, notes, created_at"
+        "id, client_name, region, location_name, address, manager_name, contact_name, framework, framework_name, start_date, day_of_week, time_period, start_time, field, lessons_count, status, notes, created_at"
       )
       .order("created_at"),
     supabase

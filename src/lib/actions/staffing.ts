@@ -353,23 +353,47 @@ export async function confirmAssignment(id: string, assignedDayOfWeek?: number |
 
   const { data: assignment, error: fetchError } = await supabase
     .from("staffing_assignments")
-    .select("id, need_id, availability_id")
+    .select("id, need_id, availability_id, instructor_name")
     .eq("id", id)
     .single();
 
   if (fetchError || !assignment) return { error: "שיבוץ לא נמצא" };
 
   let dayOfWeek = assignedDayOfWeek ?? null;
-  if (assignment.availability_id) {
+  let availabilityId = assignment.availability_id;
+
+  if (availabilityId) {
     if (dayOfWeek === null || dayOfWeek === undefined) {
       const { data: availability } = await supabase
         .from("staffing_availability")
         .select("day_of_week")
-        .eq("id", assignment.availability_id)
+        .eq("id", availabilityId)
         .single();
       dayOfWeek = availability?.day_of_week ?? null;
     }
-    await supabase.from("staffing_availability").update({ status: "assigned" }).eq("id", assignment.availability_id);
+  } else if (dayOfWeek !== null && dayOfWeek !== undefined) {
+    // No slot was linked when this assignment was created (e.g. typed in manually and the
+    // need's region text didn't match the instructor's availability region) — look one up now
+    // by instructor + day so their availability still gets marked as taken once confirmed.
+    const { data: candidateSlots } = await supabase
+      .from("staffing_availability")
+      .select("id, day_of_week")
+      .eq("instructor_name", assignment.instructor_name)
+      .eq("status", "available");
+
+    const matchedSlot =
+      (candidateSlots ?? []).find((s) => s.day_of_week === dayOfWeek) ??
+      (candidateSlots ?? []).find((s) => s.day_of_week === null) ??
+      null;
+
+    if (matchedSlot) {
+      availabilityId = matchedSlot.id;
+      await supabase.from("staffing_assignments").update({ availability_id: availabilityId }).eq("id", id);
+    }
+  }
+
+  if (availabilityId) {
+    await supabase.from("staffing_availability").update({ status: "assigned" }).eq("id", availabilityId);
   }
 
   const { error } = await supabase
