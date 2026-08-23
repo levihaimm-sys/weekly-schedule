@@ -6,20 +6,35 @@ import { Plus, Loader2, Check, X, Search } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, TIME_PERIODS, TimePeriod } from "@/lib/utils/constants";
 import { timePeriodLabel } from "@/lib/utils/staffing";
 import { addAvailability, deleteAvailability } from "@/lib/actions/staffing";
-import type { StaffingAvailability } from "@/types/database";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { AvailabilityEditModal } from "./availability-edit-modal";
+import type { StaffingAvailability, StaffingAssignment, StaffingNeed } from "@/types/database";
 
 interface Props {
   availability: StaffingAvailability[];
+  assignments: StaffingAssignment[];
+  needs: StaffingNeed[];
 }
 
 const FLEXIBLE = "flex";
 
-export function AvailabilityTab({ availability }: Props) {
+const AVAILABILITY_STATUS_LABEL: Record<string, string> = {
+  available: "פנוי",
+  assigned: "משובץ",
+};
+
+export function AvailabilityTab({ availability, assignments, needs }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [editingSlot, setEditingSlot] = useState<StaffingAvailability | null>(null);
+
+  const [regionFilter, setRegionFilter] = useState<string[]>([]);
+  const [dayFilter, setDayFilter] = useState<string[]>([]);
+  const [timePeriodFilter, setTimePeriodFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   const [instructorName, setInstructorName] = useState("");
   const [region, setRegion] = useState("");
@@ -35,10 +50,27 @@ export function AvailabilityTab({ availability }: Props) {
     a.localeCompare(b, "he")
   );
 
+  const filteredSlots = useMemo(() => {
+    return availability.filter((a) => {
+      if (regionFilter.length > 0 && !regionFilter.includes(a.region)) return false;
+      if (dayFilter.length > 0) {
+        const dayKey = a.day_of_week === null ? FLEXIBLE : String(a.day_of_week);
+        if (!dayFilter.includes(dayKey)) return false;
+      }
+      if (timePeriodFilter.length > 0 && !timePeriodFilter.includes(a.time_period)) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(a.status)) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!a.instructor_name.toLowerCase().includes(q) && !a.region.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [availability, regionFilter, dayFilter, timePeriodFilter, statusFilter, search]);
+
   // One row per (instructor, region) combo, so an instructor working several areas gets a row each.
-  const rows = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const map = new Map<string, { name: string; region: string; slots: StaffingAvailability[] }>();
-    for (const a of availability) {
+    for (const a of filteredSlots) {
       const key = `${a.instructor_name}||${a.region}`;
       const existing = map.get(key);
       if (existing) existing.slots.push(a);
@@ -47,13 +79,19 @@ export function AvailabilityTab({ availability }: Props) {
     return Array.from(map.values()).sort(
       (a, b) => a.name.localeCompare(b.name, "he") || a.region.localeCompare(b.region, "he")
     );
-  }, [availability]);
+  }, [filteredSlots]);
 
-  const filteredRows = rows.filter((r) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return r.name.toLowerCase().includes(q) || r.region.toLowerCase().includes(q);
-  });
+  // Only a confirmed assignment actually closes off a slot; look up the need it's tied to
+  // so the slot can be shown red once that need is fully staffed (not just reserved).
+  const needStatusByAvailabilityId = useMemo(() => {
+    const map = new Map<string, StaffingNeed["status"]>();
+    for (const a of assignments) {
+      if (!a.is_confirmed || !a.availability_id) continue;
+      const need = needs.find((n) => n.id === a.need_id);
+      if (need) map.set(a.availability_id, need.status);
+    }
+    return map;
+  }, [assignments, needs]);
 
   function toggleDay(value: string) {
     setSelectedDays((prev) => (prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value]));
@@ -122,6 +160,33 @@ export function AvailabilityTab({ availability }: Props) {
             הוסף זמינות
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <MultiSelectFilter
+          options={existingRegions.map((r) => ({ value: r, label: r }))}
+          selected={regionFilter}
+          onChange={setRegionFilter}
+          placeholder="כל האזורים"
+        />
+        <MultiSelectFilter
+          options={[...DAYS_HEBREW.map((d, i) => ({ value: String(i), label: d })), { value: FLEXIBLE, label: "גמיש" }]}
+          selected={dayFilter}
+          onChange={setDayFilter}
+          placeholder="כל הימים"
+        />
+        <MultiSelectFilter
+          options={(Object.keys(TIME_PERIODS) as TimePeriod[]).map((p) => ({ value: p, label: TIME_PERIODS[p] }))}
+          selected={timePeriodFilter}
+          onChange={setTimePeriodFilter}
+          placeholder="כל חלקי היום"
+        />
+        <MultiSelectFilter
+          options={Object.entries(AVAILABILITY_STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+          selected={statusFilter}
+          onChange={setStatusFilter}
+          placeholder="כל הסטטוסים"
+        />
       </div>
 
       {addFormOpen && (
@@ -281,7 +346,13 @@ export function AvailabilityTab({ availability }: Props) {
                         {r.slots
                           .filter((s) => s.day_of_week === day)
                           .map((s) => (
-                            <SlotBadge key={s.id} slot={s} onDelete={handleDelete} />
+                            <SlotBadge
+                              key={s.id}
+                              slot={s}
+                              onDelete={handleDelete}
+                              onEdit={setEditingSlot}
+                              needStatus={needStatusByAvailabilityId.get(s.id)}
+                            />
                           ))}
                       </div>
                     </td>
@@ -291,7 +362,13 @@ export function AvailabilityTab({ availability }: Props) {
                       {r.slots
                         .filter((s) => s.day_of_week === null)
                         .map((s) => (
-                          <SlotBadge key={s.id} slot={s} onDelete={handleDelete} />
+                          <SlotBadge
+                            key={s.id}
+                            slot={s}
+                            onDelete={handleDelete}
+                            onEdit={setEditingSlot}
+                            needStatus={needStatusByAvailabilityId.get(s.id)}
+                          />
                         ))}
                     </div>
                   </td>
@@ -301,22 +378,39 @@ export function AvailabilityTab({ availability }: Props) {
           </tbody>
         </table>
       </div>
+
+      {editingSlot && <AvailabilityEditModal slot={editingSlot} onClose={() => setEditingSlot(null)} />}
     </div>
   );
 }
 
-function SlotBadge({ slot, onDelete }: { slot: StaffingAvailability; onDelete: (id: string) => void }) {
+function SlotBadge({
+  slot,
+  onDelete,
+  onEdit,
+  needStatus,
+}: {
+  slot: StaffingAvailability;
+  onDelete: (id: string) => void;
+  onEdit: (slot: StaffingAvailability) => void;
+  needStatus?: StaffingNeed["status"];
+}) {
+  const colorClass =
+    slot.status !== "assigned"
+      ? "border-green-200 bg-green-50 text-green-800"
+      : needStatus === "filled"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : "border-border bg-muted/40 text-muted-foreground";
+
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] whitespace-nowrap ${
-        slot.status === "assigned"
-          ? "border-border bg-muted/40 text-muted-foreground"
-          : "border-green-200 bg-green-50 text-green-800"
-      }`}
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] whitespace-nowrap ${colorClass}`}
       title={slot.notes ?? undefined}
     >
-      {timePeriodLabel(slot.time_period)}
-      {slot.start_time ? ` ${slot.start_time}` : ""}
+      <button onClick={() => onEdit(slot)} className="hover:underline" title="ערוך">
+        {timePeriodLabel(slot.time_period)}
+        {slot.start_time ? ` ${slot.start_time}` : ""}
+      </button>
       <button onClick={() => onDelete(slot.id)} className="hover:text-red-600" title="מחק">
         <X size={10} />
       </button>

@@ -3,15 +3,17 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X, Plus, Loader2 } from "lucide-react";
-import { DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
+import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch } from "@/lib/utils/staffing";
 import {
   addAssignmentCandidate,
   confirmAssignment,
   unconfirmAssignment,
   deleteAssignment,
+  updateNeedStatus,
 } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { NeedEditModal } from "./need-edit-modal";
 import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
 
 interface Props {
@@ -31,18 +33,27 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [regionFilter, setRegionFilter] = useState<string[]>([]);
   const [clientFilter, setClientFilter] = useState<string[]>([]);
   const [fieldFilter, setFieldFilter] = useState<string[]>([]);
+  const [frameworkFilter, setFrameworkFilter] = useState<string[]>([]);
+  const [dayFilter, setDayFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
 
   const regionOptions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
   const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) => a.localeCompare(b, "he"));
   const fieldOptions = Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[];
+  const frameworkOptions = Array.from(new Set(needs.map((n) => n.framework).filter(Boolean))) as string[];
 
   const filtered = useMemo(() => {
     return needs.filter((n) => {
       if (regionFilter.length > 0 && !regionFilter.includes(n.region ?? "")) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(n.client_name)) return false;
       if (fieldFilter.length > 0 && !fieldFilter.includes(n.field ?? "")) return false;
+      if (frameworkFilter.length > 0 && !frameworkFilter.includes(n.framework ?? "")) return false;
       if (statusFilter.length > 0 && !statusFilter.includes(n.status)) return false;
+      if (dayFilter.length > 0) {
+        const dayKey = n.day_of_week === null ? "tbd" : String(n.day_of_week);
+        if (!dayFilter.includes(dayKey)) return false;
+      }
       if (search.trim()) {
         const q = search.toLowerCase();
         const match =
@@ -54,7 +65,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
       }
       return true;
     });
-  }, [needs, regionFilter, clientFilter, fieldFilter, statusFilter, search]);
+  }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, search]);
 
   return (
     <div className="space-y-4">
@@ -84,6 +95,18 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           placeholder="כל התחומים"
         />
         <MultiSelectFilter
+          options={frameworkOptions.map((f) => ({ value: f, label: f }))}
+          selected={frameworkFilter}
+          onChange={setFrameworkFilter}
+          placeholder="כל המסגרות"
+        />
+        <MultiSelectFilter
+          options={[...DAYS_HEBREW.map((d, i) => ({ value: String(i), label: d })), { value: "tbd", label: "טרם נקבע" }]}
+          selected={dayFilter}
+          onChange={setDayFilter}
+          placeholder="כל הימים"
+        />
+        <MultiSelectFilter
           options={(Object.keys(NEED_STATUS) as NeedStatus[]).map((s) => ({ value: s, label: NEED_STATUS[s] }))}
           selected={statusFilter}
           onChange={setStatusFilter}
@@ -100,6 +123,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
               <th className="px-3 py-2.5 whitespace-nowrap">אזור / מיקום</th>
               <th className="px-3 py-2.5 whitespace-nowrap">מועד</th>
               <th className="px-3 py-2.5 whitespace-nowrap">חוג</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
               <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
               <th className="px-3 py-2.5 min-w-[220px]">מדריך/ה משובץ/ת</th>
@@ -108,7 +132,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           <tbody className="divide-y divide-border">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="py-10 text-center text-muted-foreground">
                   אין שיעורים נדרשים תואמים
                 </td>
               </tr>
@@ -119,12 +143,15 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
                   need={n}
                   availability={availability}
                   assignments={assignments.filter((a) => a.need_id === n.id)}
+                  onEdit={setEditingNeed}
                 />
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {editingNeed && <NeedEditModal need={editingNeed} onClose={() => setEditingNeed(null)} />}
     </div>
   );
 }
@@ -133,14 +160,20 @@ function NeedRow({
   need,
   availability,
   assignments,
+  onEdit,
 }: {
   need: StaffingNeed;
   availability: StaffingAvailability[];
   assignments: StaffingAssignment[];
+  onEdit: (need: StaffingNeed) => void;
 }) {
   return (
     <tr>
-      <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">{need.client_name}</td>
+      <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
+        <button onClick={() => onEdit(need)} className="hover:underline" title="ערוך שיעור">
+          {need.client_name}
+        </button>
+      </td>
       <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
         {need.region ?? "—"}
         {need.location_name ? ` · ${need.location_name}` : ""}
@@ -150,16 +183,45 @@ function NeedRow({
         {need.start_time ? ` (${need.start_time})` : ""}
       </td>
       <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{need.field ?? "—"}</td>
+      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+        {need.framework ?? "—"}
+        {need.framework_name ? ` · ${need.framework_name}` : ""}
+      </td>
       <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{need.lessons_count}</td>
       <td className="px-3 py-2.5 align-top whitespace-nowrap">
-        <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[need.status as NeedStatus]}`}>
-          {NEED_STATUS[need.status as NeedStatus]}
-        </span>
+        <StatusSelect need={need} />
       </td>
       <td className="px-3 py-2 align-top">
         <AssignmentCell need={need} availability={availability} assignments={assignments} />
       </td>
     </tr>
+  );
+}
+
+function StatusSelect({ need }: { need: StaffingNeed }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+
+  async function handleChange(status: NeedStatus) {
+    setPending(true);
+    await updateNeedStatus(need.id, status);
+    setPending(false);
+    router.refresh();
+  }
+
+  return (
+    <select
+      value={need.status}
+      disabled={pending}
+      onChange={(e) => handleChange(e.target.value as NeedStatus)}
+      className={`rounded-full border px-2 py-0.5 text-xs font-medium disabled:opacity-50 ${STATUS_COLORS[need.status as NeedStatus]}`}
+    >
+      {(Object.keys(NEED_STATUS) as NeedStatus[]).map((s) => (
+        <option key={s} value={s}>
+          {NEED_STATUS[s]}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -243,7 +305,11 @@ function AssignmentCell({
           <span
             key={a.id}
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap ${
-              a.is_confirmed ? "border-green-200 bg-green-50 text-green-800" : "border-border bg-muted/30 text-muted-foreground"
+              a.is_confirmed
+                ? need.status === "partially_filled"
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-green-200 bg-green-50 text-green-800"
+                : "border-border bg-muted/30 text-muted-foreground"
             }`}
           >
             {a.instructor_name}

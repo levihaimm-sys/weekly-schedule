@@ -249,6 +249,7 @@ export interface StaffingNeed {
   location_name: string | null;
   address: string | null;
   manager_name: string | null;
+  contact_name: string | null;
   framework: string | null;
   framework_name: string | null;
   start_date: string | null;

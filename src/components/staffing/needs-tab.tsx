@@ -32,6 +32,7 @@ export function NeedsTab({ needs }: Props) {
   const [locationName, setLocationName] = useState("");
   const [address, setAddress] = useState("");
   const [managerName, setManagerName] = useState("");
+  const [contactName, setContactName] = useState("");
   const [framework, setFramework] = useState("");
   const [frameworkName, setFrameworkName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -70,6 +71,7 @@ export function NeedsTab({ needs }: Props) {
       location_name: locationName,
       address,
       manager_name: managerName,
+      contact_name: contactName,
       framework,
       framework_name: frameworkName,
       start_date: startDate,
@@ -91,6 +93,7 @@ export function NeedsTab({ needs }: Props) {
     setLocationName("");
     setAddress("");
     setManagerName("");
+    setContactName("");
     setFramework("");
     setFrameworkName("");
     setStartDate("");
@@ -197,6 +200,15 @@ export function NeedsTab({ needs }: Props) {
                   value={managerName}
                   onChange={(e) => setManagerName(e.target.value)}
                   placeholder="רינת 054-8646513"
+                  className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">איש קשר</label>
+                <input
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="משה כהן 050-1234567"
                   className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
@@ -351,6 +363,7 @@ export function NeedsTab({ needs }: Props) {
                 {n.framework_name ? ` · ${n.framework_name}` : ""}
                 {` · ${n.lessons_count} שיעורים`}
                 {n.manager_name ? ` · מנהל/ת: ${n.manager_name}` : ""}
+                {n.contact_name ? ` · איש קשר: ${n.contact_name}` : ""}
                 {n.start_date ? ` · תחילת פעילות: ${n.start_date}` : ""}
               </p>
               {n.notes && <p className="mt-0.5 text-xs text-muted-foreground">{n.notes}</p>}

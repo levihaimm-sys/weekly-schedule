@@ -44,7 +44,7 @@ export function StaffingManager({ availability, needs, assignments }: Props) {
       </div>
 
       {tab === "matching" && <MatchingTab availability={availability} needs={needs} assignments={assignments} />}
-      {tab === "availability" && <AvailabilityTab availability={availability} />}
+      {tab === "availability" && <AvailabilityTab availability={availability} assignments={assignments} needs={needs} />}
       {tab === "needs" && <NeedsTab needs={needs} />}
     </div>
   );

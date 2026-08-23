@@ -56,6 +56,40 @@ export async function addAvailability(data: {
   return { success: true };
 }
 
+export async function updateAvailability(
+  id: string,
+  data: {
+    instructor_name: string;
+    region: string;
+    day_of_week: number | null;
+    time_period: string;
+    start_time?: string | null;
+    notes?: string | null;
+  }
+) {
+  const name = data.instructor_name.trim();
+  const region = data.region.trim();
+  if (!name) return { error: "יש להזין שם מדריך" };
+  if (!region) return { error: "יש להזין אזור עבודה" };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("staffing_availability")
+    .update({
+      instructor_name: name,
+      region,
+      day_of_week: data.day_of_week,
+      time_period: data.time_period,
+      start_time: data.start_time?.trim() || null,
+      notes: data.notes?.trim() || null,
+    })
+    .eq("id", id);
+
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 export async function deleteAvailability(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_availability").delete().eq("id", id);
@@ -106,6 +140,56 @@ export async function addNeed(data: {
   });
 
   if (error) return { error: "שגיאה בהוספה: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function updateNeed(
+  id: string,
+  data: {
+    client_name: string;
+    region?: string | null;
+    location_name?: string | null;
+    address?: string | null;
+    manager_name?: string | null;
+    contact_name?: string | null;
+    framework?: string | null;
+    framework_name?: string | null;
+    start_date?: string | null;
+    day_of_week?: number | null;
+    time_period?: string | null;
+    start_time?: string | null;
+    field?: string | null;
+    lessons_count?: number;
+    notes?: string | null;
+  }
+) {
+  const clientName = data.client_name.trim();
+  if (!clientName) return { error: "יש להזין שם לקוח" };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("staffing_needs")
+    .update({
+      client_name: clientName,
+      region: data.region?.trim() || null,
+      location_name: data.location_name?.trim() || null,
+      address: data.address?.trim() || null,
+      manager_name: data.manager_name?.trim() || null,
+      contact_name: data.contact_name?.trim() || null,
+      framework: data.framework?.trim() || null,
+      framework_name: data.framework_name?.trim() || null,
+      start_date: data.start_date?.trim() || null,
+      day_of_week: data.day_of_week ?? null,
+      time_period: data.time_period || null,
+      start_time: data.start_time?.trim() || null,
+      field: data.field?.trim() || null,
+      lessons_count: data.lessons_count && data.lessons_count > 0 ? data.lessons_count : 1,
+      notes: data.notes?.trim() || null,
+    })
+    .eq("id", id);
+
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -187,6 +271,16 @@ export async function deleteNeed(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_needs").delete().eq("id", id);
   if (error) return { error: "שגיאה במחיקה: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+// Manual override — bypasses the automatic open/partially_filled/filled computation
+// so the admin can force a status directly (e.g. call a lesson "done" early).
+export async function updateNeedStatus(id: string, status: "open" | "partially_filled" | "filled") {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_needs").update({ status }).eq("id", id);
+  if (error) return { error: "שגיאה בעדכון סטטוס: " + error.message };
   revalidatePath(PATH);
   return { success: true };
 }
