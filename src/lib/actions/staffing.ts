@@ -23,6 +23,27 @@ async function recomputeNeedStatus(needId: string) {
   await supabase.from("staffing_needs").update({ status }).eq("id", needId);
 }
 
+// A slot can legitimately back several confirmed lessons the same day (one instructor
+// teaching multiple groups back-to-back), so it should only flip back to "available" once
+// NO other confirmed assignment still references it.
+async function releaseAvailabilityIfUnused(
+  supabase: ReturnType<typeof createAdminClient>,
+  availabilityId: string,
+  excludeAssignmentId: string
+) {
+  const { data: stillUsed } = await supabase
+    .from("staffing_assignments")
+    .select("id")
+    .eq("availability_id", availabilityId)
+    .eq("is_confirmed", true)
+    .neq("id", excludeAssignmentId)
+    .limit(1);
+
+  if (!stillUsed?.length) {
+    await supabase.from("staffing_availability").update({ status: "available" }).eq("id", availabilityId);
+  }
+}
+
 // ----- Availability (instructor side, free-text name) -----
 
 export async function addAvailability(data: {
@@ -442,10 +463,8 @@ export async function confirmAssignment(id: string, assignedDayOfWeek?: number |
     // No slot was linked when this assignment was created (e.g. typed in manually and the
     // need's region text didn't match the instructor's availability region) — look one up now
     // by instructor + day so their availability still gets marked as taken once confirmed.
-    const { data: candidateSlots } = await supabase
-      .from("staffing_availability")
-      .select("id, instructor_name, day_of_week")
-      .eq("status", "available");
+    // Not filtered by status: the same slot may already back another lesson that day.
+    const { data: candidateSlots } = await supabase.from("staffing_availability").select("id, instructor_name, day_of_week");
 
     const nameMatches = (candidateSlots ?? []).filter((s) => nameMatch(s.instructor_name, assignment.instructor_name));
 
@@ -486,7 +505,7 @@ export async function unconfirmAssignment(id: string) {
   if (fetchError || !assignment) return { error: "שיבוץ לא נמצא" };
 
   if (assignment.availability_id) {
-    await supabase.from("staffing_availability").update({ status: "available" }).eq("id", assignment.availability_id);
+    await releaseAvailabilityIfUnused(supabase, assignment.availability_id, id);
   }
 
   const { error } = await supabase
@@ -514,7 +533,7 @@ export async function deleteAssignment(id: string) {
   if (error) return { error: "שגיאה במחיקה: " + error.message };
 
   if (assignment?.is_confirmed && assignment.availability_id) {
-    await supabase.from("staffing_availability").update({ status: "available" }).eq("id", assignment.availability_id);
+    await releaseAvailabilityIfUnused(supabase, assignment.availability_id, id);
   }
   if (assignment?.need_id) {
     await recomputeNeedStatus(assignment.need_id);

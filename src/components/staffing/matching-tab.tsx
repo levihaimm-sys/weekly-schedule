@@ -73,11 +73,15 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     });
   }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, search]);
 
+  // Chronological Sun->Thu order, not alphabetical — "flexible/not set" sorts last; same-day
+  // rows are then ordered by start time.
   const sorted = useMemo(() => {
     if (!dateSortDir) return filtered;
     const copy = [...filtered];
+    const dayKey = (d: number | null) => (d === null ? 7 : d);
     copy.sort((a, b) => {
-      const cmp = dayLabel(a.day_of_week).localeCompare(dayLabel(b.day_of_week), "he");
+      const cmp =
+        dayKey(a.day_of_week) - dayKey(b.day_of_week) || (a.start_time ?? "").localeCompare(b.start_time ?? "");
       return dateSortDir === "asc" ? cmp : -cmp;
     });
     return copy;
@@ -263,10 +267,12 @@ function AssignmentCell({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [dayChoice, setDayChoice] = useState<Record<string, string>>({});
 
+  // Not filtered by slot status: an instructor can teach several lessons the same day, so
+  // an already-"assigned" slot is still a valid suggestion for another lesson that day —
+  // only exclude a slot already linked to one of THIS need's own assignments (no duplicate add).
   const linkedAvailabilityIds = new Set(assignments.map((a) => a.availability_id).filter(Boolean));
   const compatibleSlots = availability.filter(
     (a) =>
-      a.status === "available" &&
       !linkedAvailabilityIds.has(a.id) &&
       regionsMatch(a.region, need.region) &&
       (need.day_of_week === null || a.day_of_week === null || a.day_of_week === need.day_of_week)
