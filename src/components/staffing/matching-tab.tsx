@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { Check, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown, Trash2 } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch, nameMatch } from "@/lib/utils/staffing";
 import {
@@ -11,6 +11,7 @@ import {
   unconfirmAssignment,
   deleteAssignment,
   updateNeedStatus,
+  deleteNeed,
 } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { NeedEditModal } from "./need-edit-modal";
@@ -29,6 +30,25 @@ const STATUS_COLORS: Record<NeedStatus, string> = {
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
+// Shared by the per-row add box and the bulk-assign bar: the first available slot for this
+// person that fits the need's region/day (excluding slots already linked to this need).
+function findCompatibleSlot(
+  availability: StaffingAvailability[],
+  need: StaffingNeed,
+  excludeIds: Set<string>,
+  name: string
+): StaffingAvailability | null {
+  return (
+    availability.find(
+      (a) =>
+        !excludeIds.has(a.id) &&
+        nameMatch(a.instructor_name, name) &&
+        regionsMatch(a.region, need.region) &&
+        (need.day_of_week === null || a.day_of_week === null || a.day_of_week === need.day_of_week)
+    ) ?? null
+  );
+}
+
 export function MatchingTab({ availability, needs, assignments }: Props) {
   const [search, setSearch] = usePersistedState("staffing-matching-search", "");
   const [regionFilter, setRegionFilter] = usePersistedState<string[]>("staffing-matching-region", []);
@@ -39,6 +59,12 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [statusFilter, setStatusFilter] = usePersistedState<string[]>("staffing-matching-status", []);
   const [dateSortDir, setDateSortDir] = usePersistedState<"asc" | "desc" | null>("staffing-matching-sort", null);
   const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
+  const router = useRouter();
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkName, setBulkName] = useState("");
+  const [bulkPending, setBulkPending] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   function toggleDateSort() {
     setDateSortDir(dateSortDir === null ? "asc" : dateSortDir === "asc" ? "desc" : null);
@@ -107,6 +133,68 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     return copy;
   }, [filtered, dateSortDir]);
 
+  const allSelected = sorted.length > 0 && sorted.every((n) => selectedIds.has(n.id));
+
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(sorted.map((n) => n.id)));
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setBulkName("");
+    setConfirmBulkDelete(false);
+  }
+
+  async function handleBulkAssign() {
+    const name = bulkName.trim();
+    if (!name || selectedIds.size === 0) return;
+    setBulkPending(true);
+    for (const needId of selectedIds) {
+      const need = needs.find((n) => n.id === needId);
+      if (!need) continue;
+      const alreadyLinked = new Set(
+        assignments.filter((a) => a.need_id === needId).map((a) => a.availability_id).filter(Boolean) as string[]
+      );
+      const matchedSlot = findCompatibleSlot(availability, need, alreadyLinked, name);
+      await addAssignmentCandidate({
+        need_id: needId,
+        instructor_name: name,
+        availability_id: matchedSlot?.id ?? null,
+      });
+    }
+    setBulkPending(false);
+    setBulkName("");
+    router.refresh();
+  }
+
+  async function handleBulkStatus(status: NeedStatus) {
+    setBulkPending(true);
+    for (const needId of selectedIds) {
+      await updateNeedStatus(needId, status);
+    }
+    setBulkPending(false);
+    router.refresh();
+  }
+
+  async function handleBulkDelete() {
+    setBulkPending(true);
+    for (const needId of selectedIds) {
+      await deleteNeed(needId);
+    }
+    setBulkPending(false);
+    clearSelection();
+    router.refresh();
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -166,10 +254,87 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
         <span className="text-sm text-muted-foreground">{filtered.length} שיעורים</span>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+          <span className="text-sm font-medium">{selectedIds.size} נבחרו</span>
+          <button onClick={clearSelection} className="text-xs text-muted-foreground hover:text-foreground">
+            בטל בחירה
+          </button>
+          <div className="flex-1" />
+          <input
+            value={bulkName}
+            onChange={(e) => setBulkName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleBulkAssign()}
+            placeholder="הוסף מדריך/ה לכל הנבחרים..."
+            className="w-52 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+          />
+          <button
+            onClick={handleBulkAssign}
+            disabled={!bulkName.trim() || bulkPending}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            {bulkPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            הוסף לנבחרים
+          </button>
+          <select
+            defaultValue=""
+            disabled={bulkPending}
+            onChange={(e) => {
+              if (e.target.value) handleBulkStatus(e.target.value as NeedStatus);
+              e.target.value = "";
+            }}
+            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs disabled:opacity-50"
+          >
+            <option value="" disabled>
+              שנה סטטוס...
+            </option>
+            {(Object.keys(NEED_STATUS) as NeedStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {NEED_STATUS[s]}
+              </option>
+            ))}
+          </select>
+          {confirmBulkDelete ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkPending}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {bulkPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                אישור מחיקה
+              </button>
+              <button
+                onClick={() => setConfirmBulkDelete(false)}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
+              >
+                ביטול
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmBulkDelete(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={13} />
+              מחק נבחרים
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[920px] text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+              <th className="w-8 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="cursor-pointer accent-primary"
+                />
+              </th>
               <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
               <th className="px-3 py-2.5 whitespace-nowrap">אזור</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
@@ -194,7 +359,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                <td colSpan={9} className="py-10 text-center text-muted-foreground">
                   אין שיעורים נדרשים תואמים
                 </td>
               </tr>
@@ -206,6 +371,8 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
                   availability={availability}
                   assignments={assignments.filter((a) => a.need_id === n.id)}
                   onEdit={setEditingNeed}
+                  selected={selectedIds.has(n.id)}
+                  onToggleSelect={() => toggleSelect(n.id)}
                 />
               ))
             )}
@@ -223,14 +390,21 @@ function NeedRow({
   availability,
   assignments,
   onEdit,
+  selected,
+  onToggleSelect,
 }: {
   need: StaffingNeed;
   availability: StaffingAvailability[];
   assignments: StaffingAssignment[];
   onEdit: (need: StaffingNeed) => void;
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
   return (
-    <tr>
+    <tr className={selected ? "bg-primary/5" : undefined}>
+      <td className="px-3 py-2.5 align-top">
+        <input type="checkbox" checked={selected} onChange={onToggleSelect} className="cursor-pointer accent-primary" />
+      </td>
       <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
         <button onClick={() => onEdit(need)} className="hover:underline" title="ערוך שיעור">
           {need.client_name}
