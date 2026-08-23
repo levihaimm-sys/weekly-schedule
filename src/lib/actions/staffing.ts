@@ -70,6 +70,9 @@ export async function addNeed(data: {
   region?: string | null;
   location_name?: string | null;
   address?: string | null;
+  manager_name?: string | null;
+  framework?: string | null;
+  start_date?: string | null;
   day_of_week?: number | null;
   time_period?: string | null;
   start_time?: string | null;
@@ -86,6 +89,9 @@ export async function addNeed(data: {
     region: data.region?.trim() || null,
     location_name: data.location_name?.trim() || null,
     address: data.address?.trim() || null,
+    manager_name: data.manager_name?.trim() || null,
+    framework: data.framework?.trim() || null,
+    start_date: data.start_date?.trim() || null,
     day_of_week: data.day_of_week ?? null,
     time_period: data.time_period || null,
     start_time: data.start_time?.trim() || null,
@@ -97,6 +103,31 @@ export async function addNeed(data: {
   if (error) return { error: "שגיאה בהוספה: " + error.message };
   revalidatePath(PATH);
   return { success: true };
+}
+
+interface ImportNeedRow {
+  client_name: string;
+  region: string | null;
+  address: string | null;
+  location_name: string | null;
+  manager_name: string | null;
+  lessons_count: number;
+  framework: string | null;
+  field: string | null;
+  day_of_week: number | null;
+  start_date: string | null;
+}
+
+export async function importNeeds(rows: ImportNeedRow[]) {
+  if (!rows.length) return { success: true, inserted: 0, errors: [] as string[] };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_needs").insert(rows);
+
+  if (error) return { success: false, inserted: 0, errors: [error.message] };
+
+  revalidatePath(PATH);
+  return { success: true, inserted: rows.length, errors: [] as string[] };
 }
 
 export async function deleteNeed(id: string) {

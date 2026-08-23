@@ -248,6 +248,9 @@ export interface StaffingNeed {
   region: string | null;
   location_name: string | null;
   address: string | null;
+  manager_name: string | null;
+  framework: string | null;
+  start_date: string | null;
   day_of_week: number | null;
   time_period: "morning" | "afternoon" | null;
   start_time: string | null;

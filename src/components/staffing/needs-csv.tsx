@@ -1,0 +1,281 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { Download, Upload, Loader2, X } from "lucide-react";
+import { importNeeds } from "@/lib/actions/staffing";
+
+const CSV_HEADERS = ["עיר", "כתובת", "מתחם", "מנהל/ת", "קב'", "מסגרת", "חוג", "יום", "תאריך התחלה"];
+
+const DAY_NAME_TO_INDEX: Record<string, number> = {
+  "ראשון": 0,
+  "יום ראשון": 0,
+  "שני": 1,
+  "יום שני": 1,
+  "שלישי": 2,
+  "יום שלישי": 2,
+  "רביעי": 3,
+  "יום רביעי": 3,
+  "חמישי": 4,
+  "יום חמישי": 4,
+  "שישי": 5,
+  "יום שישי": 5,
+  "שבת": 6,
+};
+
+function csvField(value: string | null | undefined) {
+  const str = (value ?? "").toString();
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+function buildSampleCsv() {
+  const headerRow = CSV_HEADERS.map(csvField).join(",");
+  const sampleRow = [
+    "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "3", 'בי"ס', "תאטרון", "חמישי", "01/09/2026",
+  ]
+    .map(csvField)
+    .join(",");
+  return [headerRow, sampleRow].join("\r\n");
+}
+
+export function downloadSampleCsv() {
+  const bom = "﻿";
+  const blob = new Blob([bom + buildSampleCsv()], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "שיעורים לדוגמא.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Minimal RFC4180-style CSV parser: handles quoted fields with embedded commas, quotes and newlines
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  const clean = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (clean[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\r") {
+      // ignore — line break handled on \n
+    } else if (char === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
+}
+
+interface ParsedNeedRow {
+  client_name: string;
+  region: string | null;
+  address: string | null;
+  location_name: string | null;
+  manager_name: string | null;
+  lessons_count: number;
+  framework: string | null;
+  field: string | null;
+  day_of_week: number | null;
+  start_date: string | null;
+}
+
+function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number } {
+  const table = parseCsv(text);
+  if (table.length === 0) return { rows: [], skipped: 0 };
+
+  const headers = table[0].map((h) => h.trim());
+  const idx = (label: string) => headers.indexOf(label);
+  const iCity = idx("עיר");
+  const iAddress = idx("כתובת");
+  const iComplex = idx("מתחם");
+  const iManager = idx("מנהל/ת");
+  const iGroup = idx("קב'");
+  const iFramework = idx("מסגרת");
+  const iField = idx("חוג");
+  const iDay = idx("יום");
+  const iDate = idx("תאריך התחלה");
+
+  const cell = (line: string[], i: number) => (i >= 0 ? (line[i] ?? "").trim() : "");
+
+  const rows: ParsedNeedRow[] = [];
+  let skipped = 0;
+
+  for (const line of table.slice(1)) {
+    const city = cell(line, iCity);
+    const complex = cell(line, iComplex);
+    if (!city && !complex) {
+      skipped++;
+      continue;
+    }
+    const dayText = cell(line, iDay);
+    const groupText = cell(line, iGroup);
+
+    rows.push({
+      client_name: complex || city,
+      region: city || null,
+      address: cell(line, iAddress) || null,
+      location_name: complex || null,
+      manager_name: cell(line, iManager) || null,
+      lessons_count: groupText && !Number.isNaN(Number(groupText)) ? Number(groupText) : 1,
+      framework: cell(line, iFramework) || null,
+      field: cell(line, iField) || null,
+      day_of_week: DAY_NAME_TO_INDEX[dayText] ?? null,
+      start_date: cell(line, iDate) || null,
+    });
+  }
+
+  return { rows, skipped };
+}
+
+export function NeedsImportModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [parsedRows, setParsedRows] = useState<ParsedNeedRow[]>([]);
+  const [skipped, setSkipped] = useState(0);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ inserted: number; errors: string[] } | null>(null);
+
+  function handleFile(file: File) {
+    setParseError(null);
+    setResult(null);
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      const { rows, skipped: skippedCount } = parseImportCsv(text);
+      if (rows.length === 0) {
+        setParseError("לא נמצאו שורות תקינות בקובץ. יש לוודא שיש כותרות בעברית (עיר, כתובת, מתחם וכו') ושבכל שורה יש עיר או מתחם.");
+      }
+      setParsedRows(rows);
+      setSkipped(skippedCount);
+    };
+    reader.readAsText(file, "UTF-8");
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    const res = await importNeeds(parsedRows);
+    setImporting(false);
+    setResult({ inserted: res.inserted, errors: res.errors });
+    onImported();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">ייבוא שיעורים מ-CSV</h2>
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+
+        {result ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800">
+              נוספו {result.inserted} שיעורים נדרשים חדשים.
+            </div>
+            {result.errors.length > 0 && (
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                {result.errors.map((e, i) => (
+                  <p key={i}>{e}</p>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              סגור
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-3 text-xs text-muted-foreground">
+              עמודות: עיר, כתובת, מתחם, מנהל/ת, קב&apos;, מסגרת, חוג, יום, תאריך התחלה. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-4 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <Upload size={16} />
+              {fileName ?? "בחר קובץ CSV"}
+            </button>
+
+            {parseError && <p className="mb-3 text-xs text-red-600">{parseError}</p>}
+
+            {parsedRows.length > 0 && (
+              <div className="mb-3 space-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+                <p>{parsedRows.length} שורות תקינות ייובאו</p>
+                {skipped > 0 && <p className="text-amber-700">{skipped} שורות דולגו (חסר עיר ומתחם)</p>}
+              </div>
+            )}
+
+            <button
+              onClick={handleImport}
+              disabled={parsedRows.length === 0 || importing}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {importing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+              {parsedRows.length > 0 ? `ייבא ${parsedRows.length} שיעורים` : "ייבא"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SampleCsvButton() {
+  return (
+    <button
+      onClick={downloadSampleCsv}
+      className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <Download size={14} />
+      הורד CSV לדוגמא
+    </button>
+  );
+}

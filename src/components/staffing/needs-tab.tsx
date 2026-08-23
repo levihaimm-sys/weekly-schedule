@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Check, Trash2, MapPin, Search } from "lucide-react";
+import { Plus, Loader2, Check, Trash2, MapPin, Search, Upload } from "lucide-react";
 import { DAYS_HEBREW, TIME_PERIODS, TimePeriod, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
 import { addNeed, deleteNeed } from "@/lib/actions/staffing";
+import { NeedsImportModal, SampleCsvButton } from "./needs-csv";
 import type { StaffingNeed } from "@/types/database";
 
 interface Props {
@@ -21,6 +22,7 @@ const STATUS_COLORS: Record<NeedStatus, string> = {
 export function NeedsTab({ needs }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -29,6 +31,9 @@ export function NeedsTab({ needs }: Props) {
   const [region, setRegion] = useState("");
   const [locationName, setLocationName] = useState("");
   const [address, setAddress] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [framework, setFramework] = useState("");
+  const [startDate, setStartDate] = useState("");
   const [dayValue, setDayValue] = useState<string>("");
   const [timePeriod, setTimePeriod] = useState<TimePeriod | "">("");
   const [startTime, setStartTime] = useState("");
@@ -63,6 +68,9 @@ export function NeedsTab({ needs }: Props) {
       region,
       location_name: locationName,
       address,
+      manager_name: managerName,
+      framework,
+      start_date: startDate,
       day_of_week: dayValue === "" ? null : Number(dayValue),
       time_period: timePeriod || null,
       start_time: startTime,
@@ -80,6 +88,9 @@ export function NeedsTab({ needs }: Props) {
     setRegion("");
     setLocationName("");
     setAddress("");
+    setManagerName("");
+    setFramework("");
+    setStartDate("");
     setDayValue("");
     setTimePeriod("");
     setStartTime("");
@@ -108,6 +119,14 @@ export function NeedsTab({ needs }: Props) {
               className="w-52 rounded-lg border border-border bg-background py-2 pe-3 ps-8 text-sm"
             />
           </div>
+          <SampleCsvButton />
+          <button
+            onClick={() => setImportOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Upload size={14} />
+            ייבוא CSV
+          </button>
           <button
             onClick={() => setAddFormOpen(!addFormOpen)}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -117,6 +136,13 @@ export function NeedsTab({ needs }: Props) {
           </button>
         </div>
       </div>
+
+      {importOpen && (
+        <NeedsImportModal
+          onClose={() => setImportOpen(false)}
+          onImported={() => router.refresh()}
+        />
+      )}
 
       {addFormOpen && (
         <div className="rounded-xl border border-secondary/40 bg-secondary/5 p-4">
@@ -160,6 +186,33 @@ export function NeedsTab({ needs }: Props) {
                   onChange={(e) => setLocationName(e.target.value)}
                   placeholder="פלג 304"
                   className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">מנהל/ת</label>
+                <input
+                  value={managerName}
+                  onChange={(e) => setManagerName(e.target.value)}
+                  placeholder="רינת 054-8646513"
+                  className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">מסגרת</label>
+                <input
+                  value={framework}
+                  onChange={(e) => setFramework(e.target.value)}
+                  placeholder='בי"ס'
+                  className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">תאריך התחלה</label>
+                <input
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  placeholder="01/09/2026"
+                  className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -277,11 +330,15 @@ export function NeedsTab({ needs }: Props) {
                 <MapPin size={12} />
                 {n.region ?? "—"}
                 {n.location_name ? ` · ${n.location_name}` : ""}
+                {n.address ? ` · ${n.address}` : ""}
                 {" · "}
                 {dayLabel(n.day_of_week)} · {timePeriodLabel(n.time_period)}
                 {n.start_time ? ` (${n.start_time})` : ""}
                 {n.field ? ` · ${n.field}` : ""}
+                {n.framework ? ` · ${n.framework}` : ""}
                 {` · ${n.lessons_count} שיעורים`}
+                {n.manager_name ? ` · מנהל/ת: ${n.manager_name}` : ""}
+                {n.start_date ? ` · תחילת פעילות: ${n.start_date}` : ""}
               </p>
               {n.notes && <p className="mt-0.5 text-xs text-muted-foreground">{n.notes}</p>}
             </div>
