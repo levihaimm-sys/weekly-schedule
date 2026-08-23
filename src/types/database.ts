@@ -225,3 +225,49 @@ export interface EquipmentConfirmationWithDetails extends EquipmentConfirmation 
     lesson_plan: Pick<LessonPlan, "name">;
   };
 }
+
+// =============================================
+// STAFFING PLANNING (שיבוץ שנה הבאה)
+// =============================================
+
+export interface StaffingAvailability {
+  id: string;
+  instructor_id: string | null;
+  candidate_id: string | null;
+  region: string;
+  day_of_week: number | null;
+  time_period: "morning" | "noon" | "afternoon" | "evening";
+  start_time: string | null;
+  status: "available" | "assigned";
+  notes: string | null;
+  created_at: string;
+}
+
+export interface StaffingNeed {
+  id: string;
+  client_id: string | null;
+  client_name_override: string | null;
+  region: string | null;
+  location_name: string | null;
+  address: string | null;
+  day_of_week: number | null;
+  time_period: "morning" | "noon" | "afternoon" | "evening" | null;
+  start_time: string | null;
+  field: string | null;
+  lessons_count: number;
+  status: "open" | "partially_filled" | "filled";
+  notes: string | null;
+  created_at: string;
+}
+
+export interface StaffingAssignment {
+  id: string;
+  need_id: string;
+  instructor_id: string | null;
+  candidate_id: string | null;
+  availability_id: string | null;
+  assigned_day_of_week: number | null;
+  is_confirmed: boolean;
+  notes: string | null;
+  created_at: string;
+}

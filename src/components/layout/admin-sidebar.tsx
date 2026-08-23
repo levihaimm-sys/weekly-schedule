@@ -19,6 +19,7 @@ import {
   Building2,
   ClipboardCheck,
   UserSearch,
+  GitMerge,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/instructors", label: "מדריכים", icon: Users },
   { href: "/recruitment", label: "גיוס", icon: UserSearch },
   { href: "/clients", label: "לקוחות", icon: Building2 },
+  { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
   { href: "/lesson-plans", label: "ציוד", icon: Package },
   { href: "/lesson-plans/manage", label: "ניהול מערכי שיעור", icon: BookOpen },
   { href: "/confirmations", label: "מעקב אישורים", icon: ClipboardCheck },

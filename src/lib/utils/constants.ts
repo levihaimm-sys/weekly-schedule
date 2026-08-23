@@ -96,6 +96,23 @@ export const CLIENT_PRIORITY = {
 
 export type ClientPriority = keyof typeof CLIENT_PRIORITY;
 
+export const TIME_PERIODS = {
+  morning: "בוקר",
+  noon: "צהריים",
+  afternoon: "צהרון",
+  evening: "ערב",
+} as const;
+
+export type TimePeriod = keyof typeof TIME_PERIODS;
+
+export const NEED_STATUS = {
+  open: "פתוח",
+  partially_filled: "משובץ חלקית",
+  filled: "מלא",
+} as const;
+
+export type NeedStatus = keyof typeof NEED_STATUS;
+
 export const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
   "גבעתיים": "טומשין",
