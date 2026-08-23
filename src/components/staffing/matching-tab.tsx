@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Plus, Loader2 } from "lucide-react";
+import { Check, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch } from "@/lib/utils/staffing";
 import {
@@ -37,6 +37,11 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [dayFilter, setDayFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
+  const [dateSortDir, setDateSortDir] = useState<"asc" | "desc" | null>(null);
+
+  function toggleDateSort() {
+    setDateSortDir((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
+  }
 
   const regionOptions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
   const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) => a.localeCompare(b, "he"));
@@ -66,6 +71,16 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
       return true;
     });
   }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, search]);
+
+  const sorted = useMemo(() => {
+    if (!dateSortDir) return filtered;
+    const copy = [...filtered];
+    copy.sort((a, b) => {
+      const cmp = dayLabel(a.day_of_week).localeCompare(dayLabel(b.day_of_week), "he");
+      return dateSortDir === "asc" ? cmp : -cmp;
+    });
+    return copy;
+  }, [filtered, dateSortDir]);
 
   return (
     <div className="space-y-4">
@@ -121,7 +136,18 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
               <th className="px-3 py-2.5 whitespace-nowrap">אזור</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">מועד</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">
+                <button onClick={toggleDateSort} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  מועד
+                  {dateSortDir === "asc" ? (
+                    <ChevronUp size={13} />
+                  ) : dateSortDir === "desc" ? (
+                    <ChevronDown size={13} />
+                  ) : (
+                    <ArrowUpDown size={12} />
+                  )}
+                </button>
+              </th>
               <th className="px-3 py-2.5 whitespace-nowrap">חוג</th>
               <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
@@ -130,14 +156,14 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.length === 0 ? (
+            {sorted.length === 0 ? (
               <tr>
                 <td colSpan={8} className="py-10 text-center text-muted-foreground">
                   אין שיעורים נדרשים תואמים
                 </td>
               </tr>
             ) : (
-              filtered.map((n) => (
+              sorted.map((n) => (
                 <NeedRow
                   key={n.id}
                   need={n}
