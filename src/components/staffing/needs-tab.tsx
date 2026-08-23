@@ -7,6 +7,8 @@ import { DAYS_HEBREW, TIME_PERIODS, TimePeriod, NEED_STATUS, NeedStatus } from "
 import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
 import { addNeed, deleteNeed } from "@/lib/actions/staffing";
 import { NeedsImportModal, SampleCsvButton } from "./needs-csv";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { NeedEditModal } from "./need-edit-modal";
 import type { StaffingNeed } from "@/types/database";
 
 interface Props {
@@ -26,6 +28,14 @@ export function NeedsTab({ needs }: Props) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
+
+  const [regionFilter, setRegionFilter] = useState<string[]>([]);
+  const [clientFilter, setClientFilter] = useState<string[]>([]);
+  const [fieldFilter, setFieldFilter] = useState<string[]>([]);
+  const [frameworkFilter, setFrameworkFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [dayFilter, setDayFilter] = useState<string[]>([]);
 
   const [clientName, setClientName] = useState("");
   const [region, setRegion] = useState("");
@@ -48,19 +58,31 @@ export function NeedsTab({ needs }: Props) {
     a.localeCompare(b, "he")
   );
   const existingFields = Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[];
+  const existingFrameworks = Array.from(new Set(needs.map((n) => n.framework).filter(Boolean))) as string[];
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return needs;
-    const q = search.toLowerCase();
     return needs.filter((n) => {
-      return (
-        n.client_name.toLowerCase().includes(q) ||
-        (n.region ?? "").toLowerCase().includes(q) ||
-        (n.location_name ?? "").toLowerCase().includes(q) ||
-        (n.field ?? "").toLowerCase().includes(q)
-      );
+      if (regionFilter.length > 0 && !regionFilter.includes(n.region ?? "")) return false;
+      if (clientFilter.length > 0 && !clientFilter.includes(n.client_name)) return false;
+      if (fieldFilter.length > 0 && !fieldFilter.includes(n.field ?? "")) return false;
+      if (frameworkFilter.length > 0 && !frameworkFilter.includes(n.framework ?? "")) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(n.status)) return false;
+      if (dayFilter.length > 0) {
+        const dayKey = n.day_of_week === null ? "tbd" : String(n.day_of_week);
+        if (!dayFilter.includes(dayKey)) return false;
+      }
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const match =
+          n.client_name.toLowerCase().includes(q) ||
+          (n.region ?? "").toLowerCase().includes(q) ||
+          (n.location_name ?? "").toLowerCase().includes(q) ||
+          (n.field ?? "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
     });
-  }, [needs, search]);
+  }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, search]);
 
   async function handleAdd() {
     setError(null);
@@ -141,6 +163,45 @@ export function NeedsTab({ needs }: Props) {
             הוסף שיעור נדרש
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <MultiSelectFilter
+          options={existingRegions.map((r) => ({ value: r, label: r }))}
+          selected={regionFilter}
+          onChange={setRegionFilter}
+          placeholder="כל האזורים"
+        />
+        <MultiSelectFilter
+          options={existingClientNames.map((c) => ({ value: c, label: c }))}
+          selected={clientFilter}
+          onChange={setClientFilter}
+          placeholder="כל הלקוחות"
+        />
+        <MultiSelectFilter
+          options={existingFields.map((f) => ({ value: f, label: f }))}
+          selected={fieldFilter}
+          onChange={setFieldFilter}
+          placeholder="כל התחומים"
+        />
+        <MultiSelectFilter
+          options={existingFrameworks.map((f) => ({ value: f, label: f }))}
+          selected={frameworkFilter}
+          onChange={setFrameworkFilter}
+          placeholder="כל המסגרות"
+        />
+        <MultiSelectFilter
+          options={[...DAYS_HEBREW.map((d, i) => ({ value: String(i), label: d })), { value: "tbd", label: "טרם נקבע" }]}
+          selected={dayFilter}
+          onChange={setDayFilter}
+          placeholder="כל הימים"
+        />
+        <MultiSelectFilter
+          options={(Object.keys(NEED_STATUS) as NeedStatus[]).map((s) => ({ value: s, label: NEED_STATUS[s] }))}
+          selected={statusFilter}
+          onChange={setStatusFilter}
+          placeholder="כל הסטטוסים"
+        />
       </div>
 
       {importOpen && (
@@ -342,7 +403,11 @@ export function NeedsTab({ needs }: Props) {
 
       <div className="space-y-2">
         {filtered.map((n) => (
-          <div key={n.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
+          <div
+            key={n.id}
+            onClick={() => setEditingNeed(n)}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
+          >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium">{n.client_name}</p>
@@ -368,13 +433,22 @@ export function NeedsTab({ needs }: Props) {
               </p>
               {n.notes && <p className="mt-0.5 text-xs text-muted-foreground">{n.notes}</p>}
             </div>
-            <button onClick={() => handleDelete(n.id)} className="shrink-0 text-muted-foreground hover:text-red-600" title="מחק">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(n.id);
+              }}
+              className="shrink-0 text-muted-foreground hover:text-red-600"
+              title="מחק"
+            >
               <Trash2 size={16} />
             </button>
           </div>
         ))}
         {filtered.length === 0 && <p className="text-sm text-muted-foreground">אין שיעורים נדרשים</p>}
       </div>
+
+      {editingNeed && <NeedEditModal need={editingNeed} onClose={() => setEditingNeed(null)} />}
     </div>
   );
 }
