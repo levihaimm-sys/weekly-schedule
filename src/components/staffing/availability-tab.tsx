@@ -17,6 +17,8 @@ interface Props {
 }
 
 const FLEXIBLE = "flex";
+// This business only operates Sunday-Thursday — no Friday/Saturday slots.
+const WORK_DAYS = [0, 1, 2, 3, 4];
 
 const AVAILABILITY_STATUS_LABEL: Record<string, string> = {
   available: "פנוי",
@@ -170,7 +172,10 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
           placeholder="כל האזורים"
         />
         <MultiSelectFilter
-          options={[...DAYS_HEBREW.map((d, i) => ({ value: String(i), label: d })), { value: FLEXIBLE, label: "גמיש" }]}
+          options={[
+            ...WORK_DAYS.map((i) => ({ value: String(i), label: DAYS_HEBREW[i] })),
+            { value: FLEXIBLE, label: "גמיש" },
+          ]}
           selected={dayFilter}
           onChange={setDayFilter}
           placeholder="כל הימים"
@@ -253,9 +258,9 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-muted-foreground">ימים (ניתן לבחור כמה יחד)</label>
               <div className="flex flex-wrap gap-1.5">
-                {DAYS_HEBREW.map((d, i) => (
+                {WORK_DAYS.map((i) => (
                   <button
-                    key={d}
+                    key={i}
                     type="button"
                     onClick={() => toggleDay(String(i))}
                     className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
@@ -264,7 +269,7 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
                         : "border-border bg-background text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    {d}
+                    {DAYS_HEBREW[i]}
                   </button>
                 ))}
                 <button
@@ -320,9 +325,9 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה</th>
               <th className="px-3 py-2.5 whitespace-nowrap">עיר / אזור</th>
-              {DAYS_SHORT.map((d) => (
-                <th key={d} className="px-1.5 py-2.5 text-center whitespace-nowrap">
-                  {d}
+              {WORK_DAYS.map((i) => (
+                <th key={i} className="px-1.5 py-2.5 text-center whitespace-nowrap">
+                  {DAYS_SHORT[i]}
                 </th>
               ))}
               <th className="px-1.5 py-2.5 text-center whitespace-nowrap">גמיש</th>
@@ -331,7 +336,7 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
           <tbody className="divide-y divide-border">
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="py-10 text-center text-muted-foreground">
                   אין עדיין זמינות רשומה
                 </td>
               </tr>
@@ -340,7 +345,7 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
                 <tr key={`${r.name}||${r.region}`}>
                   <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">{r.name}</td>
                   <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{r.region}</td>
-                  {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+                  {WORK_DAYS.map((day) => (
                     <td key={day} className="px-1 py-2 text-center align-top">
                       <div className="flex flex-col items-center gap-1">
                         {r.slots
@@ -397,14 +402,14 @@ function SlotBadge({
 }) {
   const colorClass =
     slot.status !== "assigned"
-      ? "border-green-200 bg-green-50 text-green-800"
+      ? "border-green-300 bg-green-100 text-green-900"
       : needStatus === "filled"
-        ? "border-red-200 bg-red-50 text-red-700"
-        : "border-border bg-muted/40 text-muted-foreground";
+        ? "border-red-300 bg-red-100 text-red-900"
+        : "border-slate-300 bg-slate-200 text-slate-900";
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] whitespace-nowrap ${colorClass}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${colorClass}`}
       title={slot.notes ?? undefined}
     >
       <button onClick={() => onEdit(slot)} className="hover:underline" title="ערוך">
