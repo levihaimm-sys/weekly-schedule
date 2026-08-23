@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { regionsMatch } from "@/lib/utils/staffing";
 
 const PATH = "/staffing";
 
@@ -71,6 +72,7 @@ export async function addNeed(data: {
   location_name?: string | null;
   address?: string | null;
   manager_name?: string | null;
+  contact_name?: string | null;
   framework?: string | null;
   framework_name?: string | null;
   start_date?: string | null;
@@ -91,6 +93,7 @@ export async function addNeed(data: {
     location_name: data.location_name?.trim() || null,
     address: data.address?.trim() || null,
     manager_name: data.manager_name?.trim() || null,
+    contact_name: data.contact_name?.trim() || null,
     framework: data.framework?.trim() || null,
     framework_name: data.framework_name?.trim() || null,
     start_date: data.start_date?.trim() || null,
@@ -113,6 +116,7 @@ interface ImportNeedRow {
   address: string | null;
   location_name: string | null;
   manager_name: string | null;
+  contact_name: string | null;
   lessons_count: number;
   framework: string | null;
   framework_name: string | null;
@@ -121,18 +125,62 @@ interface ImportNeedRow {
   start_time: string | null;
   start_date: string | null;
   notes: string | null;
+  // Not a staffing_needs column — used below to auto-create a confirmed assignment
+  // linked to (and consuming) a matching availability slot, if one exists.
+  instructor_name: string | null;
 }
 
 export async function importNeeds(rows: ImportNeedRow[]) {
-  if (!rows.length) return { success: true, inserted: 0, errors: [] as string[] };
+  if (!rows.length) return { success: true, inserted: 0, assigned: 0, errors: [] as string[] };
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("staffing_needs").insert(rows);
 
-  if (error) return { success: false, inserted: 0, errors: [error.message] };
+  const needsPayload = rows.map(({ instructor_name, ...need }) => need);
+  const { data: inserted, error } = await supabase.from("staffing_needs").insert(needsPayload).select("id");
+
+  if (error || !inserted) return { success: false, inserted: 0, assigned: 0, errors: [error?.message ?? "שגיאה בייבוא"] };
+
+  let assigned = 0;
+
+  for (let i = 0; i < inserted.length; i++) {
+    const row = rows[i];
+    const needId = inserted[i].id;
+    const instructorName = row.instructor_name?.trim();
+    if (!instructorName) continue;
+
+    const { data: candidateSlots } = await supabase
+      .from("staffing_availability")
+      .select("id, region, day_of_week")
+      .eq("instructor_name", instructorName)
+      .eq("status", "available");
+
+    const matchedSlot =
+      (candidateSlots ?? []).find(
+        (s) =>
+          regionsMatch(s.region, row.region) &&
+          (row.day_of_week === null || s.day_of_week === null || s.day_of_week === row.day_of_week)
+      ) ?? null;
+
+    await supabase.from("staffing_assignments").insert({
+      need_id: needId,
+      instructor_name: instructorName,
+      availability_id: matchedSlot?.id ?? null,
+      assigned_day_of_week: row.day_of_week ?? matchedSlot?.day_of_week ?? null,
+      is_confirmed: true,
+    });
+
+    if (matchedSlot) {
+      await supabase.from("staffing_availability").update({ status: "assigned" }).eq("id", matchedSlot.id);
+    }
+
+    const status = row.lessons_count <= 1 ? "filled" : "partially_filled";
+    await supabase.from("staffing_needs").update({ status }).eq("id", needId);
+
+    assigned++;
+  }
 
   revalidatePath(PATH);
-  return { success: true, inserted: rows.length, errors: [] as string[] };
+  return { success: true, inserted: rows.length, assigned, errors: [] as string[] };
 }
 
 export async function deleteNeed(id: string) {

@@ -5,7 +5,8 @@ import { Download, Upload, Loader2, X } from "lucide-react";
 import { importNeeds } from "@/lib/actions/staffing";
 
 const CSV_HEADERS = [
-  "לקוח", "עיר", "כתובת", "מתחם", "מנהל/ת", "קב'", "מסגרת", "שם המסגרת", "חוג", "יום", "שעת התחלה", "תאריך התחלה", "הערות",
+  "לקוח", "עיר", "כתובת", "מתחם", "מנהל/ת", "איש קשר", "קב'", "מסגרת", "שם המסגרת", "חוג", "יום",
+  "שעת התחלה", "תאריך התחלה", "הערות", "מדריך/ה משובץ/ת",
 ];
 
 const DAY_NAME_TO_INDEX: Record<string, number> = {
@@ -32,8 +33,8 @@ function csvField(value: string | null | undefined) {
 function buildSampleCsv() {
   const headerRow = CSV_HEADERS.map(csvField).join(",");
   const sampleRow = [
-    "טומשין", "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "3", 'בי"ס',
-    "בית ספר עתידים", "תאטרון", "חמישי", "13:50", "01/09/2026", "יש חניה בסמוך למתחם",
+    "טומשין", "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "משה כהן 050-1234567", "3", 'בי"ס',
+    "בית ספר עתידים", "תאטרון", "חמישי", "13:50", "01/09/2026", "יש חניה בסמוך למתחם", "אודי",
   ]
     .map(csvField)
     .join(",");
@@ -101,6 +102,7 @@ interface ParsedNeedRow {
   address: string | null;
   location_name: string | null;
   manager_name: string | null;
+  contact_name: string | null;
   lessons_count: number;
   framework: string | null;
   framework_name: string | null;
@@ -109,6 +111,7 @@ interface ParsedNeedRow {
   start_time: string | null;
   start_date: string | null;
   notes: string | null;
+  instructor_name: string | null;
 }
 
 function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number } {
@@ -122,6 +125,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
   const iAddress = idx("כתובת");
   const iComplex = idx("מתחם");
   const iManager = idx("מנהל/ת");
+  const iContact = idx("איש קשר");
   const iGroup = idx("קב'");
   const iFramework = idx("מסגרת");
   const iFrameworkName = idx("שם המסגרת");
@@ -130,6 +134,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
   const iStartTime = idx("שעת התחלה");
   const iDate = idx("תאריך התחלה");
   const iNotes = idx("הערות");
+  const iInstructor = idx("מדריך/ה משובץ/ת");
 
   const cell = (line: string[], i: number) => (i >= 0 ? (line[i] ?? "").trim() : "");
 
@@ -154,6 +159,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
       address: cell(line, iAddress) || null,
       location_name: complex || null,
       manager_name: cell(line, iManager) || null,
+      contact_name: cell(line, iContact) || null,
       lessons_count: groupText && !Number.isNaN(Number(groupText)) ? Number(groupText) : 1,
       framework: cell(line, iFramework) || null,
       framework_name: cell(line, iFrameworkName) || null,
@@ -162,6 +168,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
       start_time: cell(line, iStartTime) || null,
       start_date: cell(line, iDate) || null,
       notes: cell(line, iNotes) || null,
+      instructor_name: cell(line, iInstructor) || null,
     });
   }
 
@@ -175,7 +182,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
   const [skipped, setSkipped] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ inserted: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ inserted: number; assigned: number; errors: string[] } | null>(null);
 
   function handleFile(file: File) {
     setParseError(null);
@@ -198,7 +205,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
     setImporting(true);
     const res = await importNeeds(parsedRows);
     setImporting(false);
-    setResult({ inserted: res.inserted, errors: res.errors });
+    setResult({ inserted: res.inserted, assigned: res.assigned, errors: res.errors });
     onImported();
   }
 
@@ -219,6 +226,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
           <div className="space-y-3">
             <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800">
               נוספו {result.inserted} שיעורים נדרשים חדשים.
+              {result.assigned > 0 && ` מתוכם ${result.assigned} שובצו אוטומטית למדריך/ה שצוין/ה (וסומנו כמאושרים).`}
             </div>
             {result.errors.length > 0 && (
               <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
@@ -237,7 +245,8 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
         ) : (
           <>
             <p className="mb-3 text-xs text-muted-foreground">
-              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, קב&apos;, מסגרת, שם המסגרת, חוג, יום, שעת התחלה, תאריך התחלה, הערות. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
+              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, איש קשר, קב&apos;, מסגרת, שם המסגרת, חוג, יום, שעת התחלה, תאריך התחלה, הערות, מדריך/ה משובץ/ת. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
+              אם ממלאים את עמודת המדריך/ה — השיבוץ ייווצר אוטומטית ויקושר למשבצת זמינות פנויה תואמת (אזור ויום), ואותה משבצת תסומן כתפוסה.
             </p>
 
             <input

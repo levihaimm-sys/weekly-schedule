@@ -9,3 +9,8 @@ export function timePeriodLabel(period: string | null | undefined): string {
   if (!period) return "-";
   return TIME_PERIODS[period as TimePeriod] ?? period;
 }
+
+export function regionsMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return true;
+  return a.includes(b) || b.includes(a);
+}

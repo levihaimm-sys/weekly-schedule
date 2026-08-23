@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Check, Trash2, MapPin, Search } from "lucide-react";
-import { DAYS_HEBREW, TIME_PERIODS, TimePeriod } from "@/lib/utils/constants";
-import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
+import { Plus, Loader2, Check, X, Search } from "lucide-react";
+import { DAYS_HEBREW, DAYS_SHORT, TIME_PERIODS, TimePeriod } from "@/lib/utils/constants";
+import { timePeriodLabel } from "@/lib/utils/staffing";
 import { addAvailability, deleteAvailability } from "@/lib/actions/staffing";
 import type { StaffingAvailability } from "@/types/database";
 
@@ -35,20 +35,24 @@ export function AvailabilityTab({ availability }: Props) {
     a.localeCompare(b, "he")
   );
 
-  const groups = useMemo(() => {
-    const map = new Map<string, StaffingAvailability[]>();
+  // One row per (instructor, region) combo, so an instructor working several areas gets a row each.
+  const rows = useMemo(() => {
+    const map = new Map<string, { name: string; region: string; slots: StaffingAvailability[] }>();
     for (const a of availability) {
-      map.set(a.instructor_name, [...(map.get(a.instructor_name) ?? []), a]);
+      const key = `${a.instructor_name}||${a.region}`;
+      const existing = map.get(key);
+      if (existing) existing.slots.push(a);
+      else map.set(key, { name: a.instructor_name, region: a.region, slots: [a] });
     }
-    return map;
+    return Array.from(map.values()).sort(
+      (a, b) => a.name.localeCompare(b.name, "he") || a.region.localeCompare(b.region, "he")
+    );
   }, [availability]);
 
-  const names = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b, "he"));
-  const filteredNames = names.filter((n) => {
+  const filteredRows = rows.filter((r) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    if (n.toLowerCase().includes(q)) return true;
-    return (groups.get(n) ?? []).some((s) => s.region.toLowerCase().includes(q));
+    return r.name.toLowerCase().includes(q) || r.region.toLowerCase().includes(q);
   });
 
   function toggleDay(value: string) {
@@ -98,7 +102,7 @@ export function AvailabilityTab({ availability }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {names.length} מדריכים | {availability.length} משבצות זמינות
+          {existingNames.length} מדריכים | {availability.length} משבצות זמינות
         </p>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -245,43 +249,77 @@ export function AvailabilityTab({ availability }: Props) {
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {filteredNames.map((name) => {
-          const slots = groups.get(name) ?? [];
-          return (
-            <div key={name} className="rounded-xl border border-border bg-background p-4">
-              <p className="mb-2 font-medium">{name}</p>
-              <div className="space-y-1.5">
-                {slots.map((s) => (
-                  <div
-                    key={s.id}
-                    className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-sm ${
-                      s.status === "assigned"
-                        ? "border-border bg-muted/30 text-muted-foreground"
-                        : "border-green-200 bg-green-50 text-green-800"
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <MapPin size={13} />
-                      {s.region} · {dayLabel(s.day_of_week)} · {timePeriodLabel(s.time_period)}
-                      {s.start_time ? ` (${s.start_time})` : ""}
-                      {s.status === "assigned" && <span className="font-medium"> · משובץ</span>}
-                    </span>
-                    <button
-                      onClick={() => handleDelete(s.id)}
-                      className="text-muted-foreground hover:text-red-600"
-                      title="מחק"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-        {filteredNames.length === 0 && <p className="text-sm text-muted-foreground">אין עדיין זמינות רשומה</p>}
+      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+              <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">עיר / אזור</th>
+              {DAYS_SHORT.map((d) => (
+                <th key={d} className="px-1.5 py-2.5 text-center whitespace-nowrap">
+                  {d}
+                </th>
+              ))}
+              <th className="px-1.5 py-2.5 text-center whitespace-nowrap">גמיש</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filteredRows.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                  אין עדיין זמינות רשומה
+                </td>
+              </tr>
+            ) : (
+              filteredRows.map((r) => (
+                <tr key={`${r.name}||${r.region}`}>
+                  <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">{r.name}</td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{r.region}</td>
+                  {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+                    <td key={day} className="px-1 py-2 text-center align-top">
+                      <div className="flex flex-col items-center gap-1">
+                        {r.slots
+                          .filter((s) => s.day_of_week === day)
+                          .map((s) => (
+                            <SlotBadge key={s.id} slot={s} onDelete={handleDelete} />
+                          ))}
+                      </div>
+                    </td>
+                  ))}
+                  <td className="px-1 py-2 text-center align-top">
+                    <div className="flex flex-col items-center gap-1">
+                      {r.slots
+                        .filter((s) => s.day_of_week === null)
+                        .map((s) => (
+                          <SlotBadge key={s.id} slot={s} onDelete={handleDelete} />
+                        ))}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
+  );
+}
+
+function SlotBadge({ slot, onDelete }: { slot: StaffingAvailability; onDelete: (id: string) => void }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] whitespace-nowrap ${
+        slot.status === "assigned"
+          ? "border-border bg-muted/40 text-muted-foreground"
+          : "border-green-200 bg-green-50 text-green-800"
+      }`}
+      title={slot.notes ?? undefined}
+    >
+      {timePeriodLabel(slot.time_period)}
+      {slot.start_time ? ` ${slot.start_time}` : ""}
+      <button onClick={() => onDelete(slot.id)} className="hover:text-red-600" title="מחק">
+        <X size={10} />
+      </button>
+    </span>
   );
 }

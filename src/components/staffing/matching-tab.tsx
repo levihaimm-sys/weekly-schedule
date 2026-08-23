@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X, MapPin, UserPlus, Loader2 } from "lucide-react";
 import { DAYS_HEBREW, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
-import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
+import { dayLabel, timePeriodLabel, regionsMatch } from "@/lib/utils/staffing";
 import {
   addAssignmentCandidate,
   confirmAssignment,
@@ -24,11 +24,6 @@ const STATUS_COLORS: Record<NeedStatus, string> = {
   partially_filled: "bg-amber-50 text-amber-700 border-amber-200",
   filled: "bg-green-50 text-green-700 border-green-200",
 };
-
-function regionsMatch(a: string | null, b: string | null) {
-  if (!a || !b) return true;
-  return a.includes(b) || b.includes(a);
-}
 
 export function MatchingTab({ availability, needs, assignments }: Props) {
   const router = useRouter();
