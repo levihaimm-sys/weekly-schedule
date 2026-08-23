@@ -182,7 +182,9 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
   const [skipped, setSkipped] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ inserted: number; assigned: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ inserted: number; updated: number; assigned: number; errors: string[] } | null>(
+    null
+  );
 
   function handleFile(file: File) {
     setParseError(null);
@@ -205,7 +207,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
     setImporting(true);
     const res = await importNeeds(parsedRows);
     setImporting(false);
-    setResult({ inserted: res.inserted, assigned: res.assigned, errors: res.errors });
+    setResult({ inserted: res.inserted, updated: res.updated, assigned: res.assigned, errors: res.errors });
     onImported();
   }
 
@@ -225,8 +227,9 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
         {result ? (
           <div className="space-y-3">
             <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800">
-              נוספו {result.inserted} שיעורים נדרשים חדשים.
-              {result.assigned > 0 && ` מתוכם ${result.assigned} שובצו אוטומטית למדריך/ה שצוין/ה (וסומנו כמאושרים).`}
+              נוספו {result.inserted} שיעורים חדשים ועודכנו {result.updated} שיעורים קיימים (לפי לקוח, מתחם, שם מסגרת וחוג
+              תואמים).
+              {result.assigned > 0 && ` בנוסף, ${result.assigned} שובצו אוטומטית למדריך/ה שצוין/ה (וסומנו כמאושרים).`}
             </div>
             {result.errors.length > 0 && (
               <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
@@ -247,6 +250,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
             <p className="mb-3 text-xs text-muted-foreground">
               עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, איש קשר, קב&apos;, מסגרת, שם המסגרת, חוג, יום, שעת התחלה, תאריך התחלה, הערות, מדריך/ה משובץ/ת. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
               אם ממלאים את עמודת המדריך/ה — השיבוץ ייווצר אוטומטית ויקושר למשבצת זמינות פנויה תואמת (אזור ויום), ואותה משבצת תסומן כתפוסה.
+              העלאה חוזרת של אותו קובץ מעדכנת שיעורים קיימים (לפי לקוח + מתחם + שם מסגרת + חוג תואמים) במקום ליצור כפילויות.
             </p>
 
             <input

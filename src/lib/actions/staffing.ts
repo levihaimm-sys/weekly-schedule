@@ -214,57 +214,96 @@ interface ImportNeedRow {
   instructor_name: string | null;
 }
 
+// Re-uploading the same CSV should correct existing lessons, not duplicate them, so each
+// row is matched to an existing need by (client, location, framework name, field) before
+// deciding whether to insert or update.
 export async function importNeeds(rows: ImportNeedRow[]) {
-  if (!rows.length) return { success: true, inserted: 0, assigned: 0, errors: [] as string[] };
+  if (!rows.length) return { success: true, inserted: 0, updated: 0, assigned: 0, errors: [] as string[] };
 
   const supabase = createAdminClient();
 
-  const needsPayload = rows.map(({ instructor_name, ...need }) => need);
-  const { data: inserted, error } = await supabase.from("staffing_needs").insert(needsPayload).select("id");
-
-  if (error || !inserted) return { success: false, inserted: 0, assigned: 0, errors: [error?.message ?? "שגיאה בייבוא"] };
-
+  let insertedCount = 0;
+  let updatedCount = 0;
   let assigned = 0;
+  const errors: string[] = [];
 
-  for (let i = 0; i < inserted.length; i++) {
-    const row = rows[i];
-    const needId = inserted[i].id;
-    const instructorName = row.instructor_name?.trim();
-    if (!instructorName) continue;
+  for (const row of rows) {
+    const { instructor_name, ...need } = row;
 
-    const { data: candidateSlots } = await supabase
-      .from("staffing_availability")
-      .select("id, region, day_of_week")
-      .eq("instructor_name", instructorName)
-      .eq("status", "available");
+    let matchQuery = supabase.from("staffing_needs").select("id").eq("client_name", need.client_name);
+    matchQuery = need.location_name
+      ? matchQuery.eq("location_name", need.location_name)
+      : matchQuery.is("location_name", null);
+    matchQuery = need.framework_name
+      ? matchQuery.eq("framework_name", need.framework_name)
+      : matchQuery.is("framework_name", null);
+    matchQuery = need.field ? matchQuery.eq("field", need.field) : matchQuery.is("field", null);
+    const { data: existingMatches } = await matchQuery.limit(1);
+    const existing = existingMatches?.[0] ?? null;
 
-    const matchedSlot =
-      (candidateSlots ?? []).find(
-        (s) =>
-          regionsMatch(s.region, row.region) &&
-          (row.day_of_week === null || s.day_of_week === null || s.day_of_week === row.day_of_week)
-      ) ?? null;
-
-    await supabase.from("staffing_assignments").insert({
-      need_id: needId,
-      instructor_name: instructorName,
-      availability_id: matchedSlot?.id ?? null,
-      assigned_day_of_week: row.day_of_week ?? matchedSlot?.day_of_week ?? null,
-      is_confirmed: true,
-    });
-
-    if (matchedSlot) {
-      await supabase.from("staffing_availability").update({ status: "assigned" }).eq("id", matchedSlot.id);
+    let needId: string;
+    if (existing) {
+      const { error } = await supabase.from("staffing_needs").update(need).eq("id", existing.id);
+      if (error) {
+        errors.push(`${need.client_name}: ${error.message}`);
+        continue;
+      }
+      needId = existing.id;
+      updatedCount++;
+    } else {
+      const { data: newNeed, error } = await supabase.from("staffing_needs").insert(need).select("id").single();
+      if (error || !newNeed) {
+        errors.push(`${need.client_name}: ${error?.message ?? "שגיאה"}`);
+        continue;
+      }
+      needId = newNeed.id;
+      insertedCount++;
     }
 
-    const status = row.lessons_count <= 1 ? "filled" : "partially_filled";
-    await supabase.from("staffing_needs").update({ status }).eq("id", needId);
+    const instructorName = instructor_name?.trim();
+    if (instructorName) {
+      const { data: existingAssignment } = await supabase
+        .from("staffing_assignments")
+        .select("id")
+        .eq("need_id", needId)
+        .eq("instructor_name", instructorName)
+        .limit(1);
 
-    assigned++;
+      if (!existingAssignment?.length) {
+        const { data: candidateSlots } = await supabase
+          .from("staffing_availability")
+          .select("id, region, day_of_week")
+          .eq("instructor_name", instructorName)
+          .eq("status", "available");
+
+        const matchedSlot =
+          (candidateSlots ?? []).find(
+            (s) =>
+              regionsMatch(s.region, need.region) &&
+              (need.day_of_week === null || s.day_of_week === null || s.day_of_week === need.day_of_week)
+          ) ?? null;
+
+        await supabase.from("staffing_assignments").insert({
+          need_id: needId,
+          instructor_name: instructorName,
+          availability_id: matchedSlot?.id ?? null,
+          assigned_day_of_week: need.day_of_week ?? matchedSlot?.day_of_week ?? null,
+          is_confirmed: true,
+        });
+
+        if (matchedSlot) {
+          await supabase.from("staffing_availability").update({ status: "assigned" }).eq("id", matchedSlot.id);
+        }
+
+        assigned++;
+      }
+    }
+
+    await recomputeNeedStatus(needId);
   }
 
   revalidatePath(PATH);
-  return { success: true, inserted: rows.length, assigned, errors: [] as string[] };
+  return { success: true, inserted: insertedCount, updated: updatedCount, assigned, errors };
 }
 
 export async function deleteNeed(id: string) {
