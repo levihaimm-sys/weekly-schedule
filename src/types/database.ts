@@ -235,7 +235,7 @@ export interface StaffingAvailability {
   instructor_name: string;
   region: string;
   day_of_week: number | null;
-  time_period: "morning" | "noon" | "afternoon" | "evening";
+  time_period: "morning" | "afternoon";
   start_time: string | null;
   status: "available" | "assigned";
   notes: string | null;
@@ -249,7 +249,7 @@ export interface StaffingNeed {
   location_name: string | null;
   address: string | null;
   day_of_week: number | null;
-  time_period: "morning" | "noon" | "afternoon" | "evening" | null;
+  time_period: "morning" | "afternoon" | null;
   start_time: string | null;
   field: string | null;
   lessons_count: number;

@@ -98,9 +98,7 @@ export type ClientPriority = keyof typeof CLIENT_PRIORITY;
 
 export const TIME_PERIODS = {
   morning: "בוקר",
-  noon: "צהריים",
   afternoon: "צהרון",
-  evening: "ערב",
 } as const;
 
 export type TimePeriod = keyof typeof TIME_PERIODS;
