@@ -30,15 +30,18 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [search, setSearch] = useState("");
   const [regionFilter, setRegionFilter] = useState<string[]>([]);
   const [clientFilter, setClientFilter] = useState<string[]>([]);
+  const [fieldFilter, setFieldFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   const regionOptions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
   const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) => a.localeCompare(b, "he"));
+  const fieldOptions = Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[];
 
   const filtered = useMemo(() => {
     return needs.filter((n) => {
       if (regionFilter.length > 0 && !regionFilter.includes(n.region ?? "")) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(n.client_name)) return false;
+      if (fieldFilter.length > 0 && !fieldFilter.includes(n.field ?? "")) return false;
       if (statusFilter.length > 0 && !statusFilter.includes(n.status)) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -51,7 +54,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
       }
       return true;
     });
-  }, [needs, regionFilter, clientFilter, statusFilter, search]);
+  }, [needs, regionFilter, clientFilter, fieldFilter, statusFilter, search]);
 
   return (
     <div className="space-y-4">
@@ -73,6 +76,12 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           selected={clientFilter}
           onChange={setClientFilter}
           placeholder="כל הלקוחות"
+        />
+        <MultiSelectFilter
+          options={fieldOptions.map((f) => ({ value: f, label: f }))}
+          selected={fieldFilter}
+          onChange={setFieldFilter}
+          placeholder="כל התחומים"
         />
         <MultiSelectFilter
           options={(Object.keys(NEED_STATUS) as NeedStatus[]).map((s) => ({ value: s, label: NEED_STATUS[s] }))}
