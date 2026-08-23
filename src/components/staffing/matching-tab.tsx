@@ -14,6 +14,7 @@ import {
 } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { NeedEditModal } from "./need-edit-modal";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
 
 interface Props {
@@ -29,18 +30,37 @@ const STATUS_COLORS: Record<NeedStatus, string> = {
 };
 
 export function MatchingTab({ availability, needs, assignments }: Props) {
-  const [search, setSearch] = useState("");
-  const [regionFilter, setRegionFilter] = useState<string[]>([]);
-  const [clientFilter, setClientFilter] = useState<string[]>([]);
-  const [fieldFilter, setFieldFilter] = useState<string[]>([]);
-  const [frameworkFilter, setFrameworkFilter] = useState<string[]>([]);
-  const [dayFilter, setDayFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [search, setSearch] = usePersistedState("staffing-matching-search", "");
+  const [regionFilter, setRegionFilter] = usePersistedState<string[]>("staffing-matching-region", []);
+  const [clientFilter, setClientFilter] = usePersistedState<string[]>("staffing-matching-client", []);
+  const [fieldFilter, setFieldFilter] = usePersistedState<string[]>("staffing-matching-field", []);
+  const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("staffing-matching-framework", []);
+  const [dayFilter, setDayFilter] = usePersistedState<string[]>("staffing-matching-day", []);
+  const [statusFilter, setStatusFilter] = usePersistedState<string[]>("staffing-matching-status", []);
+  const [dateSortDir, setDateSortDir] = usePersistedState<"asc" | "desc" | null>("staffing-matching-sort", null);
   const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
-  const [dateSortDir, setDateSortDir] = useState<"asc" | "desc" | null>(null);
 
   function toggleDateSort() {
-    setDateSortDir((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
+    setDateSortDir(dateSortDir === null ? "asc" : dateSortDir === "asc" ? "desc" : null);
+  }
+
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    regionFilter.length > 0 ||
+    clientFilter.length > 0 ||
+    fieldFilter.length > 0 ||
+    frameworkFilter.length > 0 ||
+    dayFilter.length > 0 ||
+    statusFilter.length > 0;
+
+  function clearFilters() {
+    setSearch("");
+    setRegionFilter([]);
+    setClientFilter([]);
+    setFieldFilter([]);
+    setFrameworkFilter([]);
+    setDayFilter([]);
+    setStatusFilter([]);
   }
 
   const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
@@ -94,7 +114,9 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="חיפוש לקוח / אזור / חוג"
-          className="w-52 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          className={`w-52 rounded-lg border px-3 py-2 text-sm transition-colors ${
+            search.trim() ? "border-secondary bg-secondary/10 font-medium" : "border-border bg-background"
+          }`}
         />
         <MultiSelectFilter
           options={regionOptions.map((r) => ({ value: r, label: r }))}
@@ -132,6 +154,15 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           onChange={setStatusFilter}
           placeholder="כל הסטטוסים"
         />
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
         <span className="text-sm text-muted-foreground">{filtered.length} שיעורים</span>
       </div>
 

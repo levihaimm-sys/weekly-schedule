@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Check, Trash2, MapPin, Search, Upload } from "lucide-react";
+import { Plus, Loader2, Check, Trash2, MapPin, Search, Upload, X } from "lucide-react";
 import { DAYS_HEBREW, TIME_PERIODS, TimePeriod, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
 import { addNeed, deleteNeed } from "@/lib/actions/staffing";
 import { NeedsImportModal, SampleCsvButton } from "./needs-csv";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { NeedEditModal } from "./need-edit-modal";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { StaffingNeed } from "@/types/database";
 
 interface Props {
@@ -27,15 +28,34 @@ export function NeedsTab({ needs }: Props) {
   const [importOpen, setImportOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = usePersistedState("staffing-needs-search", "");
   const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
 
-  const [regionFilter, setRegionFilter] = useState<string[]>([]);
-  const [clientFilter, setClientFilter] = useState<string[]>([]);
-  const [fieldFilter, setFieldFilter] = useState<string[]>([]);
-  const [frameworkFilter, setFrameworkFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [dayFilter, setDayFilter] = useState<string[]>([]);
+  const [regionFilter, setRegionFilter] = usePersistedState<string[]>("staffing-needs-region", []);
+  const [clientFilter, setClientFilter] = usePersistedState<string[]>("staffing-needs-client", []);
+  const [fieldFilter, setFieldFilter] = usePersistedState<string[]>("staffing-needs-field", []);
+  const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("staffing-needs-framework", []);
+  const [statusFilter, setStatusFilter] = usePersistedState<string[]>("staffing-needs-status", []);
+  const [dayFilter, setDayFilter] = usePersistedState<string[]>("staffing-needs-day", []);
+
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    regionFilter.length > 0 ||
+    clientFilter.length > 0 ||
+    fieldFilter.length > 0 ||
+    frameworkFilter.length > 0 ||
+    statusFilter.length > 0 ||
+    dayFilter.length > 0;
+
+  function clearFilters() {
+    setSearch("");
+    setRegionFilter([]);
+    setClientFilter([]);
+    setFieldFilter([]);
+    setFrameworkFilter([]);
+    setStatusFilter([]);
+    setDayFilter([]);
+  }
 
   const [clientName, setClientName] = useState("");
   const [region, setRegion] = useState("");
@@ -145,7 +165,9 @@ export function NeedsTab({ needs }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="חיפוש לקוח / אזור / חוג"
-              className="w-52 rounded-lg border border-border bg-background py-2 pe-3 ps-8 text-sm"
+              className={`w-52 rounded-lg border py-2 pe-3 ps-8 text-sm transition-colors ${
+                search.trim() ? "border-secondary bg-secondary/10 font-medium" : "border-border bg-background"
+              }`}
             />
           </div>
           <SampleCsvButton />
@@ -203,6 +225,15 @@ export function NeedsTab({ needs }: Props) {
           onChange={setStatusFilter}
           placeholder="כל הסטטוסים"
         />
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {importOpen && (

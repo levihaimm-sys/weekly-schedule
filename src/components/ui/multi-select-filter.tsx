@@ -60,7 +60,11 @@ export function MultiSelectFilter({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+          selected.length > 0
+            ? "border-secondary bg-secondary/10 font-medium text-[#1C1917]"
+            : "border-border bg-background"
+        }`}
       >
         <span className="truncate">
           {selected.length === 0

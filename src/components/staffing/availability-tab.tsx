@@ -9,6 +9,7 @@ import { addAvailability, deleteAvailability } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AvailabilityEditModal } from "./availability-edit-modal";
 import { AvailabilityRowEditModal } from "./availability-row-edit-modal";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { StaffingAvailability, StaffingAssignment, StaffingNeed } from "@/types/database";
 
 interface Props {
@@ -31,16 +32,34 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = usePersistedState("staffing-availability-search", "");
   const [editingSlot, setEditingSlot] = useState<StaffingAvailability | null>(null);
   const [editingRow, setEditingRow] = useState<{ name: string; region: string; slots: StaffingAvailability[] } | null>(
     null
   );
 
-  const [regionFilter, setRegionFilter] = useState<string[]>([]);
-  const [dayFilter, setDayFilter] = useState<string[]>([]);
-  const [timePeriodFilter, setTimePeriodFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [regionFilter, setRegionFilter] = usePersistedState<string[]>("staffing-availability-region", []);
+  const [dayFilter, setDayFilter] = usePersistedState<string[]>("staffing-availability-day", []);
+  const [timePeriodFilter, setTimePeriodFilter] = usePersistedState<string[]>(
+    "staffing-availability-timePeriod",
+    []
+  );
+  const [statusFilter, setStatusFilter] = usePersistedState<string[]>("staffing-availability-status", []);
+
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    regionFilter.length > 0 ||
+    dayFilter.length > 0 ||
+    timePeriodFilter.length > 0 ||
+    statusFilter.length > 0;
+
+  function clearFilters() {
+    setSearch("");
+    setRegionFilter([]);
+    setDayFilter([]);
+    setTimePeriodFilter([]);
+    setStatusFilter([]);
+  }
 
   const [instructorName, setInstructorName] = useState("");
   const [region, setRegion] = useState("");
@@ -155,7 +174,9 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="חיפוש שם / אזור"
-              className="w-48 rounded-lg border border-border bg-background py-2 pe-3 ps-8 text-sm"
+              className={`w-48 rounded-lg border py-2 pe-3 ps-8 text-sm transition-colors ${
+                search.trim() ? "border-secondary bg-secondary/10 font-medium" : "border-border bg-background"
+              }`}
             />
           </div>
           <button
@@ -196,6 +217,15 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
           onChange={setStatusFilter}
           placeholder="כל הסטטוסים"
         />
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {addFormOpen && (
