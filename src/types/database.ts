@@ -250,6 +250,7 @@ export interface StaffingNeed {
   address: string | null;
   manager_name: string | null;
   framework: string | null;
+  framework_name: string | null;
   start_date: string | null;
   day_of_week: number | null;
   time_period: "morning" | "afternoon" | null;

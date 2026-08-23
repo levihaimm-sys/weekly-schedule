@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { Download, Upload, Loader2, X } from "lucide-react";
 import { importNeeds } from "@/lib/actions/staffing";
 
-const CSV_HEADERS = ["לקוח", "עיר", "כתובת", "מתחם", "מנהל/ת", "קב'", "מסגרת", "חוג", "יום", "שעת התחלה", "תאריך התחלה"];
+const CSV_HEADERS = [
+  "לקוח", "עיר", "כתובת", "מתחם", "מנהל/ת", "קב'", "מסגרת", "שם המסגרת", "חוג", "יום", "שעת התחלה", "תאריך התחלה", "הערות",
+];
 
 const DAY_NAME_TO_INDEX: Record<string, number> = {
   "ראשון": 0,
@@ -30,7 +32,8 @@ function csvField(value: string | null | undefined) {
 function buildSampleCsv() {
   const headerRow = CSV_HEADERS.map(csvField).join(",");
   const sampleRow = [
-    "טומשין", "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "3", 'בי"ס', "תאטרון", "חמישי", "13:50", "01/09/2026",
+    "טומשין", "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "3", 'בי"ס',
+    "בית ספר עתידים", "תאטרון", "חמישי", "13:50", "01/09/2026", "יש חניה בסמוך למתחם",
   ]
     .map(csvField)
     .join(",");
@@ -100,10 +103,12 @@ interface ParsedNeedRow {
   manager_name: string | null;
   lessons_count: number;
   framework: string | null;
+  framework_name: string | null;
   field: string | null;
   day_of_week: number | null;
   start_time: string | null;
   start_date: string | null;
+  notes: string | null;
 }
 
 function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number } {
@@ -119,10 +124,12 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
   const iManager = idx("מנהל/ת");
   const iGroup = idx("קב'");
   const iFramework = idx("מסגרת");
+  const iFrameworkName = idx("שם המסגרת");
   const iField = idx("חוג");
   const iDay = idx("יום");
   const iStartTime = idx("שעת התחלה");
   const iDate = idx("תאריך התחלה");
+  const iNotes = idx("הערות");
 
   const cell = (line: string[], i: number) => (i >= 0 ? (line[i] ?? "").trim() : "");
 
@@ -149,10 +156,12 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
       manager_name: cell(line, iManager) || null,
       lessons_count: groupText && !Number.isNaN(Number(groupText)) ? Number(groupText) : 1,
       framework: cell(line, iFramework) || null,
+      framework_name: cell(line, iFrameworkName) || null,
       field: cell(line, iField) || null,
       day_of_week: DAY_NAME_TO_INDEX[dayText] ?? null,
       start_time: cell(line, iStartTime) || null,
       start_date: cell(line, iDate) || null,
+      notes: cell(line, iNotes) || null,
     });
   }
 
@@ -228,7 +237,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
         ) : (
           <>
             <p className="mb-3 text-xs text-muted-foreground">
-              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, קב&apos;, מסגרת, חוג, יום, שעת התחלה, תאריך התחלה. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
+              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, קב&apos;, מסגרת, שם המסגרת, חוג, יום, שעת התחלה, תאריך התחלה, הערות. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
             </p>
 
             <input

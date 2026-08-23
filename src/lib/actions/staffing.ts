@@ -72,6 +72,7 @@ export async function addNeed(data: {
   address?: string | null;
   manager_name?: string | null;
   framework?: string | null;
+  framework_name?: string | null;
   start_date?: string | null;
   day_of_week?: number | null;
   time_period?: string | null;
@@ -91,6 +92,7 @@ export async function addNeed(data: {
     address: data.address?.trim() || null,
     manager_name: data.manager_name?.trim() || null,
     framework: data.framework?.trim() || null,
+    framework_name: data.framework_name?.trim() || null,
     start_date: data.start_date?.trim() || null,
     day_of_week: data.day_of_week ?? null,
     time_period: data.time_period || null,
@@ -113,10 +115,12 @@ interface ImportNeedRow {
   manager_name: string | null;
   lessons_count: number;
   framework: string | null;
+  framework_name: string | null;
   field: string | null;
   day_of_week: number | null;
   start_time: string | null;
   start_date: string | null;
+  notes: string | null;
 }
 
 export async function importNeeds(rows: ImportNeedRow[]) {

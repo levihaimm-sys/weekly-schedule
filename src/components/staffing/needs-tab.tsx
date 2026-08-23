@@ -33,6 +33,7 @@ export function NeedsTab({ needs }: Props) {
   const [address, setAddress] = useState("");
   const [managerName, setManagerName] = useState("");
   const [framework, setFramework] = useState("");
+  const [frameworkName, setFrameworkName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [dayValue, setDayValue] = useState<string>("");
   const [timePeriod, setTimePeriod] = useState<TimePeriod | "">("");
@@ -70,6 +71,7 @@ export function NeedsTab({ needs }: Props) {
       address,
       manager_name: managerName,
       framework,
+      framework_name: frameworkName,
       start_date: startDate,
       day_of_week: dayValue === "" ? null : Number(dayValue),
       time_period: timePeriod || null,
@@ -90,6 +92,7 @@ export function NeedsTab({ needs }: Props) {
     setAddress("");
     setManagerName("");
     setFramework("");
+    setFrameworkName("");
     setStartDate("");
     setDayValue("");
     setTimePeriod("");
@@ -204,6 +207,15 @@ export function NeedsTab({ needs }: Props) {
                   onChange={(e) => setFramework(e.target.value)}
                   placeholder='בי"ס'
                   className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">שם המסגרת</label>
+                <input
+                  value={frameworkName}
+                  onChange={(e) => setFrameworkName(e.target.value)}
+                  placeholder="בית ספר עתידים"
+                  className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -336,6 +348,7 @@ export function NeedsTab({ needs }: Props) {
                 {n.start_time ? ` (${n.start_time})` : ""}
                 {n.field ? ` · ${n.field}` : ""}
                 {n.framework ? ` · ${n.framework}` : ""}
+                {n.framework_name ? ` · ${n.framework_name}` : ""}
                 {` · ${n.lessons_count} שיעורים`}
                 {n.manager_name ? ` · מנהל/ת: ${n.manager_name}` : ""}
                 {n.start_date ? ` · תחילת פעילות: ${n.start_date}` : ""}
