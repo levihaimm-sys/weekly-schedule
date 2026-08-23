@@ -6,22 +6,20 @@ import { regionsMatch, nameMatch } from "@/lib/utils/staffing";
 
 const PATH = "/staffing";
 
-// "Filled" requires actual confirmed count to reach lessons_count, but "open" vs "partially
-// filled" reacts to any assignment at all — placing a candidate (even before confirming) is
-// already "assigning" from the admin's point of view and should show progress, not stay "open".
+// A lesson is "filled" as soon as ONE instructor is confirmed for it — קב' is a headcount
+// display field (e.g. group/class number), not a "this many instructors required" gate.
+// "Open" vs "partially filled" reacts to any assignment at all — placing a candidate (even
+// before confirming) is already "assigning" from the admin's point of view.
 async function recomputeNeedStatus(needId: string) {
   const supabase = createAdminClient();
 
-  const [{ data: need }, { data: assignments }] = await Promise.all([
-    supabase.from("staffing_needs").select("lessons_count").eq("id", needId).single(),
-    supabase.from("staffing_assignments").select("is_confirmed").eq("need_id", needId),
-  ]);
-
-  if (!need) return;
+  const { data: assignments } = await supabase
+    .from("staffing_assignments")
+    .select("is_confirmed")
+    .eq("need_id", needId);
 
   const confirmedCount = (assignments ?? []).filter((a) => a.is_confirmed).length;
-  const status =
-    confirmedCount >= need.lessons_count ? "filled" : (assignments ?? []).length > 0 ? "partially_filled" : "open";
+  const status = confirmedCount > 0 ? "filled" : (assignments ?? []).length > 0 ? "partially_filled" : "open";
 
   await supabase.from("staffing_needs").update({ status }).eq("id", needId);
 }

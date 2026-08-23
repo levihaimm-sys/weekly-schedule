@@ -57,7 +57,15 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("staffing-matching-framework", []);
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("staffing-matching-day", []);
   const [statusFilter, setStatusFilter] = usePersistedState<string[]>("staffing-matching-status", []);
-  const [dateSortDir, setDateSortDir] = usePersistedState<"asc" | "desc" | null>("staffing-matching-sort", null);
+  // Composite sort: the array's order IS the priority (first = primary). Clicking a column
+  // makes it primary while keeping any other active column as a secondary tiebreaker, rather
+  // than replacing it — e.g. sort by day, then click city: city becomes primary and day still
+  // breaks ties within each city.
+  type SortColumn = "day" | "region";
+  const [sortKeys, setSortKeys] = usePersistedState<{ key: SortColumn; dir: "asc" | "desc" }[]>(
+    "staffing-matching-sortkeys",
+    []
+  );
   const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
   const router = useRouter();
 
@@ -66,8 +74,32 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [bulkPending, setBulkPending] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
-  function toggleDateSort() {
-    setDateSortDir(dateSortDir === null ? "asc" : dateSortDir === "asc" ? "desc" : null);
+  function handleSortClick(column: SortColumn) {
+    setSortKeys((prev) => {
+      const isPrimary = prev[0]?.key === column;
+      if (isPrimary) {
+        if (prev[0].dir === "asc") {
+          return [{ key: column, dir: "desc" }, ...prev.slice(1)];
+        }
+        return prev.slice(1); // was desc -> clear this column, promote the next one
+      }
+      const rest = prev.filter((k) => k.key !== column);
+      return [{ key: column, dir: "asc" }, ...rest];
+    });
+  }
+
+  function sortIndicator(column: SortColumn) {
+    const idx = sortKeys.findIndex((k) => k.key === column);
+    if (idx === -1) return <ArrowUpDown size={12} />;
+    const dir = sortKeys[idx].dir;
+    const icon = dir === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} />;
+    if (sortKeys.length < 2) return icon;
+    return (
+      <span className="flex items-center">
+        {icon}
+        <sup className="text-[9px]">{idx + 1}</sup>
+      </span>
+    );
   }
 
   const hasActiveFilters =
@@ -119,19 +151,25 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     });
   }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, search]);
 
-  // Chronological Sun->Thu order, not alphabetical — "flexible/not set" sorts last; same-day
-  // rows are then ordered by start time.
+  // day sorts chronologically Sun->Thu (not alphabetically), "flexible/not set" last, then by
+  // start time; region sorts alphabetically. sortKeys' order sets which column is primary.
   const sorted = useMemo(() => {
-    if (!dateSortDir) return filtered;
+    if (sortKeys.length === 0) return filtered;
     const copy = [...filtered];
     const dayKey = (d: number | null) => (d === null ? 7 : d);
+    const compare = (a: StaffingNeed, b: StaffingNeed, column: SortColumn) => {
+      if (column === "region") return (a.region ?? "").localeCompare(b.region ?? "", "he");
+      return dayKey(a.day_of_week) - dayKey(b.day_of_week) || (a.start_time ?? "").localeCompare(b.start_time ?? "");
+    };
     copy.sort((a, b) => {
-      const cmp =
-        dayKey(a.day_of_week) - dayKey(b.day_of_week) || (a.start_time ?? "").localeCompare(b.start_time ?? "");
-      return dateSortDir === "asc" ? cmp : -cmp;
+      for (const { key, dir } of sortKeys) {
+        const cmp = compare(a, b, key);
+        if (cmp !== 0) return dir === "asc" ? cmp : -cmp;
+      }
+      return 0;
     });
     return copy;
-  }, [filtered, dateSortDir]);
+  }, [filtered, sortKeys]);
 
   const allSelected = sorted.length > 0 && sorted.every((n) => selectedIds.has(n.id));
 
@@ -251,7 +289,9 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
             נקה סינון
           </button>
         )}
-        <span className="text-sm text-muted-foreground">{filtered.length} שיעורים</span>
+        <span className="text-sm text-muted-foreground">
+          {filtered.reduce((sum, n) => sum + n.lessons_count, 0)} שיעורים ({filtered.length} שורות)
+        </span>
       </div>
 
       {selectedIds.size > 0 && (
@@ -336,17 +376,22 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
                 />
               </th>
               <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">אזור</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
-                <button onClick={toggleDateSort} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                <button
+                  onClick={() => handleSortClick("region")}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                >
+                  אזור
+                  {sortIndicator("region")}
+                </button>
+              </th>
+              <th className="px-3 py-2.5 whitespace-nowrap">
+                <button
+                  onClick={() => handleSortClick("day")}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                >
                   מועד
-                  {dateSortDir === "asc" ? (
-                    <ChevronUp size={13} />
-                  ) : dateSortDir === "desc" ? (
-                    <ChevronDown size={13} />
-                  ) : (
-                    <ArrowUpDown size={12} />
-                  )}
+                  {sortIndicator("day")}
                 </button>
               </th>
               <th className="px-3 py-2.5 whitespace-nowrap">חוג</th>
@@ -541,9 +586,7 @@ function AssignmentCell({
             key={a.id}
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap ${
               a.is_confirmed
-                ? need.status === "partially_filled"
-                  ? "border-amber-200 bg-amber-50 text-amber-800"
-                  : "border-green-200 bg-green-50 text-green-800"
+                ? "border-green-200 bg-green-50 text-green-800"
                 : "border-border bg-muted/30 text-muted-foreground"
             }`}
           >
