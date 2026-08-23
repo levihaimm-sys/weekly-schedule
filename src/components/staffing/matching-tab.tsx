@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, RotateCcw, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown, Trash2 } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch, nameMatch } from "@/lib/utils/staffing";
 import {
@@ -549,9 +549,16 @@ function AssignmentCell({
           >
             {a.instructor_name}
             {a.is_confirmed ? (
-              <button onClick={() => handleUnconfirm(a.id)} title="בטל אישור" className="hover:text-amber-700">
-                {pendingId === a.id ? <Loader2 size={11} className="animate-spin" /> : "✓"}
-              </button>
+              <>
+                <CheckCircle2 size={12} className="text-green-700" />
+                <button
+                  onClick={() => handleUnconfirm(a.id)}
+                  title="בטל אישור (החזר למועמד בלבד)"
+                  className="hover:text-red-600"
+                >
+                  {pendingId === a.id ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                </button>
+              </>
             ) : needsDay ? (
               <select
                 value={dayChoice[a.id] ?? ""}
