@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
-import { dayLabel, timePeriodLabel, regionsMatch } from "@/lib/utils/staffing";
+import { dayLabel, timePeriodLabel, regionsMatch, nameMatch } from "@/lib/utils/staffing";
 import {
   addAssignmentCandidate,
   confirmAssignment,
@@ -43,10 +43,11 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     setDateSortDir((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
   }
 
-  const regionOptions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
-  const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) => a.localeCompare(b, "he"));
-  const fieldOptions = Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[];
-  const frameworkOptions = Array.from(new Set(needs.map((n) => n.framework).filter(Boolean))) as string[];
+  const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
+  const regionOptions = (Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[]).sort(sortHe);
+  const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort(sortHe);
+  const fieldOptions = (Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[]).sort(sortHe);
+  const frameworkOptions = (Array.from(new Set(needs.map((n) => n.framework).filter(Boolean))) as string[]).sort(sortHe);
 
   const filtered = useMemo(() => {
     return needs.filter((n) => {
@@ -277,7 +278,7 @@ function AssignmentCell({
     const name = newName.trim();
     if (!name) return;
     setPendingId("new");
-    const matchedSlot = compatibleSlots.find((s) => s.instructor_name === name) ?? null;
+    const matchedSlot = compatibleSlots.find((s) => nameMatch(s.instructor_name, name)) ?? null;
     await addAssignmentCandidate({
       need_id: need.id,
       instructor_name: name,

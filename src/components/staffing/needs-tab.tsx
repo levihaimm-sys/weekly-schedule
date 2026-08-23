@@ -53,12 +53,13 @@ export function NeedsTab({ needs }: Props) {
   const [lessonsCount, setLessonsCount] = useState("1");
   const [notes, setNotes] = useState("");
 
-  const existingRegions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
-  const existingClientNames = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) =>
-    a.localeCompare(b, "he")
+  const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
+  const existingRegions = (Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[]).sort(sortHe);
+  const existingClientNames = Array.from(new Set(needs.map((n) => n.client_name))).sort(sortHe);
+  const existingFields = (Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[]).sort(sortHe);
+  const existingFrameworks = (Array.from(new Set(needs.map((n) => n.framework).filter(Boolean))) as string[]).sort(
+    sortHe
   );
-  const existingFields = Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[];
-  const existingFrameworks = Array.from(new Set(needs.map((n) => n.framework).filter(Boolean))) as string[];
 
   const filtered = useMemo(() => {
     return needs.filter((n) => {

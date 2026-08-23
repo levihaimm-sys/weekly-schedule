@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { regionsMatch } from "@/lib/utils/staffing";
+import { regionsMatch, nameMatch } from "@/lib/utils/staffing";
 
 const PATH = "/staffing";
 
@@ -94,6 +94,73 @@ export async function deleteAvailability(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_availability").delete().eq("id", id);
   if (error) return { error: "שגיאה במחיקה: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+// Edits an entire (instructor, region) row at once: renames/moves all its slots and
+// reconciles the day checkboxes — adding rows for newly-checked days, deleting rows for
+// unchecked ones, and updating the ones that stay (in case name/region/time also changed).
+export async function updateAvailabilityGroup(data: {
+  slotIds: string[];
+  instructor_name: string;
+  region: string;
+  days: (number | null)[];
+  time_period: string;
+  start_time?: string | null;
+  notes?: string | null;
+}) {
+  const name = data.instructor_name.trim();
+  const region = data.region.trim();
+  if (!name) return { error: "יש להזין שם מדריך" };
+  if (!region) return { error: "יש להזין אזור עבודה" };
+  if (!data.days.length) return { error: "יש לבחור לפחות יום אחד" };
+
+  const supabase = createAdminClient();
+
+  const { data: existingSlots, error: fetchError } = await supabase
+    .from("staffing_availability")
+    .select("id, day_of_week")
+    .in("id", data.slotIds);
+
+  if (fetchError) return { error: "שגיאה בעדכון: " + fetchError.message };
+
+  const existingDays = new Set((existingSlots ?? []).map((s) => s.day_of_week));
+  const newDays = new Set(data.days);
+
+  const toDeleteIds = (existingSlots ?? []).filter((s) => !newDays.has(s.day_of_week)).map((s) => s.id);
+  if (toDeleteIds.length) {
+    await supabase.from("staffing_availability").delete().in("id", toDeleteIds);
+  }
+
+  const toUpdateIds = (existingSlots ?? []).filter((s) => newDays.has(s.day_of_week)).map((s) => s.id);
+  if (toUpdateIds.length) {
+    await supabase
+      .from("staffing_availability")
+      .update({
+        instructor_name: name,
+        region,
+        time_period: data.time_period,
+        start_time: data.start_time?.trim() || null,
+        notes: data.notes?.trim() || null,
+      })
+      .in("id", toUpdateIds);
+  }
+
+  const toInsertDays = data.days.filter((d) => !existingDays.has(d));
+  if (toInsertDays.length) {
+    const rows = toInsertDays.map((day) => ({
+      instructor_name: name,
+      region,
+      day_of_week: day,
+      time_period: data.time_period,
+      start_time: data.start_time?.trim() || null,
+      notes: data.notes?.trim() || null,
+    }));
+    const { error } = await supabase.from("staffing_availability").insert(rows);
+    if (error) return { error: "שגיאה בהוספה: " + error.message };
+  }
+
   revalidatePath(PATH);
   return { success: true };
 }
@@ -272,13 +339,13 @@ export async function importNeeds(rows: ImportNeedRow[]) {
       if (!existingAssignment?.length) {
         const { data: candidateSlots } = await supabase
           .from("staffing_availability")
-          .select("id, region, day_of_week")
-          .eq("instructor_name", instructorName)
+          .select("id, instructor_name, region, day_of_week")
           .eq("status", "available");
 
         const matchedSlot =
           (candidateSlots ?? []).find(
             (s) =>
+              nameMatch(s.instructor_name, instructorName) &&
               regionsMatch(s.region, need.region) &&
               (need.day_of_week === null || s.day_of_week === null || s.day_of_week === need.day_of_week)
           ) ?? null;
@@ -377,14 +444,13 @@ export async function confirmAssignment(id: string, assignedDayOfWeek?: number |
     // by instructor + day so their availability still gets marked as taken once confirmed.
     const { data: candidateSlots } = await supabase
       .from("staffing_availability")
-      .select("id, day_of_week")
-      .eq("instructor_name", assignment.instructor_name)
+      .select("id, instructor_name, day_of_week")
       .eq("status", "available");
 
+    const nameMatches = (candidateSlots ?? []).filter((s) => nameMatch(s.instructor_name, assignment.instructor_name));
+
     const matchedSlot =
-      (candidateSlots ?? []).find((s) => s.day_of_week === dayOfWeek) ??
-      (candidateSlots ?? []).find((s) => s.day_of_week === null) ??
-      null;
+      nameMatches.find((s) => s.day_of_week === dayOfWeek) ?? nameMatches.find((s) => s.day_of_week === null) ?? null;
 
     if (matchedSlot) {
       availabilityId = matchedSlot.id;

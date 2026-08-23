@@ -8,6 +8,7 @@ import { timePeriodLabel } from "@/lib/utils/staffing";
 import { addAvailability, deleteAvailability } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AvailabilityEditModal } from "./availability-edit-modal";
+import { AvailabilityRowEditModal } from "./availability-row-edit-modal";
 import type { StaffingAvailability, StaffingAssignment, StaffingNeed } from "@/types/database";
 
 interface Props {
@@ -32,6 +33,9 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [editingSlot, setEditingSlot] = useState<StaffingAvailability | null>(null);
+  const [editingRow, setEditingRow] = useState<{ name: string; region: string; slots: StaffingAvailability[] } | null>(
+    null
+  );
 
   const [regionFilter, setRegionFilter] = useState<string[]>([]);
   const [dayFilter, setDayFilter] = useState<string[]>([]);
@@ -343,7 +347,15 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
             ) : (
               filteredRows.map((r) => (
                 <tr key={`${r.name}||${r.region}`}>
-                  <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">{r.name}</td>
+                  <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
+                    <button
+                      onClick={() => setEditingRow(r)}
+                      className="hover:underline"
+                      title="ערוך שם, אזור וימי עבודה"
+                    >
+                      {r.name}
+                    </button>
+                  </td>
                   <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{r.region}</td>
                   {WORK_DAYS.map((day) => (
                     <td key={day} className="px-1 py-2 text-center align-top">
@@ -385,6 +397,14 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
       </div>
 
       {editingSlot && <AvailabilityEditModal slot={editingSlot} onClose={() => setEditingSlot(null)} />}
+      {editingRow && (
+        <AvailabilityRowEditModal
+          name={editingRow.name}
+          region={editingRow.region}
+          slots={editingRow.slots}
+          onClose={() => setEditingRow(null)}
+        />
+      )}
     </div>
   );
 }
