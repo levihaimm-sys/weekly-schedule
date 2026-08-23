@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Download, Upload, Loader2, X } from "lucide-react";
 import { importNeeds } from "@/lib/actions/staffing";
 
-const CSV_HEADERS = ["עיר", "כתובת", "מתחם", "מנהל/ת", "קב'", "מסגרת", "חוג", "יום", "תאריך התחלה"];
+const CSV_HEADERS = ["לקוח", "עיר", "כתובת", "מתחם", "מנהל/ת", "קב'", "מסגרת", "חוג", "יום", "שעת התחלה", "תאריך התחלה"];
 
 const DAY_NAME_TO_INDEX: Record<string, number> = {
   "ראשון": 0,
@@ -30,7 +30,7 @@ function csvField(value: string | null | undefined) {
 function buildSampleCsv() {
   const headerRow = CSV_HEADERS.map(csvField).join(",");
   const sampleRow = [
-    "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "3", 'בי"ס', "תאטרון", "חמישי", "01/09/2026",
+    "טומשין", "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "3", 'בי"ס', "תאטרון", "חמישי", "13:50", "01/09/2026",
   ]
     .map(csvField)
     .join(",");
@@ -102,6 +102,7 @@ interface ParsedNeedRow {
   framework: string | null;
   field: string | null;
   day_of_week: number | null;
+  start_time: string | null;
   start_date: string | null;
 }
 
@@ -111,6 +112,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
 
   const headers = table[0].map((h) => h.trim());
   const idx = (label: string) => headers.indexOf(label);
+  const iClient = idx("לקוח");
   const iCity = idx("עיר");
   const iAddress = idx("כתובת");
   const iComplex = idx("מתחם");
@@ -119,6 +121,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
   const iFramework = idx("מסגרת");
   const iField = idx("חוג");
   const iDay = idx("יום");
+  const iStartTime = idx("שעת התחלה");
   const iDate = idx("תאריך התחלה");
 
   const cell = (line: string[], i: number) => (i >= 0 ? (line[i] ?? "").trim() : "");
@@ -127,9 +130,11 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
   let skipped = 0;
 
   for (const line of table.slice(1)) {
+    const client = cell(line, iClient);
     const city = cell(line, iCity);
     const complex = cell(line, iComplex);
-    if (!city && !complex) {
+    const clientName = client || complex || city;
+    if (!clientName) {
       skipped++;
       continue;
     }
@@ -137,7 +142,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
     const groupText = cell(line, iGroup);
 
     rows.push({
-      client_name: complex || city,
+      client_name: clientName,
       region: city || null,
       address: cell(line, iAddress) || null,
       location_name: complex || null,
@@ -146,6 +151,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
       framework: cell(line, iFramework) || null,
       field: cell(line, iField) || null,
       day_of_week: DAY_NAME_TO_INDEX[dayText] ?? null,
+      start_time: cell(line, iStartTime) || null,
       start_date: cell(line, iDate) || null,
     });
   }
@@ -171,7 +177,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
       const text = reader.result as string;
       const { rows, skipped: skippedCount } = parseImportCsv(text);
       if (rows.length === 0) {
-        setParseError("לא נמצאו שורות תקינות בקובץ. יש לוודא שיש כותרות בעברית (עיר, כתובת, מתחם וכו') ושבכל שורה יש עיר או מתחם.");
+        setParseError("לא נמצאו שורות תקינות בקובץ. יש לוודא שיש כותרות בעברית (לקוח, עיר, כתובת, מתחם וכו') ושבכל שורה יש לקוח, עיר או מתחם.");
       }
       setParsedRows(rows);
       setSkipped(skippedCount);
@@ -222,7 +228,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
         ) : (
           <>
             <p className="mb-3 text-xs text-muted-foreground">
-              עמודות: עיר, כתובת, מתחם, מנהל/ת, קב&apos;, מסגרת, חוג, יום, תאריך התחלה. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
+              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, קב&apos;, מסגרת, חוג, יום, שעת התחלה, תאריך התחלה. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
             </p>
 
             <input
@@ -249,7 +255,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
             {parsedRows.length > 0 && (
               <div className="mb-3 space-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
                 <p>{parsedRows.length} שורות תקינות ייובאו</p>
-                {skipped > 0 && <p className="text-amber-700">{skipped} שורות דולגו (חסר עיר ומתחם)</p>}
+                {skipped > 0 && <p className="text-amber-700">{skipped} שורות דולגו (חסר לקוח, עיר ומתחם)</p>}
               </div>
             )}
 

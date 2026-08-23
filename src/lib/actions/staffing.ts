@@ -115,6 +115,7 @@ interface ImportNeedRow {
   framework: string | null;
   field: string | null;
   day_of_week: number | null;
+  start_time: string | null;
   start_date: string | null;
 }
 
