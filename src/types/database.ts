@@ -232,8 +232,7 @@ export interface EquipmentConfirmationWithDetails extends EquipmentConfirmation 
 
 export interface StaffingAvailability {
   id: string;
-  instructor_id: string | null;
-  candidate_id: string | null;
+  instructor_name: string;
   region: string;
   day_of_week: number | null;
   time_period: "morning" | "noon" | "afternoon" | "evening";
@@ -245,8 +244,7 @@ export interface StaffingAvailability {
 
 export interface StaffingNeed {
   id: string;
-  client_id: string | null;
-  client_name_override: string | null;
+  client_name: string;
   region: string | null;
   location_name: string | null;
   address: string | null;
@@ -263,8 +261,7 @@ export interface StaffingNeed {
 export interface StaffingAssignment {
   id: string;
   need_id: string;
-  instructor_id: string | null;
-  candidate_id: string | null;
+  instructor_name: string;
   availability_id: string | null;
   assigned_day_of_week: number | null;
   is_confirmed: boolean;

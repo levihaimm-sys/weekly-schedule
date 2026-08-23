@@ -4,13 +4,11 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Loader2, Check, Trash2, MapPin, Search } from "lucide-react";
 import { DAYS_HEBREW, TIME_PERIODS, TimePeriod, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
-import { dayLabel, timePeriodLabel, clientLabel } from "@/lib/utils/staffing";
+import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
 import { addNeed, deleteNeed } from "@/lib/actions/staffing";
 import type { StaffingNeed } from "@/types/database";
-import type { StaffingClient } from "@/types/staffing";
 
 interface Props {
-  clients: StaffingClient[];
   needs: StaffingNeed[];
 }
 
@@ -20,15 +18,14 @@ const STATUS_COLORS: Record<NeedStatus, string> = {
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
-export function NeedsTab({ clients, needs }: Props) {
+export function NeedsTab({ needs }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const [clientId, setClientId] = useState("");
-  const [clientOverride, setClientOverride] = useState("");
+  const [clientName, setClientName] = useState("");
   const [region, setRegion] = useState("");
   const [locationName, setLocationName] = useState("");
   const [address, setAddress] = useState("");
@@ -39,32 +36,30 @@ export function NeedsTab({ clients, needs }: Props) {
   const [lessonsCount, setLessonsCount] = useState("1");
   const [notes, setNotes] = useState("");
 
-  const existingRegions = Array.from(
-    new Set([...needs.map((n) => n.region).filter(Boolean), ...clients.map((c) => c.region).filter(Boolean)])
-  ) as string[];
-
+  const existingRegions = Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[];
+  const existingClientNames = Array.from(new Set(needs.map((n) => n.client_name))).sort((a, b) =>
+    a.localeCompare(b, "he")
+  );
   const existingFields = Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[];
 
   const filtered = useMemo(() => {
     if (!search.trim()) return needs;
     const q = search.toLowerCase();
     return needs.filter((n) => {
-      const label = clientLabel(n, clients).toLowerCase();
       return (
-        label.includes(q) ||
+        n.client_name.toLowerCase().includes(q) ||
         (n.region ?? "").toLowerCase().includes(q) ||
         (n.location_name ?? "").toLowerCase().includes(q) ||
         (n.field ?? "").toLowerCase().includes(q)
       );
     });
-  }, [needs, clients, search]);
+  }, [needs, search]);
 
   async function handleAdd() {
     setError(null);
     setIsPending(true);
     const result = await addNeed({
-      client_id: clientId || null,
-      client_name_override: clientId ? null : clientOverride,
+      client_name: clientName,
       region,
       location_name: locationName,
       address,
@@ -81,8 +76,7 @@ export function NeedsTab({ clients, needs }: Props) {
       return;
     }
     setAddFormOpen(false);
-    setClientId("");
-    setClientOverride("");
+    setClientName("");
     setRegion("");
     setLocationName("");
     setAddress("");
@@ -130,31 +124,20 @@ export function NeedsTab({ clients, needs }: Props) {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">לקוח קיים</label>
-                <select
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
+                <label className="text-xs text-muted-foreground">שם לקוח</label>
+                <input
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  list="staffing-client-names"
+                  placeholder="ראש העין צהרונים"
                   className="w-48 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">— ללא (הזן שם ידנית) —</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
+                />
+                <datalist id="staffing-client-names">
+                  {existingClientNames.map((c) => (
+                    <option key={c} value={c} />
                   ))}
-                </select>
+                </datalist>
               </div>
-              {!clientId && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-muted-foreground">שם לקוח (חופשי)</label>
-                  <input
-                    value={clientOverride}
-                    onChange={(e) => setClientOverride(e.target.value)}
-                    placeholder="ראש העין צהרונים"
-                    className="w-48 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-              )}
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">אזור</label>
                 <input
@@ -285,7 +268,7 @@ export function NeedsTab({ clients, needs }: Props) {
           <div key={n.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">{clientLabel(n, clients)}</p>
+                <p className="font-medium">{n.client_name}</p>
                 <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[n.status as NeedStatus]}`}>
                   {NEED_STATUS[n.status as NeedStatus]}
                 </span>

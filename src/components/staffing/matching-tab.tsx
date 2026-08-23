@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X, MapPin, UserPlus, Loader2 } from "lucide-react";
 import { DAYS_HEBREW, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
-import { dayLabel, timePeriodLabel, personLabel, clientLabel } from "@/lib/utils/staffing";
+import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
 import {
   addAssignmentCandidate,
   confirmAssignment,
@@ -12,12 +12,8 @@ import {
   deleteAssignment,
 } from "@/lib/actions/staffing";
 import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
-import type { StaffingInstructor, StaffingCandidate, StaffingClient } from "@/types/staffing";
 
 interface Props {
-  instructors: StaffingInstructor[];
-  candidates: StaffingCandidate[];
-  clients: StaffingClient[];
   availability: StaffingAvailability[];
   needs: StaffingNeed[];
   assignments: StaffingAssignment[];
@@ -34,11 +30,11 @@ function regionsMatch(a: string | null, b: string | null) {
   return a.includes(b) || b.includes(a);
 }
 
-export function MatchingTab({ instructors, candidates, clients, availability, needs, assignments }: Props) {
+export function MatchingTab({ availability, needs, assignments }: Props) {
   const router = useRouter();
   const [selectedNeedId, setSelectedNeedId] = useState<string | null>(needs[0]?.id ?? null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [manualPerson, setManualPerson] = useState("");
+  const [manualName, setManualName] = useState("");
   const [dayChoice, setDayChoice] = useState<Record<string, string>>({});
 
   const openNeeds = needs.filter((n) => n.status !== "filled");
@@ -50,14 +46,6 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
   const needAssignments = useMemo(
     () => assignments.filter((a) => a.need_id === selectedNeedId),
     [assignments, selectedNeedId]
-  );
-
-  const people = useMemo(
-    () => [
-      ...instructors.map((i) => ({ key: `instructor:${i.id}`, name: i.full_name })),
-      ...candidates.map((c) => ({ key: `candidate:${c.id}`, name: `${c.first_name} ${c.last_name} (מועמד)` })),
-    ],
-    [instructors, candidates]
   );
 
   const compatibleSlots = useMemo(() => {
@@ -78,8 +66,7 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
     setPendingId(slot.id);
     await addAssignmentCandidate({
       need_id: selectedNeed.id,
-      instructor_id: slot.instructor_id,
-      candidate_id: slot.candidate_id,
+      instructor_name: slot.instructor_name,
       availability_id: slot.id,
     });
     setPendingId(null);
@@ -87,16 +74,14 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
   }
 
   async function handleAddManual() {
-    if (!selectedNeed || !manualPerson) return;
-    const [kind, id] = manualPerson.split(":");
+    if (!selectedNeed || !manualName.trim()) return;
     setPendingId("manual");
     await addAssignmentCandidate({
       need_id: selectedNeed.id,
-      instructor_id: kind === "instructor" ? id : null,
-      candidate_id: kind === "candidate" ? id : null,
+      instructor_name: manualName,
     });
     setPendingId(null);
-    setManualPerson("");
+    setManualName("");
     router.refresh();
   }
 
@@ -146,7 +131,7 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="font-medium">{clientLabel(n, clients)}</p>
+                <p className="font-medium">{n.client_name}</p>
                 <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[n.status as NeedStatus]}`}>
                   {count}/{n.lessons_count}
                 </span>
@@ -169,7 +154,7 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
           <>
             <div className="rounded-xl border border-border bg-background p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-lg font-bold">{clientLabel(selectedNeed, clients)}</h3>
+                <h3 className="text-lg font-bold">{selectedNeed.client_name}</h3>
                 <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[selectedNeed.status as NeedStatus]}`}>
                   {NEED_STATUS[selectedNeed.status as NeedStatus]}
                 </span>
@@ -207,9 +192,7 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
                         }`}
                       >
                         <div>
-                          <span className="font-medium">
-                            {personLabel(a.instructor_id, a.candidate_id, instructors, candidates)}
-                          </span>
+                          <span className="font-medium">{a.instructor_name}</span>
                           <span className="ms-2 text-xs text-muted-foreground">
                             {a.is_confirmed ? dayLabel(a.assigned_day_of_week) : dayLabel(slot?.day_of_week ?? null)}
                             {a.is_confirmed && " · מאושר"}
@@ -274,7 +257,7 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
                   {compatibleSlots.map((s) => (
                     <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-1.5 text-sm">
                       <span>
-                        {personLabel(s.instructor_id, s.candidate_id, instructors, candidates)}
+                        {s.instructor_name}
                         <span className="ms-2 text-xs text-muted-foreground">
                           {s.region} · {dayLabel(s.day_of_week)} · {timePeriodLabel(s.time_period)}
                         </span>
@@ -293,21 +276,15 @@ export function MatchingTab({ instructors, candidates, clients, availability, ne
               )}
 
               <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-                <select
-                  value={manualPerson}
-                  onChange={(e) => setManualPerson(e.target.value)}
+                <input
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="הוסף מדריך אחר ידנית (שם)..."
                   className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm"
-                >
-                  <option value="">הוסף מדריך/מועמד אחר ידנית...</option>
-                  {people.map((p) => (
-                    <option key={p.key} value={p.key}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                />
                 <button
                   onClick={handleAddManual}
-                  disabled={!manualPerson || pendingId === "manual"}
+                  disabled={!manualName.trim() || pendingId === "manual"}
                   className="rounded-lg border border-border px-2 py-1.5 text-xs hover:bg-muted disabled:opacity-50"
                 >
                   הוסף

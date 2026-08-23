@@ -22,49 +22,35 @@ async function recomputeNeedStatus(needId: string) {
   await supabase.from("staffing_needs").update({ status }).eq("id", needId);
 }
 
-// ----- Availability (instructor / candidate side) -----
+// ----- Availability (instructor side, free-text name) -----
 
 export async function addAvailability(data: {
-  instructor_id?: string | null;
-  candidate_id?: string | null;
+  instructor_name: string;
   region: string;
-  day_of_week?: number | null;
+  days: (number | null)[];
   time_period: string;
   start_time?: string | null;
   notes?: string | null;
 }) {
-  if (!data.region.trim()) return { error: "יש להזין אזור עבודה" };
-  if (!data.instructor_id && !data.candidate_id) return { error: "יש לבחור מדריך או מועמד" };
+  const name = data.instructor_name.trim();
+  const region = data.region.trim();
+  if (!name) return { error: "יש להזין שם מדריך" };
+  if (!region) return { error: "יש להזין אזור עבודה" };
+  if (!data.days.length) return { error: "יש לבחור לפחות יום אחד" };
 
   const supabase = createAdminClient();
-  const { error } = await supabase.from("staffing_availability").insert({
-    instructor_id: data.instructor_id || null,
-    candidate_id: data.candidate_id || null,
-    region: data.region.trim(),
-    day_of_week: data.day_of_week ?? null,
+  const rows = data.days.map((day) => ({
+    instructor_name: name,
+    region,
+    day_of_week: day,
     time_period: data.time_period,
     start_time: data.start_time?.trim() || null,
     notes: data.notes?.trim() || null,
-  });
+  }));
+
+  const { error } = await supabase.from("staffing_availability").insert(rows);
 
   if (error) return { error: "שגיאה בהוספה: " + error.message };
-  revalidatePath(PATH);
-  return { success: true };
-}
-
-export async function updateAvailability(
-  id: string,
-  data: Partial<{
-    region: string;
-    day_of_week: number | null;
-    time_period: string;
-    start_time: string | null;
-    notes: string | null;
-  }>
-) {
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("staffing_availability").update(data).eq("id", id);
-  if (error) return { error: "שגיאה בעדכון: " + error.message };
   revalidatePath(PATH);
   return { success: true };
 }
@@ -77,11 +63,10 @@ export async function deleteAvailability(id: string) {
   return { success: true };
 }
 
-// ----- Needs (client lesson slots side) -----
+// ----- Needs (client lesson slots side, free-text client name) -----
 
 export async function addNeed(data: {
-  client_id?: string | null;
-  client_name_override?: string | null;
+  client_name: string;
   region?: string | null;
   location_name?: string | null;
   address?: string | null;
@@ -92,14 +77,12 @@ export async function addNeed(data: {
   lessons_count?: number;
   notes?: string | null;
 }) {
-  if (!data.client_id && !data.client_name_override?.trim()) {
-    return { error: "יש לבחור לקוח או להזין שם לקוח" };
-  }
+  const clientName = data.client_name.trim();
+  if (!clientName) return { error: "יש להזין שם לקוח" };
 
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_needs").insert({
-    client_id: data.client_id || null,
-    client_name_override: data.client_name_override?.trim() || null,
+    client_name: clientName,
     region: data.region?.trim() || null,
     location_name: data.location_name?.trim() || null,
     address: data.address?.trim() || null,
@@ -116,29 +99,6 @@ export async function addNeed(data: {
   return { success: true };
 }
 
-export async function updateNeed(
-  id: string,
-  data: Partial<{
-    client_id: string | null;
-    client_name_override: string | null;
-    region: string | null;
-    location_name: string | null;
-    address: string | null;
-    day_of_week: number | null;
-    time_period: string | null;
-    start_time: string | null;
-    field: string | null;
-    lessons_count: number;
-    notes: string | null;
-  }>
-) {
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("staffing_needs").update(data).eq("id", id);
-  if (error) return { error: "שגיאה בעדכון: " + error.message };
-  revalidatePath(PATH);
-  return { success: true };
-}
-
 export async function deleteNeed(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_needs").delete().eq("id", id);
@@ -151,18 +111,17 @@ export async function deleteNeed(id: string) {
 
 export async function addAssignmentCandidate(data: {
   need_id: string;
-  instructor_id?: string | null;
-  candidate_id?: string | null;
+  instructor_name: string;
   availability_id?: string | null;
   notes?: string | null;
 }) {
-  if (!data.instructor_id && !data.candidate_id) return { error: "יש לבחור מדריך או מועמד" };
+  const name = data.instructor_name.trim();
+  if (!name) return { error: "יש להזין שם מדריך" };
 
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_assignments").insert({
     need_id: data.need_id,
-    instructor_id: data.instructor_id || null,
-    candidate_id: data.candidate_id || null,
+    instructor_name: name,
     availability_id: data.availability_id || null,
     notes: data.notes?.trim() || null,
   });

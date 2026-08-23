@@ -6,12 +6,8 @@ import { AvailabilityTab } from "./availability-tab";
 import { NeedsTab } from "./needs-tab";
 import { MatchingTab } from "./matching-tab";
 import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
-import type { StaffingInstructor, StaffingCandidate, StaffingClient } from "@/types/staffing";
 
 interface Props {
-  instructors: StaffingInstructor[];
-  candidates: StaffingCandidate[];
-  clients: StaffingClient[];
   availability: StaffingAvailability[];
   needs: StaffingNeed[];
   assignments: StaffingAssignment[];
@@ -25,7 +21,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export function StaffingManager({ instructors, candidates, clients, availability, needs, assignments }: Props) {
+export function StaffingManager({ availability, needs, assignments }: Props) {
   const [tab, setTab] = useState<TabKey>("matching");
 
   return (
@@ -47,20 +43,9 @@ export function StaffingManager({ instructors, candidates, clients, availability
         ))}
       </div>
 
-      {tab === "matching" && (
-        <MatchingTab
-          instructors={instructors}
-          candidates={candidates}
-          clients={clients}
-          availability={availability}
-          needs={needs}
-          assignments={assignments}
-        />
-      )}
-      {tab === "availability" && (
-        <AvailabilityTab instructors={instructors} candidates={candidates} availability={availability} />
-      )}
-      {tab === "needs" && <NeedsTab clients={clients} needs={needs} />}
+      {tab === "matching" && <MatchingTab availability={availability} needs={needs} assignments={assignments} />}
+      {tab === "availability" && <AvailabilityTab availability={availability} />}
+      {tab === "needs" && <NeedsTab needs={needs} />}
     </div>
   );
 }
