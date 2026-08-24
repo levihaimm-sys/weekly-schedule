@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Building2, GitMerge } from "lucide-react";
+import { Users, Building2, GitMerge, BarChart3 } from "lucide-react";
 import { AvailabilityTab } from "./availability-tab";
 import { NeedsTab } from "./needs-tab";
 import { MatchingTab } from "./matching-tab";
+import { SummaryTab } from "./summary-tab";
 import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
 
 interface Props {
@@ -17,6 +18,7 @@ const TABS = [
   { key: "matching", label: "שיבוצים", icon: GitMerge },
   { key: "availability", label: "מדריכים וזמינות", icon: Users },
   { key: "needs", label: "לקוחות ושיעורים נדרשים", icon: Building2 },
+  { key: "summary", label: "סיכום לפי ישוב", icon: BarChart3 },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -46,6 +48,7 @@ export function StaffingManager({ availability, needs, assignments }: Props) {
       {tab === "matching" && <MatchingTab availability={availability} needs={needs} assignments={assignments} />}
       {tab === "availability" && <AvailabilityTab availability={availability} assignments={assignments} needs={needs} />}
       {tab === "needs" && <NeedsTab needs={needs} />}
+      {tab === "summary" && <SummaryTab needs={needs} />}
     </div>
   );
 }
