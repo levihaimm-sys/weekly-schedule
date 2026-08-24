@@ -63,9 +63,12 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
     });
   }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter]);
 
-  // Region -> field -> {open, partially_filled, filled} (each counted as lessons_count, not row count).
+  // Region -> field -> {open, partially_filled, filled} (each counted as lessons_count, not row
+  // count) plus the set of clients contributing to that field, since one region+field row can
+  // span several clients.
   const rows = useMemo(() => {
-    const byRegion = new Map<string, Map<string, Record<NeedStatus, number>>>();
+    type Bucket = Record<NeedStatus, number> & { clients: Set<string> };
+    const byRegion = new Map<string, Map<string, Bucket>>();
 
     for (const n of filtered) {
       const region = n.region?.trim() || NOT_SPECIFIED;
@@ -74,8 +77,10 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
 
       if (!byRegion.has(region)) byRegion.set(region, new Map());
       const byField = byRegion.get(region)!;
-      if (!byField.has(field)) byField.set(field, { open: 0, partially_filled: 0, filled: 0 });
-      byField.get(field)![status] += n.lessons_count;
+      if (!byField.has(field)) byField.set(field, { open: 0, partially_filled: 0, filled: 0, clients: new Set() });
+      const bucket = byField.get(field)!;
+      bucket[status] += n.lessons_count;
+      bucket.clients.add(n.client_name);
     }
 
     const sortRegion = (a: string, b: string) => {
@@ -91,7 +96,11 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
         region,
         fields: Array.from(byField.entries())
           .sort(([a], [b]) => sortField(a, b))
-          .map(([field, counts]) => ({ field, counts })),
+          .map(([field, { clients, ...counts }]) => ({
+            field,
+            counts,
+            clients: Array.from(clients).sort(sortHe).join(", "),
+          })),
       }));
   }, [filtered]);
 
@@ -169,7 +178,7 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
               </tr>
             ) : (
               rows.map(({ region, fields }) =>
-                fields.map(({ field, counts }, i) => {
+                fields.map(({ field, counts, clients }, i) => {
                   const rowTotal = counts.open + counts.partially_filled + counts.filled;
                   return (
                     <tr key={`${region}||${field}`}>
@@ -181,7 +190,10 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
                           {region}
                         </td>
                       )}
-                      <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{field}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                        {field}
+                        {clients && <span className="ms-1.5 text-xs text-muted-foreground/70">{clients}</span>}
+                      </td>
                       <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.open}`}>
                         {counts.open > 0 ? counts.open : "—"}
                       </td>
