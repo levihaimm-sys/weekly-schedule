@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ChevronUp, ChevronDown, ArrowUpDown, X } from "lucide-react";
 import { DAYS_HEBREW, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel } from "@/lib/utils/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { NeedEditModal } from "./need-edit-modal";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { StaffingNeed, StaffingAssignment } from "@/types/database";
 
@@ -37,6 +38,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
     "staffing-instr-sortkeys",
     []
   );
+  const [editingNeed, setEditingNeed] = useState<StaffingNeed | null>(null);
 
   function handleSortClick(column: SortColumn) {
     setSortKeys((prev) => {
@@ -235,7 +237,6 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה משובץ/ת</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
               <th className="px-3 py-2.5 whitespace-nowrap">שם המסגרת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
@@ -265,7 +266,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-10 text-center text-muted-foreground">
+                <td colSpan={9} className="py-10 text-center text-muted-foreground">
                   אין שיעורים תואמים
                 </td>
               </tr>
@@ -273,11 +274,14 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
               sorted.map((n) => {
                 const instructorNames = confirmedByNeed.get(n.id) ?? [];
                 return (
-                  <tr key={n.id}>
+                  <tr
+                    key={n.id}
+                    onClick={() => setEditingNeed(n)}
+                    className="cursor-pointer hover:bg-muted/40"
+                  >
                     <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
                       {instructorNames.length > 0 ? instructorNames.join(", ") : "—"}
                     </td>
-                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.client_name}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                       {n.framework_name ?? "—"}
                     </td>
@@ -308,6 +312,8 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           </tbody>
         </table>
       </div>
+
+      {editingNeed && <NeedEditModal need={editingNeed} onClose={() => setEditingNeed(null)} />}
     </div>
   );
 }
