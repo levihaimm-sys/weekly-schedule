@@ -238,6 +238,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה משובץ/ת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">שם המסגרת</th>
+              <th className="px-2 py-2.5 text-center whitespace-nowrap">כמות שיעורים</th>
               <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
                 <button
@@ -266,7 +267,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                <td colSpan={10} className="py-10 text-center text-muted-foreground">
                   אין שיעורים תואמים
                 </td>
               </tr>
@@ -285,6 +286,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                       {n.framework_name ?? "—"}
                     </td>
+                    <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{n.lessons_count}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.address ?? "—"}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.region ?? "—"}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
