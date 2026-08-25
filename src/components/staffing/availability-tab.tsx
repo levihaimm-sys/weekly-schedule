@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Plus, Loader2, Check, X, Search, Trash2 } from "lucide-react";
+import { Plus, Loader2, Check, X, Search, Trash2, Star } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, TIME_PERIODS, TimePeriod } from "@/lib/utils/constants";
 import { timePeriodLabel, nameMatch } from "@/lib/utils/staffing";
 import { addAvailability, deleteAvailability, updateAvailabilityRowInfo } from "@/lib/actions/staffing";
@@ -415,7 +415,7 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
           <colgroup>
             <col className="w-[92px]" />
             <col className="w-[100px]" />
-            <col />
+            <col className="w-[190px]" />
             <col className="w-[84px]" />
             {WORK_DAYS.map((i) => (
               <col key={i} className="w-11" />
@@ -473,17 +473,19 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
                       />
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <InlineEditableCell
-                        value={r.slots[0]?.notes ?? ""}
-                        onSave={(v) => saveRowField(slotIds, "notes", v)}
-                        placeholder="הערת סטטוס..."
-                        className="text-[15px] font-bold text-foreground"
-                      />
-                      {r.slots[0]?.status_updated_at && (
-                        <p className="mt-0.5 px-1.5 text-[10px] text-muted-foreground">
-                          עודכן {format(new Date(r.slots[0].status_updated_at), "dd/MM")}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {r.slots[0]?.status_updated_at && (
+                          <span className="shrink-0 text-[10px] whitespace-nowrap text-muted-foreground">
+                            {format(new Date(r.slots[0].status_updated_at), "dd/MM")}
+                          </span>
+                        )}
+                        <InlineEditableCell
+                          value={r.slots[0]?.notes ?? ""}
+                          onSave={(v) => saveRowField(slotIds, "notes", v)}
+                          placeholder="הערת סטטוס..."
+                          className="font-bold text-foreground"
+                        />
+                      </div>
                     </td>
                     <td className="px-2 py-1.5 align-top text-xs whitespace-nowrap text-muted-foreground">
                       {rowTimeSummary(r.slots) || "—"}
@@ -630,12 +632,12 @@ function SlotMark({
   onEdit: (slot: StaffingAvailability) => void;
   needStatus?: StaffingNeed["status"];
 }) {
-  const colorClass =
-    slot.status !== "assigned"
-      ? "bg-green-500 hover:bg-green-600"
-      : needStatus === "filled"
-        ? "bg-red-500 hover:bg-red-600"
-        : "bg-slate-400 hover:bg-slate-500";
+  const isFilled = slot.status === "assigned" && needStatus === "filled";
+  const colorClass = isFilled
+    ? "bg-purple-500 hover:bg-purple-600"
+    : slot.status !== "assigned"
+      ? "bg-green-400 hover:bg-green-500"
+      : "bg-slate-400 hover:bg-slate-500";
 
   const title = [timePeriodLabel(slot.time_period), slot.start_time, slot.notes].filter(Boolean).join(" · ");
 
@@ -646,7 +648,7 @@ function SlotMark({
         title={title}
         className={`flex h-6 w-6 items-center justify-center rounded-md text-white transition-colors ${colorClass}`}
       >
-        <Check size={14} strokeWidth={3} />
+        {isFilled ? <Star size={13} fill="white" strokeWidth={0} /> : <Check size={14} strokeWidth={3} />}
       </button>
       <button
         onClick={(e) => {
