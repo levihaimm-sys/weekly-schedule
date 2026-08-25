@@ -23,8 +23,35 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
+const NOT_SPECIFIED = "לא צוין";
+
 export function StaffingManager({ availability, needs, assignments }: Props) {
   const [tab, setTab] = useState<TabKey>("matching");
+
+  // Drill down from the summary table into the matching table's own filters: they share the
+  // same localStorage keys the matching tab already persists itself into, so writing here and
+  // then switching tabs makes it mount already filtered to this exact slice.
+  function handleNavigateToMatching(filters: { region: string; field: string; clients: string[] }) {
+    try {
+      localStorage.setItem(
+        "staffing-matching-region",
+        JSON.stringify(filters.region === NOT_SPECIFIED ? [] : [filters.region])
+      );
+      localStorage.setItem(
+        "staffing-matching-field",
+        JSON.stringify(filters.field === NOT_SPECIFIED ? [] : [filters.field])
+      );
+      localStorage.setItem("staffing-matching-client", JSON.stringify(filters.clients));
+      localStorage.setItem("staffing-matching-framework", JSON.stringify([]));
+      localStorage.setItem("staffing-matching-day", JSON.stringify([]));
+      localStorage.setItem("staffing-matching-status", JSON.stringify([]));
+      localStorage.setItem("staffing-matching-search", JSON.stringify(""));
+      localStorage.setItem("staffing-matching-sortkeys", JSON.stringify([]));
+    } catch {
+      // ignore — localStorage unavailable
+    }
+    setTab("matching");
+  }
 
   return (
     <div className="space-y-4">
@@ -48,7 +75,7 @@ export function StaffingManager({ availability, needs, assignments }: Props) {
       {tab === "matching" && <MatchingTab availability={availability} needs={needs} assignments={assignments} />}
       {tab === "availability" && <AvailabilityTab availability={availability} assignments={assignments} needs={needs} />}
       {tab === "needs" && <NeedsTab needs={needs} />}
-      {tab === "summary" && <SummaryTab needs={needs} />}
+      {tab === "summary" && <SummaryTab needs={needs} onNavigateToMatching={handleNavigateToMatching} />}
     </div>
   );
 }

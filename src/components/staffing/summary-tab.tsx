@@ -15,7 +15,12 @@ const STATUS_TEXT_COLORS: Record<NeedStatus, string> = {
   filled: "text-green-700",
 };
 
-export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
+interface Props {
+  needs: StaffingNeed[];
+  onNavigateToMatching: (filters: { region: string; field: string; clients: string[] }) => void;
+}
+
+export function SummaryTab({ needs, onNavigateToMatching }: Props) {
   const [regionFilter, setRegionFilter] = usePersistedState<string[]>("staffing-summary-region", []);
   const [clientFilter, setClientFilter] = usePersistedState<string[]>("staffing-summary-client", []);
   const [fieldFilter, setFieldFilter] = usePersistedState<string[]>("staffing-summary-field", []);
@@ -99,7 +104,7 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
           .map(([field, { clients, ...counts }]) => ({
             field,
             counts,
-            clients: Array.from(clients).sort(sortHe).join(", "),
+            clientsList: Array.from(clients).sort(sortHe),
           })),
       }));
   }, [filtered]);
@@ -178,7 +183,7 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
               </tr>
             ) : (
               rows.map(({ region, fields }) =>
-                fields.map(({ field, counts, clients }, i) => {
+                fields.map(({ field, counts, clientsList }, i) => {
                   const rowTotal = counts.open + counts.partially_filled + counts.filled;
                   return (
                     <tr key={`${region}||${field}`}>
@@ -190,9 +195,17 @@ export function SummaryTab({ needs }: { needs: StaffingNeed[] }) {
                           {region}
                         </td>
                       )}
-                      <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                        {field}
-                        {clients && <span className="ms-1.5 text-xs text-muted-foreground/70">{clients}</span>}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <button
+                          onClick={() => onNavigateToMatching({ region, field, clients: clientsList })}
+                          title="עבור לשיבוצים עם סינון תואם"
+                          className="text-muted-foreground hover:text-primary hover:underline"
+                        >
+                          {field}
+                          {clientsList.length > 0 && (
+                            <span className="ms-1.5 text-xs text-muted-foreground/70">{clientsList.join(", ")}</span>
+                          )}
+                        </button>
                       </td>
                       <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.open}`}>
                         {counts.open > 0 ? counts.open : "—"}
