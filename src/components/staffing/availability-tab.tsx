@@ -27,6 +27,16 @@ const AVAILABILITY_STATUS_LABEL: Record<string, string> = {
   assigned: "משובץ",
 };
 
+// Shown once per row instead of repeating the time-period label inside every day cell.
+function rowTimeSummary(slots: StaffingAvailability[]): string {
+  const daySlots = slots.filter((s) => s.day_of_week !== null);
+  if (daySlots.length === 0) return "";
+  const periods = Array.from(new Set(daySlots.map((s) => s.time_period)));
+  const periodLabel = periods.map((p) => timePeriodLabel(p as TimePeriod)).join(" / ");
+  const times = Array.from(new Set(daySlots.map((s) => s.start_time).filter(Boolean)));
+  return times.length === 1 ? `${periodLabel} ${times[0]}` : periodLabel;
+}
+
 export function AvailabilityTab({ availability, assignments, needs, instructors }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
@@ -400,25 +410,25 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[920px] text-sm">
+        <table className="w-full min-w-[780px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-              <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">עיר / אזור</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
+              <th className="px-2 py-2 whitespace-nowrap">מדריך/ה</th>
+              <th className="px-2 py-2 whitespace-nowrap">עיר / אזור</th>
+              <th className="min-w-[220px] px-2 py-2 whitespace-nowrap">סטטוס</th>
+              <th className="px-2 py-2 whitespace-nowrap">חלק יום</th>
               {WORK_DAYS.map((i) => (
-                <th key={i} className="w-24 px-1.5 py-2.5 text-center whitespace-nowrap">
+                <th key={i} className="w-12 px-1 py-2 text-center whitespace-nowrap">
                   {DAYS_SHORT[i]}
                 </th>
               ))}
-              <th className="w-24 px-1.5 py-2.5 text-center whitespace-nowrap">גמיש</th>
-              <th className="w-8 px-1 py-2.5" />
+              <th className="w-8 px-1 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                <td colSpan={10} className="py-10 text-center text-muted-foreground">
                   אין עדיין זמינות רשומה
                 </td>
               </tr>
@@ -429,34 +439,36 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
                 const isExisting = activeInstructorNames.some((n) => nameMatch(n, r.name));
                 return (
                   <tr key={key} className="group">
-                    <td className="px-2 py-2 align-top whitespace-nowrap">
-                      <InlineEditableCell
-                        value={r.name}
-                        onSave={(v) => saveRowField(slotIds, "instructor_name", v)}
-                        className="font-medium"
-                      />
-                      <span
-                        className={`mt-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap ${
-                          isExisting ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {isExisting ? "מדריך/ה קיים/ת" : "מועמד/ת"}
-                      </span>
+                    <td className="px-2 py-1.5 align-top whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${isExisting ? "bg-emerald-500" : "bg-amber-500"}`}
+                          title={isExisting ? "מדריך/ה קיים/ת" : "מועמד/ת"}
+                        />
+                        <InlineEditableCell
+                          value={r.name}
+                          onSave={(v) => saveRowField(slotIds, "instructor_name", v)}
+                          className="font-medium"
+                        />
+                      </div>
                     </td>
-                    <td className="px-2 py-2 align-top whitespace-nowrap">
+                    <td className="px-2 py-1.5 align-top whitespace-nowrap">
                       <InlineEditableCell
                         value={r.region}
                         onSave={(v) => saveRowField(slotIds, "region", v)}
                         className="text-muted-foreground"
                       />
                     </td>
-                    <td className="px-2 py-2 align-top">
+                    <td className="min-w-[220px] px-2 py-1.5 align-top">
                       <InlineEditableCell
                         value={r.slots[0]?.notes ?? ""}
                         onSave={(v) => saveRowField(slotIds, "notes", v)}
                         placeholder="הערת סטטוס..."
-                        className="text-muted-foreground"
+                        className="font-medium text-foreground"
                       />
+                    </td>
+                    <td className="px-2 py-1.5 align-top text-xs whitespace-nowrap text-muted-foreground">
+                      {rowTimeSummary(r.slots) || "—"}
                     </td>
                     {WORK_DAYS.map((day) => (
                       <td key={day} className="p-1 align-top">
@@ -469,16 +481,7 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
                         />
                       </td>
                     ))}
-                    <td className="p-1 align-top">
-                      <DayCell
-                        slots={r.slots.filter((s) => s.day_of_week === null)}
-                        onDelete={handleDelete}
-                        onEdit={setEditingSlot}
-                        onQuickAdd={() => handleQuickAdd(r, null)}
-                        needStatusByAvailabilityId={needStatusByAvailabilityId}
-                      />
-                    </td>
-                    <td className="px-1 py-2 align-top text-center">
+                    <td className="px-1 py-1.5 align-top text-center">
                       {confirmDeleteKey === key ? (
                         <div className="flex flex-col items-center gap-1">
                           <button
@@ -575,28 +578,27 @@ function DayCell({
   needStatusByAvailabilityId: Map<string, StaffingNeed["status"]>;
 }) {
   return (
-    <div className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-lg border border-border/40 bg-muted/20 p-1">
-      {slots.map((s) => (
-        <SlotBadge
-          key={s.id}
-          slot={s}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          needStatus={needStatusByAvailabilityId.get(s.id)}
-        />
-      ))}
-      <button
-        onClick={onQuickAdd}
-        title="הוסף זמינות"
-        className="flex items-center justify-center rounded-full p-0.5 text-muted-foreground opacity-40 transition-opacity hover:bg-muted hover:text-foreground hover:opacity-100"
-      >
-        <Plus size={12} />
-      </button>
+    <div className="flex min-h-[32px] flex-wrap items-center justify-center gap-1">
+      {slots.length === 0 ? (
+        <button
+          onClick={onQuickAdd}
+          title="הוסף זמינות"
+          className="flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground opacity-40 transition-opacity hover:border-primary hover:text-primary hover:opacity-100"
+        >
+          <Plus size={13} />
+        </button>
+      ) : (
+        slots.map((s) => (
+          <SlotMark key={s.id} slot={s} onDelete={onDelete} onEdit={onEdit} needStatus={needStatusByAvailabilityId.get(s.id)} />
+        ))
+      )}
     </div>
   );
 }
 
-function SlotBadge({
+// A single clear mark (no repeated text) — the row's own "חלק יום" column already states
+// the time period once, so each day cell only needs to say yes/no plus a status color.
+function SlotMark({
   slot,
   onDelete,
   onEdit,
@@ -609,22 +611,31 @@ function SlotBadge({
 }) {
   const colorClass =
     slot.status !== "assigned"
-      ? "border-green-300 bg-green-100 text-green-900"
+      ? "bg-green-500 hover:bg-green-600"
       : needStatus === "filled"
-        ? "border-red-300 bg-red-100 text-red-900"
-        : "border-slate-300 bg-slate-200 text-slate-900";
+        ? "bg-red-500 hover:bg-red-600"
+        : "bg-slate-400 hover:bg-slate-500";
+
+  const title = [timePeriodLabel(slot.time_period), slot.start_time, slot.notes].filter(Boolean).join(" · ");
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${colorClass}`}
-      title={slot.notes ?? undefined}
-    >
-      <button onClick={() => onEdit(slot)} className="hover:underline" title="ערוך">
-        {timePeriodLabel(slot.time_period)}
-        {slot.start_time ? ` ${slot.start_time}` : ""}
+    <span className="group/mark relative inline-flex">
+      <button
+        onClick={() => onEdit(slot)}
+        title={title}
+        className={`flex h-6 w-6 items-center justify-center rounded-md text-white transition-colors ${colorClass}`}
+      >
+        <Check size={14} strokeWidth={3} />
       </button>
-      <button onClick={() => onDelete(slot.id)} className="hover:text-red-600" title="מחק">
-        <X size={10} />
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(slot.id);
+        }}
+        title="מחק"
+        className="absolute -top-1.5 -left-1.5 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-white group-hover/mark:flex"
+      >
+        <X size={9} />
       </button>
     </span>
   );
