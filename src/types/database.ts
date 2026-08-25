@@ -273,4 +273,5 @@ export interface StaffingAssignment {
   is_confirmed: boolean;
   notes: string | null;
   created_at: string;
+  converted_at: string | null;
 }

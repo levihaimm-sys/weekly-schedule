@@ -17,7 +17,9 @@ export default async function StaffingPage() {
       .order("created_at"),
     supabase
       .from("staffing_assignments")
-      .select("id, need_id, instructor_name, availability_id, assigned_day_of_week, is_confirmed, notes, created_at")
+      .select(
+        "id, need_id, instructor_name, availability_id, assigned_day_of_week, is_confirmed, notes, created_at, converted_at"
+      )
       .order("created_at"),
     supabase.from("instructors").select("id, full_name, is_active"),
   ]);

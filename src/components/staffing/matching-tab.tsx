@@ -2,7 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CheckCircle2, RotateCcw, X, Plus, Loader2, ChevronUp, ChevronDown, ArrowUpDown, Trash2 } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  RotateCcw,
+  X,
+  Plus,
+  Loader2,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
+  Trash2,
+  CalendarCheck,
+} from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch, nameMatch } from "@/lib/utils/staffing";
 import {
@@ -12,6 +24,7 @@ import {
   deleteAssignment,
   updateNeedStatus,
   deleteNeed,
+  convertAssignmentsToSchedule,
 } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { NeedEditModal } from "./need-edit-modal";
@@ -73,6 +86,10 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [bulkName, setBulkName] = useState("");
   const [bulkPending, setBulkPending] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [convertPending, setConvertPending] = useState(false);
+  const [conversionResult, setConversionResult] = useState<Awaited<ReturnType<typeof convertAssignmentsToSchedule>> | null>(
+    null
+  );
 
   function handleSortClick(column: SortColumn) {
     setSortKeys((prev) => {
@@ -233,6 +250,14 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     router.refresh();
   }
 
+  async function handleConvertToSchedule() {
+    setConvertPending(true);
+    const result = await convertAssignmentsToSchedule(Array.from(selectedIds));
+    setConvertPending(false);
+    setConversionResult(result);
+    router.refresh();
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -360,7 +385,20 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
               מחק נבחרים
             </button>
           )}
+          <button
+            onClick={handleConvertToSchedule}
+            disabled={convertPending}
+            title="מעביר את המדריכים המאושרים בנבחרים ללוח הקבוע האמיתי"
+            className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-800 hover:bg-green-100 disabled:opacity-50"
+          >
+            {convertPending ? <Loader2 size={13} className="animate-spin" /> : <CalendarCheck size={13} />}
+            העבר ללוח הקבוע
+          </button>
         </div>
+      )}
+
+      {conversionResult && (
+        <ConversionResultModal result={conversionResult} onClose={() => setConversionResult(null)} />
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
@@ -426,6 +464,69 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
       </div>
 
       {editingNeed && <NeedEditModal need={editingNeed} onClose={() => setEditingNeed(null)} />}
+    </div>
+  );
+}
+
+function ConversionResultModal({
+  result,
+  onClose,
+}: {
+  result: Awaited<ReturnType<typeof convertAssignmentsToSchedule>>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-lg rounded-2xl border border-border bg-background p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">העברה ללוח הקבוע</h2>
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+
+        {result.converted > 0 && (
+          <div className="mb-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800">
+            {result.converted} שיבוצים הועברו ללוח הקבוע בהצלחה.
+          </div>
+        )}
+
+        {result.issues.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-amber-800">{result.issues.length} דורשים תיקון:</p>
+            <div className="max-h-64 space-y-2 overflow-y-auto">
+              {result.issues.map((issue, i) => (
+                <div key={i} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <p className="font-medium">
+                    {issue.client_name}
+                    {issue.framework_name ? ` · ${issue.framework_name}` : ""}
+                    {issue.field ? ` · ${issue.field}` : ""}
+                  </p>
+                  <ul className="mt-1 list-inside list-disc space-y-0.5">
+                    {issue.reasons.map((r, j) => (
+                      <li key={j}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.converted === 0 && result.issues.length === 0 && (
+          <p className="text-sm text-muted-foreground">לא נבחרו שיבוצים מאושרים להעברה.</p>
+        )}
+
+        <button
+          onClick={onClose}
+          className="mt-4 w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          סגור
+        </button>
+      </div>
     </div>
   );
 }
@@ -591,6 +692,14 @@ function AssignmentCell({
             }`}
           >
             {a.instructor_name}
+            {a.converted_at && (
+              <span
+                title="הועבר ללוח הקבוע"
+                className="rounded-full border border-emerald-300 bg-emerald-100 px-1.5 text-[10px] font-medium text-emerald-800"
+              >
+                בלוח הקבוע
+              </span>
+            )}
             {a.is_confirmed ? (
               <>
                 <CheckCircle2 size={12} className="text-green-700" />

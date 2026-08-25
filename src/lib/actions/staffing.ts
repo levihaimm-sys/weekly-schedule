@@ -2,7 +2,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { regionsMatch, nameMatch } from "@/lib/utils/staffing";
+import { startOfWeek, addDays, format } from "date-fns";
+import { regionsMatch, nameMatch, parseFreeTextDate } from "@/lib/utils/staffing";
 
 const PATH = "/staffing";
 
@@ -581,4 +582,180 @@ export async function deleteAssignment(id: string) {
 
   revalidatePath(PATH);
   return { success: true };
+}
+
+// ----- Converting confirmed staffing lessons into the real production schedule -----
+
+interface ConversionIssue {
+  client_name: string;
+  field: string | null;
+  framework_name: string | null;
+  reasons: string[];
+}
+
+// Grabs each selected need's not-yet-converted confirmed assignments, resolves the free-text
+// instructor/location names against the real tables, and — only for the ones that fully
+// resolve — creates a recurring_schedule row plus its concrete lesson instances. Anything that
+// can't be resolved is reported back instead of guessed at (per need, one bad group shouldn't
+// block the others under the same need from converting).
+export async function convertAssignmentsToSchedule(needIds: string[]) {
+  if (!needIds.length) return { converted: 0, issues: [] as ConversionIssue[] };
+
+  const supabase = createAdminClient();
+
+  const [{ data: needs }, { data: assignments }, { data: instructors }, { data: locations }] = await Promise.all([
+    supabase
+      .from("staffing_needs")
+      .select("id, client_name, region, location_name, framework_name, field, day_of_week, start_time, start_date")
+      .in("id", needIds),
+    supabase
+      .from("staffing_assignments")
+      .select("id, need_id, instructor_name, assigned_day_of_week, is_confirmed, converted_at")
+      .in("need_id", needIds)
+      .eq("is_confirmed", true)
+      .is("converted_at", null),
+    supabase.from("instructors").select("id, full_name"),
+    supabase.from("locations").select("id, name, city"),
+  ]);
+
+  const issues: ConversionIssue[] = [];
+  let converted = 0;
+
+  const today = new Date();
+  const eightWeeksFromToday = addDays(today, 8 * 7);
+
+  for (const need of needs ?? []) {
+    const needAssignments = (assignments ?? []).filter((a) => a.need_id === need.id);
+
+    if (needAssignments.length === 0) {
+      issues.push({
+        client_name: need.client_name,
+        field: need.field,
+        framework_name: need.framework_name,
+        reasons: ["אין מדריך/ה מאושר/ת שטרם הועבר/ה"],
+      });
+      continue;
+    }
+
+    for (const assignment of needAssignments) {
+      const reasons: string[] = [];
+
+      const dayOfWeek = assignment.assigned_day_of_week ?? need.day_of_week;
+      if (dayOfWeek === null || dayOfWeek === undefined) reasons.push("לא נקבע יום בשבוע");
+
+      const startTimeRaw = need.start_time;
+      if (!startTimeRaw) reasons.push("לא הוגדרה שעת התחלה");
+
+      let instructorId: string | null = null;
+      const exactInstructor = (instructors ?? []).find(
+        (i) => i.full_name.trim() === assignment.instructor_name.trim()
+      );
+      if (exactInstructor) {
+        instructorId = exactInstructor.id;
+      } else {
+        const fuzzy = (instructors ?? []).filter((i) => nameMatch(i.full_name, assignment.instructor_name));
+        if (fuzzy.length === 1) {
+          instructorId = fuzzy[0].id;
+        } else if (fuzzy.length > 1) {
+          reasons.push(`נמצאו כמה מדריכים מתאימים ל-"${assignment.instructor_name}", יש לתקן את השם לשם המלא`);
+        } else {
+          reasons.push(`המדריך/ה "${assignment.instructor_name}" לא קיים/ת ברשימת המדריכים`);
+        }
+      }
+
+      const city = (need.region ?? "").trim();
+      const candidateNames = [need.location_name, need.framework_name].filter(
+        (n): n is string => !!n && n.trim() !== ""
+      );
+      let locationId: string | null = null;
+      for (const candidateName of candidateNames) {
+        const match = (locations ?? []).find((l) => l.city.trim() === city && l.name.trim() === candidateName.trim());
+        if (match) {
+          locationId = match.id;
+          break;
+        }
+      }
+      if (!locationId) {
+        const tried = candidateNames.length > 0 ? candidateNames.map((n) => `"${n}"`).join(" / ") : "(לא הוגדר שם מסגרת/מתחם)";
+        reasons.push(
+          `לא נמצא מיקום תואם ב-${city || "?"}: נבדק ${tried} — יש להוסיף את המיקום במודול המיקומים או לתקן את השם`
+        );
+      }
+
+      if (reasons.length > 0) {
+        issues.push({ client_name: need.client_name, field: need.field, framework_name: need.framework_name, reasons });
+        continue;
+      }
+
+      const startDateParsed = parseFreeTextDate(need.start_date) ?? today;
+      const dow = dayOfWeek as number;
+      const dayDiff = (dow - startDateParsed.getDay() + 7) % 7;
+      const firstOccurrence = addDays(startDateParsed, dayDiff);
+      const normalizedStartTime = startTimeRaw!.length === 5 ? `${startTimeRaw}:00` : startTimeRaw!;
+
+      const { data: recurringRow, error: recurringError } = await supabase
+        .from("recurring_schedule")
+        .insert({
+          instructor_id: instructorId,
+          location_id: locationId,
+          day_of_week: dow,
+          start_time: normalizedStartTime,
+          group_name: need.framework_name || need.field || null,
+        })
+        .select("id")
+        .single();
+
+      if (recurringError || !recurringRow) {
+        issues.push({
+          client_name: need.client_name,
+          field: need.field,
+          framework_name: need.framework_name,
+          reasons: [`שגיאה ביצירת הלוח הקבוע: ${recurringError?.message ?? "שגיאה לא ידועה"}`],
+        });
+        continue;
+      }
+
+      const horizon = eightWeeksFromToday > addDays(firstOccurrence, 8 * 7) ? eightWeeksFromToday : addDays(firstOccurrence, 8 * 7);
+      const lessonRows: {
+        recurring_item_id: string;
+        location_id: string;
+        instructor_id: string;
+        lesson_date: string;
+        start_time: string;
+        status: string;
+      }[] = [];
+      let weekStart = startOfWeek(firstOccurrence, { weekStartsOn: 0 });
+      while (weekStart <= horizon) {
+        const lessonDate = addDays(weekStart, dow);
+        if (lessonDate >= firstOccurrence) {
+          lessonRows.push({
+            recurring_item_id: recurringRow.id,
+            location_id: locationId,
+            instructor_id: instructorId,
+            lesson_date: format(lessonDate, "yyyy-MM-dd"),
+            start_time: normalizedStartTime,
+            status: "scheduled",
+          });
+        }
+        weekStart = addDays(weekStart, 7);
+      }
+
+      for (let i = 0; i < lessonRows.length; i += 100) {
+        const batch = lessonRows.slice(i, i + 100);
+        await supabase
+          .from("lessons")
+          .upsert(batch, { onConflict: "instructor_id,location_id,lesson_date,start_time", ignoreDuplicates: true });
+      }
+
+      await supabase.from("staffing_assignments").update({ converted_at: new Date().toISOString() }).eq("id", assignment.id);
+      converted++;
+    }
+  }
+
+  revalidatePath(PATH);
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { converted, issues };
 }
