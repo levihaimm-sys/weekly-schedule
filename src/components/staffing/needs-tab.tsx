@@ -291,7 +291,7 @@ export function NeedsTab({ needs }: Props) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">מנהל/ת</label>
+                <label className="text-xs text-muted-foreground">גננת/רכזת</label>
                 <input
                   value={managerName}
                   onChange={(e) => setManagerName(e.target.value)}
@@ -473,7 +473,7 @@ export function NeedsTab({ needs }: Props) {
                 {n.framework_name ? ` · ${n.framework_name}` : ""}
                 {` · ${n.lessons_count} שיעורים`}
                 {n.lesson_duration ? ` · ${n.lesson_duration} דק'` : ""}
-                {n.manager_name ? ` · מנהל/ת: ${n.manager_name}` : ""}
+                {n.manager_name ? ` · גננת/רכזת: ${n.manager_name}` : ""}
                 {n.contact_name ? ` · איש קשר: ${n.contact_name}` : ""}
                 {n.start_date ? ` · תחילת פעילות: ${n.start_date}` : ""}
               </p>

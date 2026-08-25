@@ -94,7 +94,7 @@ export function NeedEditModal({ need, onClose }: { need: StaffingNeed; onClose: 
           <Field label="כתובת">
             <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
           </Field>
-          <Field label="מנהל/ת">
+          <Field label="גננת/רכזת">
             <input value={managerName} onChange={(e) => setManagerName(e.target.value)} className={inputClass} />
           </Field>
           <Field label="איש קשר">
