@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { Plus, Loader2, Check, X, Search, Trash2 } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, TIME_PERIODS, TimePeriod } from "@/lib/utils/constants";
 import { timePeriodLabel, nameMatch } from "@/lib/utils/staffing";
@@ -410,19 +411,29 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[780px] text-sm">
+        <table className="w-full min-w-[780px] table-fixed text-sm">
+          <colgroup>
+            <col className="w-[92px]" />
+            <col className="w-[100px]" />
+            <col />
+            <col className="w-[84px]" />
+            {WORK_DAYS.map((i) => (
+              <col key={i} className="w-11" />
+            ))}
+            <col className="w-7" />
+          </colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-              <th className="px-2 py-2 whitespace-nowrap">מדריך/ה</th>
-              <th className="px-2 py-2 whitespace-nowrap">עיר / אזור</th>
-              <th className="min-w-[220px] px-2 py-2 whitespace-nowrap">סטטוס</th>
+              <th className="px-2 py-2">מדריך/ה</th>
+              <th className="px-2 py-2">עיר / אזור</th>
+              <th className="px-2 py-2">סטטוס</th>
               <th className="px-2 py-2 whitespace-nowrap">חלק יום</th>
               {WORK_DAYS.map((i) => (
-                <th key={i} className="w-12 px-1 py-2 text-center whitespace-nowrap">
+                <th key={i} className="px-1 py-2 text-center whitespace-nowrap">
                   {DAYS_SHORT[i]}
                 </th>
               ))}
-              <th className="w-8 px-1 py-2" />
+              <th className="px-1 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -439,8 +450,8 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
                 const isExisting = activeInstructorNames.some((n) => nameMatch(n, r.name));
                 return (
                   <tr key={key} className="group">
-                    <td className="px-2 py-1.5 align-top whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-1.5 py-1.5 align-top">
+                      <div className="flex items-center gap-1">
                         <span
                           className={`h-2 w-2 shrink-0 rounded-full ${isExisting ? "bg-emerald-500" : "bg-amber-500"}`}
                           title={isExisting ? "מדריך/ה קיים/ת" : "מועמד/ת"}
@@ -449,23 +460,30 @@ export function AvailabilityTab({ availability, assignments, needs, instructors 
                           value={r.name}
                           onSave={(v) => saveRowField(slotIds, "instructor_name", v)}
                           className="font-medium"
+                          title={r.name}
                         />
                       </div>
                     </td>
-                    <td className="px-2 py-1.5 align-top whitespace-nowrap">
+                    <td className="px-1.5 py-1.5 align-top">
                       <InlineEditableCell
                         value={r.region}
                         onSave={(v) => saveRowField(slotIds, "region", v)}
                         className="text-muted-foreground"
+                        title={r.region}
                       />
                     </td>
-                    <td className="min-w-[220px] px-2 py-1.5 align-top">
+                    <td className="px-2 py-1.5 align-top">
                       <InlineEditableCell
                         value={r.slots[0]?.notes ?? ""}
                         onSave={(v) => saveRowField(slotIds, "notes", v)}
                         placeholder="הערת סטטוס..."
-                        className="font-medium text-foreground"
+                        className="text-[15px] font-bold text-foreground"
                       />
+                      {r.slots[0]?.status_updated_at && (
+                        <p className="mt-0.5 px-1.5 text-[10px] text-muted-foreground">
+                          עודכן {format(new Date(r.slots[0].status_updated_at), "dd/MM")}
+                        </p>
+                      )}
                     </td>
                     <td className="px-2 py-1.5 align-top text-xs whitespace-nowrap text-muted-foreground">
                       {rowTimeSummary(r.slots) || "—"}
@@ -527,11 +545,13 @@ function InlineEditableCell({
   onSave,
   placeholder,
   className = "",
+  title,
 }: {
   value: string;
   onSave: (value: string) => Promise<void> | void;
   placeholder?: string;
   className?: string;
+  title?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const [isPending, setIsPending] = useState(false);
@@ -559,6 +579,7 @@ function InlineEditableCell({
       }}
       placeholder={placeholder}
       disabled={isPending}
+      title={title}
       className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
     />
   );

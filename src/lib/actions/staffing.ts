@@ -135,6 +135,7 @@ export async function updateAvailabilityRowInfo(data: {
   }
   if (data.notes !== undefined) {
     update.notes = data.notes.trim() || null;
+    update.status_updated_at = new Date().toISOString();
   }
   if (Object.keys(update).length === 0) return { success: true };
 

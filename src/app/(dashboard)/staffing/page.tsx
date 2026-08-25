@@ -7,7 +7,9 @@ export default async function StaffingPage() {
   const [{ data: availability }, { data: needs }, { data: assignments }, { data: instructors }] = await Promise.all([
     supabase
       .from("staffing_availability")
-      .select("id, instructor_name, region, day_of_week, time_period, start_time, status, notes, created_at")
+      .select(
+        "id, instructor_name, region, day_of_week, time_period, start_time, status, notes, status_updated_at, created_at"
+      )
       .order("created_at"),
     supabase
       .from("staffing_needs")

@@ -239,6 +239,7 @@ export interface StaffingAvailability {
   start_time: string | null;
   status: "available" | "assigned";
   notes: string | null;
+  status_updated_at: string | null;
   created_at: string;
 }
 
