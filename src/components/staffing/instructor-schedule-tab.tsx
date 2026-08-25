@@ -89,21 +89,18 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
     setStatusFilter([]);
   }
 
-  const confirmedByNeed = useMemo(() => {
-    const map = new Map<string, string[]>();
+  const assignedByNeed = useMemo(() => {
+    const map = new Map<string, { name: string; confirmed: boolean }[]>();
     for (const a of assignments) {
-      if (!a.is_confirmed) continue;
       const list = map.get(a.need_id) ?? [];
-      list.push(a.instructor_name);
+      list.push({ name: a.instructor_name, confirmed: a.is_confirmed });
       map.set(a.need_id, list);
     }
     return map;
   }, [assignments]);
 
   const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
-  const instructorOptions = Array.from(new Set(assignments.filter((a) => a.is_confirmed).map((a) => a.instructor_name))).sort(
-    sortHe
-  );
+  const instructorOptions = Array.from(new Set(assignments.map((a) => a.instructor_name))).sort(sortHe);
   const regionOptions = (Array.from(new Set(needs.map((n) => n.region).filter(Boolean))) as string[]).sort(sortHe);
   const clientOptions = Array.from(new Set(needs.map((n) => n.client_name))).sort(sortHe);
   const fieldOptions = (Array.from(new Set(needs.map((n) => n.field).filter(Boolean))) as string[]).sort(sortHe);
@@ -121,8 +118,8 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
         if (!dayFilter.includes(dayKey)) return false;
       }
       if (instructorFilter.length > 0) {
-        const names = confirmedByNeed.get(n.id) ?? [];
-        if (!names.some((name) => instructorFilter.includes(name))) return false;
+        const names = assignedByNeed.get(n.id) ?? [];
+        if (!names.some((a) => instructorFilter.includes(a.name))) return false;
       }
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -131,7 +128,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           (n.region ?? "").toLowerCase().includes(q) ||
           (n.location_name ?? "").toLowerCase().includes(q) ||
           (n.field ?? "").toLowerCase().includes(q) ||
-          (confirmedByNeed.get(n.id) ?? []).some((name) => name.toLowerCase().includes(q));
+          (assignedByNeed.get(n.id) ?? []).some((a) => a.name.toLowerCase().includes(q));
         if (!match) return false;
       }
       return true;
@@ -146,7 +143,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
     dayFilter,
     instructorFilter,
     search,
-    confirmedByNeed,
+    assignedByNeed,
   ]);
 
   const sorted = useMemo(() => {
@@ -273,7 +270,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
               </tr>
             ) : (
               sorted.map((n) => {
-                const instructorNames = confirmedByNeed.get(n.id) ?? [];
+                const instructorEntries = assignedByNeed.get(n.id) ?? [];
                 return (
                   <tr
                     key={n.id}
@@ -281,7 +278,9 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
                     className="cursor-pointer hover:bg-muted/40"
                   >
                     <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
-                      {instructorNames.length > 0 ? instructorNames.join(", ") : "—"}
+                      {instructorEntries.length > 0
+                        ? instructorEntries.map((e) => e.name + (e.confirmed ? "" : " (טרם אושר)")).join(", ")
+                        : "—"}
                     </td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                       {n.framework ?? "—"}
