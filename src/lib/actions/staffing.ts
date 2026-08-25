@@ -112,6 +112,38 @@ export async function updateAvailability(
   return { success: true };
 }
 
+// Lightweight inline-edit action for the availability table: updates only the fields the
+// user actually touched (name / region / status notes) across every slot in the row, without
+// disturbing per-slot day/time data the way updateAvailabilityGroup does.
+export async function updateAvailabilityRowInfo(data: {
+  slotIds: string[];
+  instructor_name?: string;
+  region?: string;
+  notes?: string;
+}) {
+  const update: Record<string, string | null> = {};
+  if (data.instructor_name !== undefined) {
+    const name = data.instructor_name.trim();
+    if (!name) return { error: "יש להזין שם מדריך" };
+    update.instructor_name = name;
+  }
+  if (data.region !== undefined) {
+    const region = data.region.trim();
+    if (!region) return { error: "יש להזין אזור עבודה" };
+    update.region = region;
+  }
+  if (data.notes !== undefined) {
+    update.notes = data.notes.trim() || null;
+  }
+  if (Object.keys(update).length === 0) return { success: true };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_availability").update(update).in("id", data.slotIds);
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 export async function deleteAvailability(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_availability").delete().eq("id", id);

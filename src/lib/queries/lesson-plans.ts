@@ -521,6 +521,52 @@ export async function getAssignmentsOverview() {
 }
 
 /**
+ * Get every equipment distribution recorded during the current school year
+ * (from September 1st through today), for the yearly equipment history page.
+ */
+export async function getYearlyEquipmentDistribution() {
+  const supabase = await createClient();
+
+  const now = getNowInIsrael();
+  // School year starts Sept 1st. If we're before September, the year started last calendar year.
+  const schoolYearStartYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const rangeStartStr = `${schoolYearStartYear}-09-01`;
+  const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const rangeEndStr = formatDate(now);
+
+  const { data, error } = await supabase
+    .from("weekly_lesson_assignments")
+    .select(
+      `
+      id,
+      week_start_date,
+      equipment_distributed_at,
+      instructor:instructors(id, full_name, route),
+      lesson_plan:lesson_plans(id, name, category)
+    `
+    )
+    .eq("equipment_distributed", true)
+    .gte("week_start_date", rangeStartStr)
+    .lte("week_start_date", rangeEndStr)
+    .order("week_start_date", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching yearly equipment distribution:", error);
+    return [];
+  }
+
+  return (data as any[]).map((row) => ({
+    id: row.id,
+    weekStartDate: row.week_start_date,
+    distributedAt: row.equipment_distributed_at,
+    instructorName: row.instructor?.full_name ?? "",
+    route: row.instructor?.route ?? null,
+    lessonPlanName: row.lesson_plan?.name ?? null,
+    lessonPlanCategory: row.lesson_plan?.category ?? null,
+  }));
+}
+
+/**
  * Get all equipment items
  */
 export async function getAllEquipment(): Promise<Equipment[]> {

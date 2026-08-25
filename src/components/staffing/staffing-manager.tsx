@@ -7,12 +7,13 @@ import { NeedsTab } from "./needs-tab";
 import { MatchingTab } from "./matching-tab";
 import { SummaryTab } from "./summary-tab";
 import { InstructorScheduleTab } from "./instructor-schedule-tab";
-import type { StaffingAvailability, StaffingNeed, StaffingAssignment } from "@/types/database";
+import type { StaffingAvailability, StaffingNeed, StaffingAssignment, Instructor } from "@/types/database";
 
 interface Props {
   availability: StaffingAvailability[];
   needs: StaffingNeed[];
   assignments: StaffingAssignment[];
+  instructors: Pick<Instructor, "id" | "full_name" | "is_active">[];
 }
 
 const TABS = [
@@ -27,7 +28,7 @@ type TabKey = (typeof TABS)[number]["key"];
 
 const NOT_SPECIFIED = "לא צוין";
 
-export function StaffingManager({ availability, needs, assignments }: Props) {
+export function StaffingManager({ availability, needs, assignments, instructors }: Props) {
   const [tab, setTab] = useState<TabKey>("matching");
 
   // Drill down from the summary table into the matching table's own filters: they share the
@@ -75,7 +76,9 @@ export function StaffingManager({ availability, needs, assignments }: Props) {
       </div>
 
       {tab === "matching" && <MatchingTab availability={availability} needs={needs} assignments={assignments} />}
-      {tab === "availability" && <AvailabilityTab availability={availability} assignments={assignments} needs={needs} />}
+      {tab === "availability" && (
+        <AvailabilityTab availability={availability} assignments={assignments} needs={needs} instructors={instructors} />
+      )}
       {tab === "needs" && <NeedsTab needs={needs} />}
       {tab === "summary" && <SummaryTab needs={needs} onNavigateToMatching={handleNavigateToMatching} />}
       {tab === "instructor-schedule" && <InstructorScheduleTab needs={needs} assignments={assignments} />}

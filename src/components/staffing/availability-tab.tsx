@@ -1,21 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Check, X, Search } from "lucide-react";
+import { Plus, Loader2, Check, X, Search, Trash2 } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, TIME_PERIODS, TimePeriod } from "@/lib/utils/constants";
-import { timePeriodLabel } from "@/lib/utils/staffing";
-import { addAvailability, deleteAvailability } from "@/lib/actions/staffing";
+import { timePeriodLabel, nameMatch } from "@/lib/utils/staffing";
+import { addAvailability, deleteAvailability, updateAvailabilityRowInfo } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AvailabilityEditModal } from "./availability-edit-modal";
-import { AvailabilityRowEditModal } from "./availability-row-edit-modal";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import type { StaffingAvailability, StaffingAssignment, StaffingNeed } from "@/types/database";
+import type { StaffingAvailability, StaffingAssignment, StaffingNeed, Instructor } from "@/types/database";
 
 interface Props {
   availability: StaffingAvailability[];
   assignments: StaffingAssignment[];
   needs: StaffingNeed[];
+  instructors: Pick<Instructor, "id" | "full_name" | "is_active">[];
 }
 
 const FLEXIBLE = "flex";
@@ -27,16 +27,14 @@ const AVAILABILITY_STATUS_LABEL: Record<string, string> = {
   assigned: "משובץ",
 };
 
-export function AvailabilityTab({ availability, assignments, needs }: Props) {
+export function AvailabilityTab({ availability, assignments, needs, instructors }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = usePersistedState("staffing-availability-search", "");
   const [editingSlot, setEditingSlot] = useState<StaffingAvailability | null>(null);
-  const [editingRow, setEditingRow] = useState<{ name: string; region: string; slots: StaffingAvailability[] } | null>(
-    null
-  );
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
 
   const [regionFilter, setRegionFilter] = usePersistedState<string[]>("staffing-availability-region", []);
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("staffing-availability-day", []);
@@ -117,6 +115,50 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
     }
     return map;
   }, [assignments, needs]);
+
+  // Names are typed freely, so "already an instructor" is a fuzzy match against the real
+  // instructors table rather than a hard link — same tolerance used elsewhere in staffing.
+  const activeInstructorNames = useMemo(
+    () => instructors.filter((i) => i.is_active).map((i) => i.full_name),
+    [instructors]
+  );
+
+  async function saveRowField(
+    slotIds: string[],
+    field: "instructor_name" | "region" | "notes",
+    value: string
+  ) {
+    const result = await updateAvailabilityRowInfo({ slotIds, [field]: value });
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
+    router.refresh();
+  }
+
+  async function handleQuickAdd(row: { name: string; region: string }, day: number | null) {
+    const result = await addAvailability({
+      instructor_name: row.name,
+      region: row.region,
+      days: [day],
+      time_period: "afternoon",
+    });
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
+    router.refresh();
+  }
+
+  async function handleDeleteRow(slots: StaffingAvailability[]) {
+    for (const s of slots) {
+      await deleteAvailability(s.id);
+    }
+    setConfirmDeleteKey(null);
+    router.refresh();
+  }
 
   function toggleDay(value: string) {
     setSelectedDays((prev) => (prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value]));
@@ -227,6 +269,10 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
           </button>
         )}
       </div>
+
+      {error && !addFormOpen && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
 
       {addFormOpen && (
         <div className="rounded-xl border border-secondary/40 bg-secondary/5 p-4">
@@ -354,87 +400,198 @@ export function AvailabilityTab({ availability, assignments, needs }: Props) {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[920px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה</th>
               <th className="px-3 py-2.5 whitespace-nowrap">עיר / אזור</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
               {WORK_DAYS.map((i) => (
-                <th key={i} className="px-1.5 py-2.5 text-center whitespace-nowrap">
+                <th key={i} className="w-24 px-1.5 py-2.5 text-center whitespace-nowrap">
                   {DAYS_SHORT[i]}
                 </th>
               ))}
-              <th className="px-1.5 py-2.5 text-center whitespace-nowrap">גמיש</th>
+              <th className="w-24 px-1.5 py-2.5 text-center whitespace-nowrap">גמיש</th>
+              <th className="w-8 px-1 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                <td colSpan={9} className="py-10 text-center text-muted-foreground">
                   אין עדיין זמינות רשומה
                 </td>
               </tr>
             ) : (
-              filteredRows.map((r) => (
-                <tr key={`${r.name}||${r.region}`}>
-                  <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
-                    <button
-                      onClick={() => setEditingRow(r)}
-                      className="hover:underline"
-                      title="ערוך שם, אזור וימי עבודה"
-                    >
-                      {r.name}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{r.region}</td>
-                  {WORK_DAYS.map((day) => (
-                    <td key={day} className="px-1 py-2 text-center align-top">
-                      <div className="flex flex-col items-center gap-1">
-                        {r.slots
-                          .filter((s) => s.day_of_week === day)
-                          .map((s) => (
-                            <SlotBadge
-                              key={s.id}
-                              slot={s}
-                              onDelete={handleDelete}
-                              onEdit={setEditingSlot}
-                              needStatus={needStatusByAvailabilityId.get(s.id)}
-                            />
-                          ))}
-                      </div>
+              filteredRows.map((r) => {
+                const key = `${r.name}||${r.region}`;
+                const slotIds = r.slots.map((s) => s.id);
+                const isExisting = activeInstructorNames.some((n) => nameMatch(n, r.name));
+                return (
+                  <tr key={key} className="group">
+                    <td className="px-2 py-2 align-top whitespace-nowrap">
+                      <InlineEditableCell
+                        value={r.name}
+                        onSave={(v) => saveRowField(slotIds, "instructor_name", v)}
+                        className="font-medium"
+                      />
+                      <span
+                        className={`mt-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap ${
+                          isExisting ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {isExisting ? "מדריך/ה קיים/ת" : "מועמד/ת"}
+                      </span>
                     </td>
-                  ))}
-                  <td className="px-1 py-2 text-center align-top">
-                    <div className="flex flex-col items-center gap-1">
-                      {r.slots
-                        .filter((s) => s.day_of_week === null)
-                        .map((s) => (
-                          <SlotBadge
-                            key={s.id}
-                            slot={s}
-                            onDelete={handleDelete}
-                            onEdit={setEditingSlot}
-                            needStatus={needStatusByAvailabilityId.get(s.id)}
-                          />
-                        ))}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    <td className="px-2 py-2 align-top whitespace-nowrap">
+                      <InlineEditableCell
+                        value={r.region}
+                        onSave={(v) => saveRowField(slotIds, "region", v)}
+                        className="text-muted-foreground"
+                      />
+                    </td>
+                    <td className="px-2 py-2 align-top">
+                      <InlineEditableCell
+                        value={r.slots[0]?.notes ?? ""}
+                        onSave={(v) => saveRowField(slotIds, "notes", v)}
+                        placeholder="הערת סטטוס..."
+                        className="text-muted-foreground"
+                      />
+                    </td>
+                    {WORK_DAYS.map((day) => (
+                      <td key={day} className="p-1 align-top">
+                        <DayCell
+                          slots={r.slots.filter((s) => s.day_of_week === day)}
+                          onDelete={handleDelete}
+                          onEdit={setEditingSlot}
+                          onQuickAdd={() => handleQuickAdd(r, day)}
+                          needStatusByAvailabilityId={needStatusByAvailabilityId}
+                        />
+                      </td>
+                    ))}
+                    <td className="p-1 align-top">
+                      <DayCell
+                        slots={r.slots.filter((s) => s.day_of_week === null)}
+                        onDelete={handleDelete}
+                        onEdit={setEditingSlot}
+                        onQuickAdd={() => handleQuickAdd(r, null)}
+                        needStatusByAvailabilityId={needStatusByAvailabilityId}
+                      />
+                    </td>
+                    <td className="px-1 py-2 align-top text-center">
+                      {confirmDeleteKey === key ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteRow(r.slots)}
+                            className="rounded p-1 text-red-600 hover:bg-red-50"
+                            title="אישור מחיקת כל השורה"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteKey(null)}
+                            className="rounded p-1 text-muted-foreground hover:bg-muted"
+                            title="ביטול"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteKey(key)}
+                          className="rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-600"
+                          title="מחק שורה"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
       {editingSlot && <AvailabilityEditModal slot={editingSlot} onClose={() => setEditingSlot(null)} />}
-      {editingRow && (
-        <AvailabilityRowEditModal
-          name={editingRow.name}
-          region={editingRow.region}
-          slots={editingRow.slots}
-          onClose={() => setEditingRow(null)}
+    </div>
+  );
+}
+
+function InlineEditableCell({
+  value,
+  onSave,
+  placeholder,
+  className = "",
+}: {
+  value: string;
+  onSave: (value: string) => Promise<void> | void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [isPending, setIsPending] = useState(false);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  async function commit() {
+    const trimmed = draft.trim();
+    if (trimmed === value.trim()) return;
+    setIsPending(true);
+    await onSave(trimmed);
+    setIsPending(false);
+  }
+
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") setDraft(value);
+      }}
+      placeholder={placeholder}
+      disabled={isPending}
+      className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
+    />
+  );
+}
+
+function DayCell({
+  slots,
+  onDelete,
+  onEdit,
+  onQuickAdd,
+  needStatusByAvailabilityId,
+}: {
+  slots: StaffingAvailability[];
+  onDelete: (id: string) => void;
+  onEdit: (slot: StaffingAvailability) => void;
+  onQuickAdd: () => void;
+  needStatusByAvailabilityId: Map<string, StaffingNeed["status"]>;
+}) {
+  return (
+    <div className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-lg border border-border/40 bg-muted/20 p-1">
+      {slots.map((s) => (
+        <SlotBadge
+          key={s.id}
+          slot={s}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          needStatus={needStatusByAvailabilityId.get(s.id)}
         />
-      )}
+      ))}
+      <button
+        onClick={onQuickAdd}
+        title="הוסף זמינות"
+        className="flex items-center justify-center rounded-full p-0.5 text-muted-foreground opacity-40 transition-opacity hover:bg-muted hover:text-foreground hover:opacity-100"
+      >
+        <Plus size={12} />
+      </button>
     </div>
   );
 }

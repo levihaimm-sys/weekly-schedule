@@ -47,11 +47,19 @@ export default async function AssignmentsPage() {
         <ArrowRight size={14} />
         חזרה לציוד
       </Link>
-      <div>
-        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">הקצאות שבועיות</h2>
-        <p className="text-sm text-muted-foreground">
-          מבט-על על חלוקת מערכי השיעור בין המדריכות. לחצי על תא לעריכה.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">הקצאות שבועיות</h2>
+          <p className="text-sm text-muted-foreground">
+            מבט-על על חלוקת מערכי השיעור בין המדריכות. לחצי על תא לעריכה.
+          </p>
+        </div>
+        <Link
+          href="/lesson-plans/equipment-yearly"
+          className="shrink-0 whitespace-nowrap text-sm text-orange-600 hover:underline"
+        >
+          חלוקת ציוד - שנתי
+        </Link>
       </div>
 
       <AssignmentsOverviewTable

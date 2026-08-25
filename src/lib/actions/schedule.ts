@@ -690,6 +690,15 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
+const CITY_ALIASES: Record<string, string> = {
+  "פתח תקווה": "פת",
+};
+
+function normalizeCity(city: string): string {
+  const clean = city.replace(/["']/g, "").trim();
+  return CITY_ALIASES[clean] ?? clean;
+}
+
 function parseDate(raw: string): string | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   const dmy = /^(\d{1,2})[\/.\\-](\d{1,2})[\/.\\-](\d{2,4})$/.exec(raw);
@@ -728,8 +737,14 @@ export async function bulkImportLessons(csvText: string) {
     .select("id, full_name")
     .in("status", ["active", "substitute"]);
 
-  // mutable map — auto-created locations get added during the loop
-  const locationMap = new Map(
+  // mutable maps — auto-created locations get added during the loop.
+  // Keyed by city+name to avoid cross-city name collisions (e.g. "גן כרכום"
+  // exists in both ראש העין and פת); name-only map is a fallback for legacy
+  // CSVs ("מיקום" column) that don't carry a city.
+  const locationMapByCityName = new Map(
+    (allLocations ?? []).map((l) => [`${l.city.trim()}||${l.name.trim()}`, l.id])
+  );
+  const locationMapByNameOnly = new Map(
     (allLocations ?? []).map((l) => [l.name.trim(), l.id])
   );
   const instructorMap = new Map(
@@ -756,10 +771,15 @@ export async function bulkImportLessons(csvText: string) {
     });
 
     const gardenName = row[gardenCol];
-    const cityName = row["עיר"] ?? "";
+    const rawCityName = row["עיר"] ?? "";
+    const cityName = normalizeCity(rawCityName);
 
-    // Find or auto-create location
-    let locationId: string | undefined = locationMap.get(gardenName);
+    // Find or auto-create location. When the row carries a city, match/create
+    // by city+name; only fall back to name-only matching for legacy rows
+    // that have no city column at all.
+    let locationId: string | undefined = cityName
+      ? locationMapByCityName.get(`${cityName}||${gardenName}`)
+      : locationMapByNameOnly.get(gardenName);
     if (!locationId) {
       const { data: newLoc, error: locErr } = await supabase
         .from("locations")
@@ -771,7 +791,8 @@ export async function bulkImportLessons(csvText: string) {
         continue;
       }
       locationId = newLoc.id as string;
-      locationMap.set(gardenName, locationId);
+      locationMapByCityName.set(`${cityName}||${gardenName}`, locationId);
+      locationMapByNameOnly.set(gardenName, locationId);
     }
 
     let instructorId: string | null = null;
