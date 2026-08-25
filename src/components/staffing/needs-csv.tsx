@@ -186,12 +186,14 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
   const [skipped, setSkipped] = useState(0);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [result, setResult] = useState<{ inserted: number; updated: number; assigned: number; errors: string[] } | null>(
     null
   );
 
   function handleFile(file: File) {
     setParseError(null);
+    setImportError(null);
     setResult(null);
     setFileName(file.name);
     const reader = new FileReader();
@@ -209,10 +211,16 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
 
   async function handleImport() {
     setImporting(true);
-    const res = await importNeeds(parsedRows);
-    setImporting(false);
-    setResult({ inserted: res.inserted, updated: res.updated, assigned: res.assigned, errors: res.errors });
-    onImported();
+    setImportError(null);
+    try {
+      const res = await importNeeds(parsedRows);
+      setResult({ inserted: res.inserted, updated: res.updated, assigned: res.assigned, errors: res.errors });
+      onImported();
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "שגיאה לא צפויה בייבוא. נסה שוב.");
+    } finally {
+      setImporting(false);
+    }
   }
 
   return (
@@ -277,6 +285,11 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
             </button>
 
             {parseError && <p className="mb-3 text-xs text-red-600">{parseError}</p>}
+            {importError && (
+              <p className="mb-3 text-xs text-red-600">
+                {importError} אם זה חוזר על עצמו, נסה לרענן את הדף ולנסות שוב.
+              </p>
+            )}
 
             {parsedRows.length > 0 && (
               <div className="mb-3 space-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
