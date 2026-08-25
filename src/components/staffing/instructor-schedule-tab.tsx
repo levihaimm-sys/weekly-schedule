@@ -237,7 +237,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">מדריך/ה משובץ/ת</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">שם המסגרת</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">כמות שיעורים</th>
               <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
@@ -284,7 +284,8 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
                       {instructorNames.length > 0 ? instructorNames.join(", ") : "—"}
                     </td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                      {n.framework_name ?? "—"}
+                      {n.framework ?? "—"}
+                      {n.framework_name ? ` · ${n.framework_name}` : ""}
                     </td>
                     <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{n.lessons_count}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.address ?? "—"}</td>
