@@ -270,7 +270,11 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
               </tr>
             ) : (
               sorted.map((n) => {
-                const instructorEntries = assignedByNeed.get(n.id) ?? [];
+                const allEntries = assignedByNeed.get(n.id) ?? [];
+                const instructorEntries =
+                  instructorFilter.length > 0
+                    ? allEntries.filter((e) => instructorFilter.includes(e.name))
+                    : allEntries;
                 return (
                   <tr
                     key={n.id}
