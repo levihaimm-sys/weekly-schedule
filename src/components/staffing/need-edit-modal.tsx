@@ -22,6 +22,7 @@ export function NeedEditModal({ need, onClose }: { need: StaffingNeed; onClose: 
   const [timePeriod, setTimePeriod] = useState<TimePeriod | "">((need.time_period as TimePeriod) ?? "");
   const [startTime, setStartTime] = useState(need.start_time ?? "");
   const [startDate, setStartDate] = useState(need.start_date ?? "");
+  const [lessonDuration, setLessonDuration] = useState(String(need.lesson_duration ?? 40));
   const [lessonsCount, setLessonsCount] = useState(String(need.lessons_count));
   const [notes, setNotes] = useState(need.notes ?? "");
 
@@ -46,6 +47,7 @@ export function NeedEditModal({ need, onClose }: { need: StaffingNeed; onClose: 
       time_period: timePeriod || null,
       start_time: startTime,
       start_date: startDate,
+      lesson_duration: Number(lessonDuration) || 40,
       lessons_count: Number(lessonsCount) || 1,
       notes,
     });
@@ -141,6 +143,15 @@ export function NeedEditModal({ need, onClose }: { need: StaffingNeed; onClose: 
           </Field>
           <Field label="תאריך התחלה">
             <input value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="משך שיעור (דק')">
+            <input
+              type="number"
+              min={1}
+              value={lessonDuration}
+              onChange={(e) => setLessonDuration(e.target.value)}
+              className={inputClass}
+            />
           </Field>
           <div className="sm:col-span-2">
             <Field label="הערות">

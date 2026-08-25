@@ -66,6 +66,7 @@ export function NeedsTab({ needs }: Props) {
   const [framework, setFramework] = useState("");
   const [frameworkName, setFrameworkName] = useState("");
   const [startDate, setStartDate] = useState("");
+  const [lessonDuration, setLessonDuration] = useState("40");
   const [dayValue, setDayValue] = useState<string>("");
   const [timePeriod, setTimePeriod] = useState<TimePeriod | "">("");
   const [startTime, setStartTime] = useState("");
@@ -118,6 +119,7 @@ export function NeedsTab({ needs }: Props) {
       framework,
       framework_name: frameworkName,
       start_date: startDate,
+      lesson_duration: Number(lessonDuration) || 40,
       day_of_week: dayValue === "" ? null : Number(dayValue),
       time_period: timePeriod || null,
       start_time: startTime,
@@ -140,6 +142,7 @@ export function NeedsTab({ needs }: Props) {
     setFramework("");
     setFrameworkName("");
     setStartDate("");
+    setLessonDuration("40");
     setDayValue("");
     setTimePeriod("");
     setStartTime("");
@@ -332,6 +335,16 @@ export function NeedsTab({ needs }: Props) {
                   className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">משך שיעור (דק&apos;)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={lessonDuration}
+                  onChange={(e) => setLessonDuration(e.target.value)}
+                  className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
             </div>
             <div className="flex flex-wrap gap-3">
               <div className="flex flex-col gap-1">
@@ -459,6 +472,7 @@ export function NeedsTab({ needs }: Props) {
                 {n.framework ? ` · ${n.framework}` : ""}
                 {n.framework_name ? ` · ${n.framework_name}` : ""}
                 {` · ${n.lessons_count} שיעורים`}
+                {n.lesson_duration ? ` · ${n.lesson_duration} דק'` : ""}
                 {n.manager_name ? ` · מנהל/ת: ${n.manager_name}` : ""}
                 {n.contact_name ? ` · איש קשר: ${n.contact_name}` : ""}
                 {n.start_date ? ` · תחילת פעילות: ${n.start_date}` : ""}

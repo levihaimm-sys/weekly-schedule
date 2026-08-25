@@ -253,6 +253,7 @@ export interface StaffingNeed {
   framework: string | null;
   framework_name: string | null;
   start_date: string | null;
+  lesson_duration: number | null;
   day_of_week: number | null;
   time_period: "morning" | "afternoon" | null;
   start_time: string | null;

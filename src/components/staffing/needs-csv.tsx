@@ -6,7 +6,7 @@ import { importNeeds } from "@/lib/actions/staffing";
 
 const CSV_HEADERS = [
   "לקוח", "עיר", "כתובת", "מתחם", "מנהל/ת", "איש קשר", "קב'", "מסגרת", "שם המסגרת", "חוג", "יום",
-  "שעת התחלה", "תאריך התחלה", "הערות", "מדריך/ה משובץ/ת",
+  "שעת התחלה", "משך שיעור", "תאריך התחלה", "הערות", "מדריך/ה משובץ/ת",
 ];
 
 const DAY_NAME_TO_INDEX: Record<string, number> = {
@@ -34,7 +34,7 @@ function buildSampleCsv() {
   const headerRow = CSV_HEADERS.map(csvField).join(",");
   const sampleRow = [
     "טומשין", "הרצליה", "נורדאו 26, הרצליה", "ברנדיס", "רינת 054-8646513", "משה כהן 050-1234567", "3", 'בי"ס',
-    "בית ספר עתידים", "תאטרון", "חמישי", "13:50", "01/09/2026", "יש חניה בסמוך למתחם", "אודי",
+    "בית ספר עתידים", "תאטרון", "חמישי", "13:50", "40", "01/09/2026", "יש חניה בסמוך למתחם", "אודי",
   ]
     .map(csvField)
     .join(",");
@@ -109,6 +109,7 @@ interface ParsedNeedRow {
   field: string | null;
   day_of_week: number | null;
   start_time: string | null;
+  lesson_duration: number;
   start_date: string | null;
   notes: string | null;
   instructor_name: string | null;
@@ -132,6 +133,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
   const iField = idx("חוג");
   const iDay = idx("יום");
   const iStartTime = idx("שעת התחלה");
+  const iDuration = idx("משך שיעור");
   const iDate = idx("תאריך התחלה");
   const iNotes = idx("הערות");
   const iInstructor = idx("מדריך/ה משובץ/ת");
@@ -152,6 +154,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
     }
     const dayText = cell(line, iDay);
     const groupText = cell(line, iGroup);
+    const durationText = cell(line, iDuration);
 
     rows.push({
       client_name: clientName,
@@ -166,6 +169,7 @@ function parseImportCsv(text: string): { rows: ParsedNeedRow[]; skipped: number 
       field: cell(line, iField) || null,
       day_of_week: DAY_NAME_TO_INDEX[dayText] ?? null,
       start_time: cell(line, iStartTime) || null,
+      lesson_duration: durationText && !Number.isNaN(Number(durationText)) ? Number(durationText) : 40,
       start_date: cell(line, iDate) || null,
       notes: cell(line, iNotes) || null,
       instructor_name: cell(line, iInstructor) || null,
@@ -248,7 +252,7 @@ export function NeedsImportModal({ onClose, onImported }: { onClose: () => void;
         ) : (
           <>
             <p className="mb-3 text-xs text-muted-foreground">
-              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, איש קשר, קב&apos;, מסגרת, שם המסגרת, חוג, יום, שעת התחלה, תאריך התחלה, הערות, מדריך/ה משובץ/ת. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
+              עמודות: לקוח, עיר, כתובת, מתחם, מנהל/ת, איש קשר, קב&apos;, מסגרת, שם המסגרת, חוג, יום, שעת התחלה, משך שיעור, תאריך התחלה, הערות, מדריך/ה משובץ/ת. אפשר להוריד קובץ לדוגמא כדי לראות את המבנה המדויק.
               אם ממלאים את עמודת המדריך/ה — השיבוץ ייווצר אוטומטית ויקושר למשבצת זמינות פנויה תואמת (אזור ויום), ואותה משבצת תסומן כתפוסה.
               העלאה חוזרת של אותו קובץ מעדכנת שיעורים קיימים (לפי לקוח + מתחם + שם מסגרת + חוג תואמים) במקום ליצור כפילויות.
             </p>

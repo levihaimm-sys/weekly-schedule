@@ -199,6 +199,7 @@ export async function addNeed(data: {
   framework?: string | null;
   framework_name?: string | null;
   start_date?: string | null;
+  lesson_duration?: number | null;
   day_of_week?: number | null;
   time_period?: string | null;
   start_time?: string | null;
@@ -220,6 +221,7 @@ export async function addNeed(data: {
     framework: data.framework?.trim() || null,
     framework_name: data.framework_name?.trim() || null,
     start_date: data.start_date?.trim() || null,
+    lesson_duration: data.lesson_duration && data.lesson_duration > 0 ? data.lesson_duration : 40,
     day_of_week: data.day_of_week ?? null,
     time_period: data.time_period || null,
     start_time: data.start_time?.trim() || null,
@@ -245,6 +247,7 @@ export async function updateNeed(
     framework?: string | null;
     framework_name?: string | null;
     start_date?: string | null;
+    lesson_duration?: number | null;
     day_of_week?: number | null;
     time_period?: string | null;
     start_time?: string | null;
@@ -269,6 +272,7 @@ export async function updateNeed(
       framework: data.framework?.trim() || null,
       framework_name: data.framework_name?.trim() || null,
       start_date: data.start_date?.trim() || null,
+      lesson_duration: data.lesson_duration && data.lesson_duration > 0 ? data.lesson_duration : 40,
       day_of_week: data.day_of_week ?? null,
       time_period: data.time_period || null,
       start_time: data.start_time?.trim() || null,
@@ -297,6 +301,7 @@ interface ImportNeedRow {
   day_of_week: number | null;
   start_time: string | null;
   start_date: string | null;
+  lesson_duration: number | null;
   notes: string | null;
   // Not a staffing_needs column — used below to auto-create a confirmed assignment
   // linked to (and consuming) a matching availability slot, if one exists.
