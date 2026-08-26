@@ -1,24 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Building2, GitMerge, BarChart3, Send } from "lucide-react";
+import { Users, Building2, GitMerge, BarChart3, Send, UserPlus } from "lucide-react";
 import { AvailabilityTab } from "./availability-tab";
 import { NeedsTab } from "./needs-tab";
 import { MatchingTab } from "./matching-tab";
 import { SummaryTab } from "./summary-tab";
 import { InstructorScheduleTab } from "./instructor-schedule-tab";
-import type { StaffingAvailability, StaffingNeed, StaffingAssignment, Instructor } from "@/types/database";
+import { PotentialInstructorsTab } from "./potential-instructors-tab";
+import type {
+  StaffingAvailability,
+  StaffingNeed,
+  StaffingAssignment,
+  StaffingPotentialInstructor,
+  Instructor,
+} from "@/types/database";
 
 interface Props {
   availability: StaffingAvailability[];
   needs: StaffingNeed[];
   assignments: StaffingAssignment[];
   instructors: Pick<Instructor, "id" | "full_name" | "is_active">[];
+  potentialInstructors: StaffingPotentialInstructor[];
 }
 
 const TABS = [
   { key: "matching", label: "שיבוצים", icon: GitMerge },
   { key: "availability", label: "מדריכים וזמינות", icon: Users },
+  { key: "potential-instructors", label: "מדריכים פוטנציאלים", icon: UserPlus },
   { key: "needs", label: "לקוחות ושיעורים נדרשים", icon: Building2 },
   { key: "summary", label: "סיכום לפי ישוב", icon: BarChart3 },
   { key: "instructor-schedule", label: "לו\"ז למדריכים", icon: Send },
@@ -28,7 +37,7 @@ type TabKey = (typeof TABS)[number]["key"];
 
 const NOT_SPECIFIED = "לא צוין";
 
-export function StaffingManager({ availability, needs, assignments, instructors }: Props) {
+export function StaffingManager({ availability, needs, assignments, instructors, potentialInstructors }: Props) {
   const [tab, setTab] = useState<TabKey>("matching");
 
   // Drill down from the summary table into the matching table's own filters: they share the
@@ -79,6 +88,7 @@ export function StaffingManager({ availability, needs, assignments, instructors 
       {tab === "availability" && (
         <AvailabilityTab availability={availability} assignments={assignments} needs={needs} instructors={instructors} />
       )}
+      {tab === "potential-instructors" && <PotentialInstructorsTab potentialInstructors={potentialInstructors} />}
       {tab === "needs" && <NeedsTab needs={needs} />}
       {tab === "summary" && <SummaryTab needs={needs} onNavigateToMatching={handleNavigateToMatching} />}
       {tab === "instructor-schedule" && <InstructorScheduleTab needs={needs} assignments={assignments} />}

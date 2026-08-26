@@ -221,6 +221,77 @@ export async function updateAvailabilityGroup(data: {
   return { success: true };
 }
 
+// ----- Potential instructors (focused pre-recruitment list) -----
+
+export async function addPotentialInstructor(data: {
+  full_name: string;
+  phone?: string | null;
+  region?: string | null;
+  field?: string | null;
+  offered_amount?: number | null;
+}) {
+  const fullName = data.full_name.trim();
+  if (!fullName) return { error: "יש להזין שם" };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_potential_instructors").insert({
+    full_name: fullName,
+    phone: data.phone?.trim() || null,
+    region: data.region?.trim() || null,
+    field: data.field?.trim() || null,
+    offered_amount: data.offered_amount ?? null,
+  });
+
+  if (error) return { error: "שגיאה בהוספה: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+// Lightweight inline-edit action, matching updateAvailabilityRowInfo's shape: only updates the
+// fields actually touched. Editing last_contact_note stamps last_contact_at with the current
+// time so the table can show "when was this person last contacted".
+export async function updatePotentialInstructor(
+  id: string,
+  data: {
+    full_name?: string;
+    phone?: string | null;
+    region?: string | null;
+    field?: string | null;
+    offered_amount?: number | null;
+    last_contact_note?: string | null;
+  }
+) {
+  const update: Record<string, string | number | null> = {};
+  if (data.full_name !== undefined) {
+    const fullName = data.full_name.trim();
+    if (!fullName) return { error: "יש להזין שם" };
+    update.full_name = fullName;
+  }
+  if (data.phone !== undefined) update.phone = data.phone?.trim() || null;
+  if (data.region !== undefined) update.region = data.region?.trim() || null;
+  if (data.field !== undefined) update.field = data.field?.trim() || null;
+  if (data.offered_amount !== undefined) update.offered_amount = data.offered_amount;
+  if (data.last_contact_note !== undefined) {
+    update.last_contact_note = data.last_contact_note?.trim() || null;
+    update.last_contact_at = new Date().toISOString();
+  }
+  if (Object.keys(update).length === 0) return { success: true };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_potential_instructors").update(update).eq("id", id);
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function deletePotentialInstructor(id: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_potential_instructors").delete().eq("id", id);
+  if (error) return { error: "שגיאה במחיקה: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 // ----- Needs (client lesson slots side, free-text client name) -----
 
 export async function addNeed(data: {

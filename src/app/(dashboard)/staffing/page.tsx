@@ -4,7 +4,13 @@ import { StaffingManager } from "@/components/staffing/staffing-manager";
 export default async function StaffingPage() {
   const supabase = createAdminClient();
 
-  const [{ data: availability }, { data: needs }, { data: assignments }, { data: instructors }] = await Promise.all([
+  const [
+    { data: availability },
+    { data: needs },
+    { data: assignments },
+    { data: instructors },
+    { data: potentialInstructors },
+  ] = await Promise.all([
     supabase
       .from("staffing_availability")
       .select(
@@ -24,6 +30,10 @@ export default async function StaffingPage() {
       )
       .order("created_at"),
     supabase.from("instructors").select("id, full_name, is_active"),
+    supabase
+      .from("staffing_potential_instructors")
+      .select("id, full_name, phone, region, field, offered_amount, last_contact_note, last_contact_at, created_at")
+      .order("created_at"),
   ]);
 
   return (
@@ -34,6 +44,7 @@ export default async function StaffingPage() {
         needs={needs ?? []}
         assignments={assignments ?? []}
         instructors={instructors ?? []}
+        potentialInstructors={potentialInstructors ?? []}
       />
     </div>
   );
