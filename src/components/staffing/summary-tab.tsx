@@ -70,20 +70,23 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
     });
   }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter]);
 
-  // Region -> field -> {open, partially_filled, filled} (each counted as lessons_count, not row
-  // count) plus the set of clients contributing to that field, since one region+field row can
-  // span several clients.
+  // Region -> framework (סוג מסגרת: גן / בי"ס) -> field -> {open, partially_filled, filled}
+  // (each counted as lessons_count, not row count) plus the set of clients contributing to
+  // that field, since one region+framework+field row can span several clients.
   const rows = useMemo(() => {
     type Bucket = Record<NeedStatus, number> & { clients: Set<string>; earliestStartDate: Date | null };
-    const byRegion = new Map<string, Map<string, Bucket>>();
+    const byRegion = new Map<string, Map<string, Map<string, Bucket>>>();
 
     for (const n of filtered) {
       const region = n.region?.trim() || NOT_SPECIFIED;
+      const framework = n.framework?.trim() || NOT_SPECIFIED;
       const field = n.field?.trim() || NOT_SPECIFIED;
       const status = n.status as NeedStatus;
 
       if (!byRegion.has(region)) byRegion.set(region, new Map());
-      const byField = byRegion.get(region)!;
+      const byFramework = byRegion.get(region)!;
+      if (!byFramework.has(framework)) byFramework.set(framework, new Map());
+      const byField = byFramework.get(framework)!;
       if (!byField.has(field))
         byField.set(field, { open: 0, partially_filled: 0, filled: 0, clients: new Set(), earliestStartDate: null });
       const bucket = byField.get(field)!;
@@ -96,26 +99,40 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
       }
     }
 
-    const sortRegion = (a: string, b: string) => {
-      if (a === NOT_SPECIFIED) return 1;
-      if (b === NOT_SPECIFIED) return -1;
-      return a.localeCompare(b, "he");
+    // Closest start date first; rows/groups with no date at all sort last.
+    const sortByDate = (a: Date | null, b: Date | null) => {
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.getTime() - b.getTime();
     };
-    const sortField = sortRegion;
+    const earliestOf = (dates: (Date | null)[]) =>
+      dates.reduce<Date | null>((min, d) => (d && (!min || d < min) ? d : min), null);
 
     return Array.from(byRegion.entries())
-      .sort(([a], [b]) => sortRegion(a, b))
-      .map(([region, byField]) => ({
-        region,
-        fields: Array.from(byField.entries())
-          .sort(([a], [b]) => sortField(a, b))
-          .map(([field, { clients, earliestStartDate, ...counts }]) => ({
-            field,
-            counts,
-            clientsList: Array.from(clients).sort(sortHe),
-            earliestStartDate,
-          })),
-      }));
+      .map(([region, byFramework]) => {
+        const frameworks = Array.from(byFramework.entries())
+          .map(([framework, byField]) => {
+            const fields = Array.from(byField.entries())
+              .map(([field, { clients, earliestStartDate, ...counts }]) => ({
+                field,
+                counts,
+                clientsList: Array.from(clients).sort(sortHe),
+                earliestStartDate,
+              }))
+              .sort((a, b) => sortByDate(a.earliestStartDate, b.earliestStartDate));
+            return { framework, fields, earliestStartDate: earliestOf(fields.map((f) => f.earliestStartDate)) };
+          })
+          .sort((a, b) => sortByDate(a.earliestStartDate, b.earliestStartDate));
+        const rowCount = frameworks.reduce((sum, f) => sum + f.fields.length, 0);
+        return {
+          region,
+          rowCount,
+          frameworks,
+          earliestStartDate: earliestOf(frameworks.map((f) => f.earliestStartDate)),
+        };
+      })
+      .sort((a, b) => sortByDate(a.earliestStartDate, b.earliestStartDate));
   }, [filtered]);
 
   const grandTotal = filtered.reduce((sum, n) => sum + n.lessons_count, 0);
@@ -176,6 +193,7 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">ישוב</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">סוג מסגרת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">תחום</th>
               <th className="px-3 py-2.5 whitespace-nowrap">תאריך התחלה</th>
               <th className="px-3 py-2.5 text-center whitespace-nowrap">{NEED_STATUS.open}</th>
@@ -187,52 +205,62 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
           <tbody className="divide-y divide-border">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="py-10 text-center text-muted-foreground">
                   אין שיעורים תואמים
                 </td>
               </tr>
             ) : (
-              rows.map(({ region, fields }) =>
-                fields.map(({ field, counts, clientsList, earliestStartDate }, i) => {
-                  const rowTotal = counts.open + counts.partially_filled + counts.filled;
-                  return (
-                    <tr key={`${region}||${field}`}>
-                      {i === 0 && (
-                        <td
-                          rowSpan={fields.length}
-                          className="border-e border-border px-3 py-2.5 align-top font-medium whitespace-nowrap"
-                        >
-                          {region}
+              rows.map(({ region, rowCount, frameworks }) =>
+                frameworks.map(({ framework, fields }, fi) =>
+                  fields.map(({ field, counts, clientsList, earliestStartDate }, i) => {
+                    const rowTotal = counts.open + counts.partially_filled + counts.filled;
+                    return (
+                      <tr key={`${region}||${framework}||${field}`}>
+                        {fi === 0 && i === 0 && (
+                          <td
+                            rowSpan={rowCount}
+                            className="border-e border-border px-3 py-2.5 align-top font-medium whitespace-nowrap"
+                          >
+                            {region}
+                          </td>
+                        )}
+                        {i === 0 && (
+                          <td
+                            rowSpan={fields.length}
+                            className="border-e border-border px-3 py-2.5 align-top whitespace-nowrap text-muted-foreground"
+                          >
+                            {framework}
+                          </td>
+                        )}
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <button
+                            onClick={() => onNavigateToMatching({ region, field, clients: clientsList })}
+                            title="עבור לשיבוצים עם סינון תואם"
+                            className="text-muted-foreground hover:text-primary hover:underline"
+                          >
+                            {field}
+                            {clientsList.length > 0 && (
+                              <span className="ms-1.5 text-xs text-muted-foreground/70">{clientsList.join(", ")}</span>
+                            )}
+                          </button>
                         </td>
-                      )}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <button
-                          onClick={() => onNavigateToMatching({ region, field, clients: clientsList })}
-                          title="עבור לשיבוצים עם סינון תואם"
-                          className="text-muted-foreground hover:text-primary hover:underline"
-                        >
-                          {field}
-                          {clientsList.length > 0 && (
-                            <span className="ms-1.5 text-xs text-muted-foreground/70">{clientsList.join(", ")}</span>
-                          )}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                        {earliestStartDate ? format(earliestStartDate, "dd/MM/yyyy") : "—"}
-                      </td>
-                      <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.open}`}>
-                        {counts.open > 0 ? counts.open : "—"}
-                      </td>
-                      <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.partially_filled}`}>
-                        {counts.partially_filled > 0 ? counts.partially_filled : "—"}
-                      </td>
-                      <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.filled}`}>
-                        {counts.filled > 0 ? counts.filled : "—"}
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-bold">{rowTotal}</td>
-                    </tr>
-                  );
-                })
+                        <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                          {earliestStartDate ? format(earliestStartDate, "dd/MM/yyyy") : "—"}
+                        </td>
+                        <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.open}`}>
+                          {counts.open > 0 ? counts.open : "—"}
+                        </td>
+                        <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.partially_filled}`}>
+                          {counts.partially_filled > 0 ? counts.partially_filled : "—"}
+                        </td>
+                        <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.filled}`}>
+                          {counts.filled > 0 ? counts.filled : "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-center font-bold">{rowTotal}</td>
+                      </tr>
+                    );
+                  })
+                )
               )
             )}
           </tbody>
