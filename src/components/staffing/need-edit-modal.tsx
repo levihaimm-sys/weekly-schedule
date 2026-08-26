@@ -33,39 +33,49 @@ export function NeedEditModal({ need, onClose }: { need: StaffingNeed; onClose: 
   async function handleSave() {
     setError(null);
     setIsPending(true);
-    const result = await updateNeed(need.id, {
-      client_name: clientName,
-      region,
-      location_name: locationName,
-      address,
-      manager_name: managerName,
-      contact_name: contactName,
-      framework,
-      framework_name: frameworkName,
-      field,
-      day_of_week: dayValue === "" ? null : Number(dayValue),
-      time_period: timePeriod || null,
-      start_time: startTime,
-      start_date: startDate,
-      lesson_duration: Number(lessonDuration) || 40,
-      lessons_count: Number(lessonsCount) || 1,
-      notes,
-    });
-    setIsPending(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+    try {
+      const result = await updateNeed(need.id, {
+        client_name: clientName,
+        region,
+        location_name: locationName,
+        address,
+        manager_name: managerName,
+        contact_name: contactName,
+        framework,
+        framework_name: frameworkName,
+        field,
+        day_of_week: dayValue === "" ? null : Number(dayValue),
+        time_period: timePeriod || null,
+        start_time: startTime,
+        start_date: startDate,
+        lesson_duration: Number(lessonDuration) || 40,
+        lessons_count: Number(lessonsCount) || 1,
+        notes,
+      });
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "שגיאה בשמירה");
+    } finally {
+      setIsPending(false);
     }
-    router.refresh();
-    onClose();
   }
 
   async function handleDelete() {
     setIsPending(true);
-    await deleteNeed(need.id);
-    setIsPending(false);
-    router.refresh();
-    onClose();
+    try {
+      await deleteNeed(need.id);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "שגיאה במחיקה");
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
