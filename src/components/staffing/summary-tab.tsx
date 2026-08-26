@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import { X } from "lucide-react";
+import { format } from "date-fns";
 import { DAYS_HEBREW, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
+import { parseFreeTextDate } from "@/lib/utils/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { StaffingNeed } from "@/types/database";
@@ -72,7 +74,7 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
   // count) plus the set of clients contributing to that field, since one region+field row can
   // span several clients.
   const rows = useMemo(() => {
-    type Bucket = Record<NeedStatus, number> & { clients: Set<string> };
+    type Bucket = Record<NeedStatus, number> & { clients: Set<string>; earliestStartDate: Date | null };
     const byRegion = new Map<string, Map<string, Bucket>>();
 
     for (const n of filtered) {
@@ -82,10 +84,16 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
 
       if (!byRegion.has(region)) byRegion.set(region, new Map());
       const byField = byRegion.get(region)!;
-      if (!byField.has(field)) byField.set(field, { open: 0, partially_filled: 0, filled: 0, clients: new Set() });
+      if (!byField.has(field))
+        byField.set(field, { open: 0, partially_filled: 0, filled: 0, clients: new Set(), earliestStartDate: null });
       const bucket = byField.get(field)!;
       bucket[status] += n.lessons_count;
       bucket.clients.add(n.client_name);
+
+      const parsedStart = parseFreeTextDate(n.start_date);
+      if (parsedStart && (!bucket.earliestStartDate || parsedStart < bucket.earliestStartDate)) {
+        bucket.earliestStartDate = parsedStart;
+      }
     }
 
     const sortRegion = (a: string, b: string) => {
@@ -101,10 +109,11 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
         region,
         fields: Array.from(byField.entries())
           .sort(([a], [b]) => sortField(a, b))
-          .map(([field, { clients, ...counts }]) => ({
+          .map(([field, { clients, earliestStartDate, ...counts }]) => ({
             field,
             counts,
             clientsList: Array.from(clients).sort(sortHe),
+            earliestStartDate,
           })),
       }));
   }, [filtered]);
@@ -168,6 +177,7 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">ישוב</th>
               <th className="px-3 py-2.5 whitespace-nowrap">תחום</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">תאריך התחלה</th>
               <th className="px-3 py-2.5 text-center whitespace-nowrap">{NEED_STATUS.open}</th>
               <th className="px-3 py-2.5 text-center whitespace-nowrap">{NEED_STATUS.partially_filled}</th>
               <th className="px-3 py-2.5 text-center whitespace-nowrap">{NEED_STATUS.filled}</th>
@@ -177,13 +187,13 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
           <tbody className="divide-y divide-border">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                <td colSpan={7} className="py-10 text-center text-muted-foreground">
                   אין שיעורים תואמים
                 </td>
               </tr>
             ) : (
               rows.map(({ region, fields }) =>
-                fields.map(({ field, counts, clientsList }, i) => {
+                fields.map(({ field, counts, clientsList, earliestStartDate }, i) => {
                   const rowTotal = counts.open + counts.partially_filled + counts.filled;
                   return (
                     <tr key={`${region}||${field}`}>
@@ -206,6 +216,9 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
                             <span className="ms-1.5 text-xs text-muted-foreground/70">{clientsList.join(", ")}</span>
                           )}
                         </button>
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
+                        {earliestStartDate ? format(earliestStartDate, "dd/MM/yyyy") : "—"}
                       </td>
                       <td className={`px-3 py-2.5 text-center ${STATUS_TEXT_COLORS.open}`}>
                         {counts.open > 0 ? counts.open : "—"}
