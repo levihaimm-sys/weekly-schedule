@@ -343,7 +343,10 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                       className="text-muted-foreground"
                     />
                   </td>
-                  <td className="px-3 py-1.5 align-top text-sm whitespace-nowrap text-muted-foreground">
+                  <td
+                    dir="ltr"
+                    className="px-3 py-1.5 align-top text-right text-sm whitespace-nowrap text-muted-foreground"
+                  >
                     {format(new Date(p.last_contact_at ?? p.created_at), "dd/MM")}
                   </td>
                   <td className="px-1.5 py-1.5 align-top">
