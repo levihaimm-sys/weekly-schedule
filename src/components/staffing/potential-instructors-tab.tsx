@@ -270,16 +270,16 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[780px] table-fixed text-sm">
+        <table className="w-full min-w-[940px] table-fixed text-sm">
           <colgroup>
             <col className="w-[110px]" />
+            <col className="w-[125px]" />
+            <col className="w-[105px]" />
             <col className="w-[100px]" />
             <col className="w-[90px]" />
-            <col className="w-[85px]" />
-            <col className="w-[90px]" />
-            <col />
+            <col className="w-[140px]" />
+            <col className="w-[170px]" />
             <col className="w-[64px]" />
-            <col className="w-[110px]" />
             <col className="w-7" />
           </colgroup>
           <thead>
@@ -290,8 +290,8 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
               <th className="px-2 py-2">תחום הפעלה</th>
               <th className="px-2 py-2">סכום שהוצע</th>
               <th className="px-2 py-2">מידע כללי</th>
-              <th className="px-2 py-2">עדכון</th>
               <th className="px-2 py-2">סטטוס</th>
+              <th className="px-2 py-2">עדכון</th>
               <th className="px-1 py-2" />
             </tr>
           </thead>
@@ -353,12 +353,6 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                       className="text-muted-foreground"
                     />
                   </td>
-                  <td
-                    dir="ltr"
-                    className="px-3 py-1.5 align-top text-right text-sm whitespace-nowrap text-muted-foreground"
-                  >
-                    {format(new Date(p.last_contact_at ?? p.created_at), "dd/MM")}
-                  </td>
                   <td className="px-1.5 py-1.5 align-top">
                     <InlineEditableCell
                       value={p.last_contact_note ?? ""}
@@ -366,6 +360,12 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                       placeholder="סטטוס..."
                       className="font-bold text-foreground"
                     />
+                  </td>
+                  <td
+                    dir="ltr"
+                    className="px-3 py-1.5 align-top text-right text-sm whitespace-nowrap text-muted-foreground"
+                  >
+                    {format(new Date(p.last_contact_at ?? p.created_at), "dd/MM")}
                   </td>
                   <td className="px-1 py-1.5 align-top text-center">
                     {confirmDeleteId === p.id ? (
