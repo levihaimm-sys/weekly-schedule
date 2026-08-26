@@ -272,11 +272,12 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
         <table className="w-full min-w-[780px] table-fixed text-sm">
           <colgroup>
-            <col className="w-[160px]" />
-            <col className="w-[130px]" />
-            <col className="w-[150px]" />
+            <col className="w-[110px]" />
+            <col className="w-[100px]" />
             <col className="w-[130px]" />
             <col className="w-[110px]" />
+            <col className="w-[90px]" />
+            <col className="w-[64px]" />
             <col />
             <col className="w-7" />
           </colgroup>
@@ -287,6 +288,7 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
               <th className="px-2 py-2">אזור עבודה</th>
               <th className="px-2 py-2">תחום הפעלה</th>
               <th className="px-2 py-2">סכום שהוצע</th>
+              <th className="px-2 py-2">עדכון</th>
               <th className="px-2 py-2">תקשורת אחרונה</th>
               <th className="px-1 py-2" />
             </tr>
@@ -294,7 +296,7 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
           <tbody className="divide-y divide-border">
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="py-10 text-center text-muted-foreground">
                   אין עדיין מדריכים פוטנציאלים
                 </td>
               </tr>
@@ -341,20 +343,16 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                       className="text-muted-foreground"
                     />
                   </td>
-                  <td className="px-2 py-1.5 align-top">
-                    <div className="flex items-center gap-1">
-                      {p.last_contact_at && (
-                        <span className="shrink-0 text-[10px] whitespace-nowrap text-muted-foreground">
-                          {format(new Date(p.last_contact_at), "dd/MM")}
-                        </span>
-                      )}
-                      <InlineEditableCell
-                        value={p.last_contact_note ?? ""}
-                        onSave={(v) => saveField(p.id, "last_contact_note", v)}
-                        placeholder="הערת תקשורת..."
-                        className="font-bold text-foreground"
-                      />
-                    </div>
+                  <td className="px-2 py-1.5 align-top text-[10px] whitespace-nowrap text-muted-foreground">
+                    {format(new Date(p.last_contact_at ?? p.created_at), "dd/MM")}
+                  </td>
+                  <td className="px-1.5 py-1.5 align-top">
+                    <InlineEditableCell
+                      value={p.last_contact_note ?? ""}
+                      onSave={(v) => saveField(p.id, "last_contact_note", v)}
+                      placeholder="הערת תקשורת..."
+                      className="font-bold text-foreground"
+                    />
                   </td>
                   <td className="px-1 py-1.5 align-top text-center">
                     {confirmDeleteId === p.id ? (
@@ -437,7 +435,9 @@ function InlineEditableCell({
       disabled={isPending}
       title={title}
       dir={dir}
-      className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
+      className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${
+        dir === "ltr" ? "text-right" : ""
+      } ${className}`}
     />
   );
 }
@@ -482,7 +482,7 @@ function InlineEditableAmountCell({
         placeholder="—"
         dir="ltr"
         disabled={isPending}
-        className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
+        className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-right text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
       />
       {value !== null && <span className="shrink-0 text-xs text-muted-foreground">₪</span>}
     </div>
