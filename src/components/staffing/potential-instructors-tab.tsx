@@ -233,7 +233,7 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                 </datalist>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">סכום שהוצע (₪)</label>
+                <label className="text-xs text-muted-foreground">סכום שהוצע</label>
                 <input
                   value={offeredAmount}
                   onChange={(e) => setOfferedAmount(e.target.value)}
@@ -343,7 +343,7 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                       className="text-muted-foreground"
                     />
                   </td>
-                  <td className="px-2 py-1.5 align-top text-[10px] whitespace-nowrap text-muted-foreground">
+                  <td className="px-3 py-1.5 align-top text-sm whitespace-nowrap text-muted-foreground">
                     {format(new Date(p.last_contact_at ?? p.created_at), "dd/MM")}
                   </td>
                   <td className="px-1.5 py-1.5 align-top">
@@ -468,23 +468,20 @@ function InlineEditableAmountCell({
   }
 
   return (
-    <div className="flex items-center gap-1">
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") setDraft(value === null ? "" : String(value));
-        }}
-        type="number"
-        min={0}
-        placeholder="—"
-        dir="ltr"
-        disabled={isPending}
-        className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-right text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
-      />
-      {value !== null && <span className="shrink-0 text-xs text-muted-foreground">₪</span>}
-    </div>
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") setDraft(value === null ? "" : String(value));
+      }}
+      type="number"
+      min={0}
+      placeholder="—"
+      dir="ltr"
+      disabled={isPending}
+      className={`w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-right text-sm transition-colors outline-none hover:border-border focus:border-primary focus:bg-background disabled:opacity-50 ${className}`}
+    />
   );
 }
