@@ -32,7 +32,9 @@ export default async function StaffingPage() {
     supabase.from("instructors").select("id, full_name, is_active"),
     supabase
       .from("staffing_potential_instructors")
-      .select("id, full_name, phone, region, field, offered_amount, last_contact_note, last_contact_at, created_at")
+      .select(
+        "id, full_name, phone, region, field, offered_amount, notes, last_contact_note, last_contact_at, created_at"
+      )
       .order("created_at"),
   ]);
 

@@ -272,6 +272,7 @@ export interface StaffingPotentialInstructor {
   region: string | null;
   field: string | null;
   offered_amount: number | null;
+  notes: string | null;
   last_contact_note: string | null;
   last_contact_at: string | null;
   created_at: string;

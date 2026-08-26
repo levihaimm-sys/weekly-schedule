@@ -66,7 +66,7 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
 
   async function saveField(
     id: string,
-    field: "full_name" | "phone" | "region" | "field" | "last_contact_note",
+    field: "full_name" | "phone" | "region" | "field" | "notes" | "last_contact_note",
     value: string
   ) {
     const result = await updatePotentialInstructor(id, { [field]: value });
@@ -274,11 +274,12 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
           <colgroup>
             <col className="w-[110px]" />
             <col className="w-[100px]" />
-            <col className="w-[130px]" />
-            <col className="w-[110px]" />
             <col className="w-[90px]" />
-            <col className="w-[64px]" />
+            <col className="w-[85px]" />
+            <col className="w-[90px]" />
             <col />
+            <col className="w-[64px]" />
+            <col className="w-[110px]" />
             <col className="w-7" />
           </colgroup>
           <thead>
@@ -288,15 +289,16 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
               <th className="px-2 py-2">אזור עבודה</th>
               <th className="px-2 py-2">תחום הפעלה</th>
               <th className="px-2 py-2">סכום שהוצע</th>
+              <th className="px-2 py-2">מידע כללי</th>
               <th className="px-2 py-2">עדכון</th>
-              <th className="px-2 py-2">תקשורת אחרונה</th>
+              <th className="px-2 py-2">סטטוס</th>
               <th className="px-1 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                <td colSpan={9} className="py-10 text-center text-muted-foreground">
                   אין עדיין מדריכים פוטנציאלים
                 </td>
               </tr>
@@ -343,6 +345,14 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                       className="text-muted-foreground"
                     />
                   </td>
+                  <td className="px-1.5 py-1.5 align-top">
+                    <InlineEditableCell
+                      value={p.notes ?? ""}
+                      onSave={(v) => saveField(p.id, "notes", v)}
+                      placeholder="מידע כללי..."
+                      className="text-muted-foreground"
+                    />
+                  </td>
                   <td
                     dir="ltr"
                     className="px-3 py-1.5 align-top text-right text-sm whitespace-nowrap text-muted-foreground"
@@ -353,7 +363,7 @@ export function PotentialInstructorsTab({ potentialInstructors }: Props) {
                     <InlineEditableCell
                       value={p.last_contact_note ?? ""}
                       onSave={(v) => saveField(p.id, "last_contact_note", v)}
-                      placeholder="הערת תקשורת..."
+                      placeholder="סטטוס..."
                       className="font-bold text-foreground"
                     />
                   </td>

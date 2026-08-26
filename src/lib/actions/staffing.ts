@@ -258,6 +258,7 @@ export async function updatePotentialInstructor(
     region?: string | null;
     field?: string | null;
     offered_amount?: number | null;
+    notes?: string | null;
     last_contact_note?: string | null;
   }
 ) {
@@ -271,6 +272,7 @@ export async function updatePotentialInstructor(
   if (data.region !== undefined) update.region = data.region?.trim() || null;
   if (data.field !== undefined) update.field = data.field?.trim() || null;
   if (data.offered_amount !== undefined) update.offered_amount = data.offered_amount;
+  if (data.notes !== undefined) update.notes = data.notes?.trim() || null;
   if (data.last_contact_note !== undefined) {
     update.last_contact_note = data.last_contact_note?.trim() || null;
     update.last_contact_at = new Date().toISOString();
