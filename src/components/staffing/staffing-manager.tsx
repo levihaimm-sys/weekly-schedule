@@ -25,12 +25,17 @@ interface Props {
 }
 
 const TABS = [
-  { key: "matching", label: "שיבוצים", icon: GitMerge },
-  { key: "availability", label: "מדריכים וזמינות", icon: Users },
-  { key: "potential-instructors", label: "מדריכים פוטנציאלים", icon: UserPlus },
-  { key: "needs", label: "לקוחות ושיעורים נדרשים", icon: Building2 },
-  { key: "summary", label: "סיכום לפי ישוב", icon: BarChart3 },
-  { key: "instructor-schedule", label: "לו\"ז למדריכים", icon: Send },
+  { key: "availability", label: "מדריכים וזמינות", icon: Users, group: "instructors" },
+  { key: "potential-instructors", label: "מדריכים פוטנציאלים", icon: UserPlus, group: "instructors" },
+  { key: "instructor-schedule", label: "לו\"ז למדריכים", icon: Send, group: "instructors" },
+  { key: "matching", label: "שיבוצים", icon: GitMerge, group: "clients" },
+  { key: "needs", label: "לקוחות ושיעורים נדרשים", icon: Building2, group: "clients" },
+  { key: "summary", label: "סיכום לפי ישוב", icon: BarChart3, group: "clients" },
+] as const;
+
+const TAB_GROUPS = [
+  { key: "instructors", label: "מדריכים" },
+  { key: "clients", label: "לקוחות" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -67,20 +72,32 @@ export function StaffingManager({ availability, needs, assignments, instructors,
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-              tab === t.key
-                ? "border-primary text-[#1C1917]"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+      <div className="flex flex-wrap items-end gap-4 border-b border-border">
+        {TAB_GROUPS.map((group, gi) => (
+          <div
+            key={group.key}
+            className={`flex flex-wrap items-end gap-1 ${
+              gi > 0 ? "border-r border-border pr-4" : ""
             }`}
           >
-            <t.icon size={16} />
-            {t.label}
-          </button>
+            <span className="pb-2.5 pl-1 text-xs font-semibold text-muted-foreground/60 whitespace-nowrap">
+              {group.label}
+            </span>
+            {TABS.filter((t) => t.group === group.key).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                  tab === t.key
+                    ? "border-primary text-[#1C1917]"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <t.icon size={16} />
+                {t.label}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
 
