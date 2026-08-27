@@ -34,8 +34,8 @@ const TABS = [
 ] as const;
 
 const TAB_GROUPS = [
-  { key: "instructors", label: "מדריכים" },
-  { key: "clients", label: "לקוחות" },
+  { key: "instructors", label: "מדריכים", className: "bg-sky-100 text-sky-800" },
+  { key: "clients", label: "לקוחות", className: "bg-amber-100 text-amber-800" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -80,7 +80,9 @@ export function StaffingManager({ availability, needs, assignments, instructors,
               gi > 0 ? "border-r border-border pr-4" : ""
             }`}
           >
-            <span className="pb-2.5 pl-1 text-xs font-semibold text-muted-foreground/60 whitespace-nowrap">
+            <span
+              className={`mb-2 ml-1 rounded-full px-3 py-1 text-sm font-semibold whitespace-nowrap ${group.className}`}
+            >
               {group.label}
             </span>
             {TABS.filter((t) => t.group === group.key).map((t) => (
