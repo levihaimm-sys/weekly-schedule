@@ -33,9 +33,11 @@ const TABS = [
   { key: "summary", label: "סיכום לפי ישוב", icon: BarChart3, group: "clients" },
 ] as const;
 
+const GROUP_BADGE_CLASS = "bg-primary/30 text-[#3a3530]";
+
 const TAB_GROUPS = [
-  { key: "instructors", label: "מדריכים", className: "bg-sky-100 text-sky-800" },
-  { key: "clients", label: "לקוחות", className: "bg-amber-100 text-amber-800" },
+  { key: "clients", label: "לקוחות", className: GROUP_BADGE_CLASS },
+  { key: "instructors", label: "מדריכים", className: GROUP_BADGE_CLASS },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
