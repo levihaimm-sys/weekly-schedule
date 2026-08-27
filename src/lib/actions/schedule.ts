@@ -742,7 +742,7 @@ export async function bulkImportLessons(csvText: string) {
   // exists in both ראש העין and פת); name-only map is a fallback for legacy
   // CSVs ("מיקום" column) that don't carry a city.
   const locationMapByCityName = new Map(
-    (allLocations ?? []).map((l) => [`${l.city.trim()}||${l.name.trim()}`, l.id])
+    (allLocations ?? []).map((l) => [`${(l.city ?? "").trim()}||${l.name.trim()}`, l.id])
   );
   const locationMapByNameOnly = new Map(
     (allLocations ?? []).map((l) => [l.name.trim(), l.id])
