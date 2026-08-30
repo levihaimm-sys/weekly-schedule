@@ -53,6 +53,7 @@ export function ClientDrawer({ client, onClose }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
@@ -101,8 +102,9 @@ export function ClientDrawer({ client, onClose }: Props) {
   }, [client.id]);
 
   function handleSave() {
+    setSaveError(null);
     startTransition(async () => {
-      const ops: Promise<unknown>[] = [
+      const ops: Promise<{ error?: string } | unknown>[] = [
         updateClient(client.id, {
           name: name.trim() || client.name,
           legal_name: legalName.trim() || null,
@@ -129,9 +131,16 @@ export function ClientDrawer({ client, onClose }: Props) {
         setNewNote("");
         ops.push(addClientActivity(client.id, note));
       }
-      await Promise.all(ops);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      const results = await Promise.all(ops);
+      const failed = results.find(
+        (r): r is { error: string } => !!r && typeof r === "object" && "error" in r && !!(r as { error?: string }).error
+      );
+      if (failed) {
+        setSaveError(failed.error);
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
       router.refresh();
     });
   }
@@ -419,6 +428,7 @@ export function ClientDrawer({ client, onClose }: Props) {
 
           {/* Save */}
           <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-border bg-background/95 px-5 py-3 backdrop-blur-sm">
+            {saveError && <p className="mb-2 text-xs text-red-600">שגיאה בשמירה: {saveError}</p>}
             <button
               onClick={handleSave}
               disabled={isPending}
