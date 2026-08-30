@@ -17,6 +17,7 @@ import {
   Upload,
   ExternalLink,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import {
   INSTRUCTOR_STATUS,
@@ -30,6 +31,7 @@ import {
   updateInstructorOnboarding,
   uploadInstructorFile,
   syncInstructorAuthUsers,
+  deleteInstructor,
 } from "@/lib/actions/instructors";
 
 export interface InstructorFull {
@@ -94,6 +96,11 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
   const [uploadingContract, setUploadingContract] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Delete
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const contractInputRef = useRef<HTMLInputElement>(null);
@@ -162,6 +169,20 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
     await syncInstructorAuthUsers([instructor.id]);
     setIsSyncing(false);
     router.refresh();
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deleteInstructor(instructor.id);
+    setDeleting(false);
+    if (result.error) {
+      setDeleteError(result.error);
+      setConfirmDelete(false);
+    } else {
+      onClose();
+      router.refresh();
+    }
   }
 
   const statusColors: Record<InstructorStatusType, string> = {
@@ -384,6 +405,44 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
                   "שמור שינויים"
                 )}
               </button>
+
+              {/* Delete */}
+              <div className="border-t border-border pt-4">
+                {deleteError && (
+                  <p className="mb-2 text-xs text-red-600">{deleteError}</p>
+                )}
+                {!confirmDelete ? (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    <Trash2 size={15} />
+                    מחק מדריך/ה
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600 text-center">
+                      בטוח? פעולה זו אינה ניתנת לביטול. המחיקה תיחסם אם קיימת למדריך/ה היסטוריה (שיעורים, לוח קבוע, דוחות או ציוד).
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleting ? <Loader2 size={12} className="animate-spin" /> : null}
+                        כן, מחק
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="rounded-lg border border-border px-4 py-2.5 text-sm hover:bg-muted"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

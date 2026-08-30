@@ -289,6 +289,69 @@ export async function updateInstructorOnboarding(
   return { success: true };
 }
 
+// Only deletes when the instructor has no real history (lessons, recurring schedule slots,
+// monthly reports, weekly lesson-plan assignments, equipment confirmations) — otherwise this
+// would either fail on the DB foreign keys or, for the plan/equipment tables which cascade,
+// silently wipe that history. Instructors with history should be set to "לא פעיל" instead.
+export async function deleteInstructor(instructorId: string) {
+  const supabase = await createClient();
+
+  const [
+    { count: lessonsCount },
+    { count: substituteLessonsCount },
+    { count: recurringCount },
+    { count: reportsCount },
+    { count: assignmentsCount },
+    { count: confirmationsCount },
+  ] = await Promise.all([
+    supabase.from("lessons").select("id", { count: "exact", head: true }).eq("instructor_id", instructorId),
+    supabase.from("lessons").select("id", { count: "exact", head: true }).eq("substitute_instructor_id", instructorId),
+    supabase.from("recurring_schedule").select("id", { count: "exact", head: true }).eq("instructor_id", instructorId),
+    supabase.from("monthly_reports").select("id", { count: "exact", head: true }).eq("instructor_id", instructorId),
+    supabase.from("weekly_lesson_assignments").select("id", { count: "exact", head: true }).eq("instructor_id", instructorId),
+    supabase.from("equipment_confirmations").select("id", { count: "exact", head: true }).eq("instructor_id", instructorId),
+  ]);
+
+  const hasHistory =
+    (lessonsCount ?? 0) > 0 ||
+    (substituteLessonsCount ?? 0) > 0 ||
+    (recurringCount ?? 0) > 0 ||
+    (reportsCount ?? 0) > 0 ||
+    (assignmentsCount ?? 0) > 0 ||
+    (confirmationsCount ?? 0) > 0;
+
+  if (hasHistory) {
+    return {
+      error:
+        "לא ניתן למחוק - יש למדריך/ה היסטוריה משויכת (שיעורים, לוח קבוע, דוחות או ציוד). אפשר להעביר לסטטוס \"לא פעיל\" במקום.",
+    };
+  }
+
+  const admin = createAdminClient();
+
+  await supabase.from("instructor_availability").delete().eq("instructor_id", instructorId);
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("instructor_id", instructorId)
+    .maybeSingle();
+
+  if (profile?.id) {
+    await admin.auth.admin.deleteUser(profile.id);
+    await admin.from("profiles").delete().eq("id", profile.id);
+  }
+
+  const { error } = await supabase.from("instructors").delete().eq("id", instructorId);
+
+  if (error) {
+    return { error: "שגיאה במחיקה: " + error.message };
+  }
+
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
 export async function uploadInstructorFile(formData: FormData) {
   const instructorId = formData.get("instructorId") as string;
   const fileType = formData.get("fileType") as "id_photo" | "contract";
