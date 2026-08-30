@@ -83,7 +83,7 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
       const framework = n.framework?.trim() || NOT_SPECIFIED;
       const field = n.field?.trim() || NOT_SPECIFIED;
       const status = n.status as NeedStatus;
-      const key = `${region}||${framework}||${field}`;
+      const key = `${region}||${framework}||${field}||${n.client_name}`;
 
       if (!buckets.has(key))
         buckets.set(key, {
@@ -215,7 +215,7 @@ export function SummaryTab({ needs, onNavigateToMatching }: Props) {
               rows.map(({ region, framework, field, clientsList, earliestStartDate, isFirstOfRegion, regionRowSpan, ...counts }) => {
                 const rowTotal = counts.open + counts.partially_filled + counts.safe_assignment + counts.filled;
                 return (
-                  <tr key={`${region}||${framework}||${field}`}>
+                  <tr key={`${region}||${framework}||${field}||${clientsList.join(",")}`}>
                     {isFirstOfRegion && (
                       <td
                         rowSpan={regionRowSpan}
