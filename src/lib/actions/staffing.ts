@@ -723,6 +723,10 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
     supabase.from("locations").select("id, name, city"),
   ]);
 
+  // Mutable — new sites (new cities/frameworks not yet in the locations module)
+  // get auto-created during the loop below and reused for later assignments.
+  const locationList = locations ? [...locations] : [];
+
   const issues: ConversionIssue[] = [];
   let converted = 0;
 
@@ -774,16 +778,28 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
       );
       let locationId: string | null = null;
       for (const candidateName of candidateNames) {
-        const match = (locations ?? []).find((l) => l.city.trim() === city && l.name.trim() === candidateName.trim());
+        const match = locationList.find((l) => l.city.trim() === city && l.name.trim() === candidateName.trim());
         if (match) {
           locationId = match.id;
           break;
         }
       }
+      if (!locationId && candidateNames.length > 0 && city) {
+        const newLocationName = candidateNames[0];
+        const { data: newLoc, error: locationError } = await supabase
+          .from("locations")
+          .insert({ name: newLocationName, city })
+          .select("id, name, city")
+          .single();
+        if (newLoc && !locationError) {
+          locationId = newLoc.id;
+          locationList.push(newLoc);
+        }
+      }
       if (!locationId) {
         const tried = candidateNames.length > 0 ? candidateNames.map((n) => `"${n}"`).join(" / ") : "(לא הוגדר שם מסגרת/מתחם)";
         reasons.push(
-          `לא נמצא מיקום תואם ב-${city || "?"}: נבדק ${tried} — יש להוסיף את המיקום במודול המיקומים או לתקן את השם`
+          `לא ניתן היה ליצור מיקום ב-${city || "?"}: נבדק ${tried} — יש להוסיף את המיקום ידנית במודול המיקומים או לתקן את השם`
         );
       }
 
