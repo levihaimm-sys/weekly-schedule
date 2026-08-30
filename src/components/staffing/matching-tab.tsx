@@ -14,6 +14,7 @@ import {
   ArrowUpDown,
   Trash2,
   CalendarCheck,
+  Pencil,
 } from "lucide-react";
 import { DAYS_HEBREW, DAYS_SHORT, NEED_STATUS, NeedStatus } from "@/lib/utils/constants";
 import { dayLabel, timePeriodLabel, regionsMatch, nameMatch } from "@/lib/utils/staffing";
@@ -25,6 +26,7 @@ import {
   updateNeedStatus,
   deleteNeed,
   convertAssignmentsToSchedule,
+  bulkUpdateNeeds,
 } from "@/lib/actions/staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { NeedEditModal } from "./need-edit-modal";
@@ -40,6 +42,7 @@ interface Props {
 const STATUS_COLORS: Record<NeedStatus, string> = {
   open: "bg-blue-50 text-blue-700 border-blue-200",
   partially_filled: "bg-amber-50 text-amber-700 border-amber-200",
+  safe_assignment: "bg-purple-50 text-purple-700 border-purple-200",
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
@@ -86,6 +89,11 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [bulkName, setBulkName] = useState("");
   const [bulkPending, setBulkPending] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkStartDate, setBulkStartDate] = useState("");
+  const [bulkContactName, setBulkContactName] = useState("");
+  const [bulkField, setBulkField] = useState("");
+  const [bulkLessonsCount, setBulkLessonsCount] = useState("");
   const [convertPending, setConvertPending] = useState(false);
   const [conversionResult, setConversionResult] = useState<Awaited<ReturnType<typeof convertAssignmentsToSchedule>> | null>(
     null
@@ -207,6 +215,11 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     setSelectedIds(new Set());
     setBulkName("");
     setConfirmBulkDelete(false);
+    setBulkEditOpen(false);
+    setBulkStartDate("");
+    setBulkContactName("");
+    setBulkField("");
+    setBulkLessonsCount("");
   }
 
   async function handleBulkAssign() {
@@ -237,6 +250,25 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
       await updateNeedStatus(needId, status);
     }
     setBulkPending(false);
+    router.refresh();
+  }
+
+  async function handleBulkUpdate() {
+    const data: Parameters<typeof bulkUpdateNeeds>[1] = {};
+    if (bulkStartDate.trim()) data.start_date = bulkStartDate.trim();
+    if (bulkContactName.trim()) data.contact_name = bulkContactName.trim();
+    if (bulkField.trim()) data.field = bulkField.trim();
+    if (bulkLessonsCount.trim()) data.lessons_count = Number(bulkLessonsCount) || 1;
+    if (Object.keys(data).length === 0) return;
+
+    setBulkPending(true);
+    await bulkUpdateNeeds(Array.from(selectedIds), data);
+    setBulkPending(false);
+    setBulkEditOpen(false);
+    setBulkStartDate("");
+    setBulkContactName("");
+    setBulkField("");
+    setBulkLessonsCount("");
     router.refresh();
   }
 
@@ -393,6 +425,74 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           >
             {convertPending ? <Loader2 size={13} className="animate-spin" /> : <CalendarCheck size={13} />}
             העבר ללוח הקבוע
+          </button>
+          <button
+            onClick={() => setBulkEditOpen((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              bulkEditOpen
+                ? "border-secondary bg-secondary/10 text-foreground"
+                : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <Pencil size={13} />
+            עריכה מרוכזת
+          </button>
+        </div>
+      )}
+
+      {bulkEditOpen && selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-secondary/40 bg-secondary/5 px-4 py-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">תאריך התחלה</label>
+            <input
+              value={bulkStartDate}
+              onChange={(e) => setBulkStartDate(e.target.value)}
+              placeholder="ריק = ללא שינוי"
+              className="w-32 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">איש קשר</label>
+            <input
+              value={bulkContactName}
+              onChange={(e) => setBulkContactName(e.target.value)}
+              placeholder="ריק = ללא שינוי"
+              className="w-40 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">חוג / תחום</label>
+            <input
+              value={bulkField}
+              onChange={(e) => setBulkField(e.target.value)}
+              list="staffing-matching-bulk-fields"
+              placeholder="ריק = ללא שינוי"
+              className="w-32 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+            />
+            <datalist id="staffing-matching-bulk-fields">
+              {fieldOptions.map((f) => (
+                <option key={f} value={f} />
+              ))}
+            </datalist>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">כמות שיעורים</label>
+            <input
+              type="number"
+              min={1}
+              value={bulkLessonsCount}
+              onChange={(e) => setBulkLessonsCount(e.target.value)}
+              placeholder="ללא שינוי"
+              className="w-24 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+            />
+          </div>
+          <button
+            onClick={handleBulkUpdate}
+            disabled={bulkPending}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            {bulkPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            עדכן {selectedIds.size} נבחרים
           </button>
         </div>
       )}

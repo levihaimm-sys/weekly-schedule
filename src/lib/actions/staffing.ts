@@ -394,6 +394,33 @@ export async function updateNeed(
   return { success: true };
 }
 
+// Bulk inline-edit for the matching table's multi-select bar: only updates the fields the
+// admin actually filled in, leaving the rest of each selected need untouched.
+export async function bulkUpdateNeeds(
+  ids: string[],
+  data: {
+    start_date?: string;
+    contact_name?: string;
+    field?: string;
+    lessons_count?: number;
+  }
+) {
+  if (ids.length === 0) return { success: true };
+
+  const update: Record<string, string | number | null> = {};
+  if (data.start_date !== undefined) update.start_date = data.start_date.trim() || null;
+  if (data.contact_name !== undefined) update.contact_name = data.contact_name.trim() || null;
+  if (data.field !== undefined) update.field = data.field.trim() || null;
+  if (data.lessons_count !== undefined) update.lessons_count = data.lessons_count > 0 ? data.lessons_count : 1;
+  if (Object.keys(update).length === 0) return { success: true };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("staffing_needs").update(update).in("id", ids);
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 interface ImportNeedRow {
   client_name: string;
   region: string | null;
@@ -516,8 +543,12 @@ export async function deleteNeed(id: string) {
 }
 
 // Manual override — bypasses the automatic open/partially_filled/filled computation
-// so the admin can force a status directly (e.g. call a lesson "done" early).
-export async function updateNeedStatus(id: string, status: "open" | "partially_filled" | "filled") {
+// so the admin can force a status directly (e.g. call a lesson "done" early, or mark a
+// tentative placement as a confirmed "safe" assignment).
+export async function updateNeedStatus(
+  id: string,
+  status: "open" | "partially_filled" | "safe_assignment" | "filled"
+) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("staffing_needs").update({ status }).eq("id", id);
   if (error) return { error: "שגיאה בעדכון סטטוס: " + error.message };
