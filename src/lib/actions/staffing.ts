@@ -466,6 +466,12 @@ export async function importNeeds(rows: ImportNeedRow[]) {
       ? matchQuery.eq("framework_name", need.framework_name)
       : matchQuery.is("framework_name", null);
     matchQuery = need.field ? matchQuery.eq("field", need.field) : matchQuery.is("field", null);
+    matchQuery = need.start_time
+      ? matchQuery.eq("start_time", need.start_time)
+      : matchQuery.is("start_time", null);
+    matchQuery = need.day_of_week !== null && need.day_of_week !== undefined
+      ? matchQuery.eq("day_of_week", need.day_of_week)
+      : matchQuery.is("day_of_week", null);
     const { data: existingMatches } = await matchQuery.limit(1);
     const existing = existingMatches?.[0] ?? null;
 
