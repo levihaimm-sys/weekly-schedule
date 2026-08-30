@@ -23,6 +23,7 @@ import {
   confirmAssignment,
   unconfirmAssignment,
   deleteAssignment,
+  resetAssignmentConversion,
   updateNeedStatus,
   deleteNeed,
   convertAssignmentsToSchedule,
@@ -777,6 +778,13 @@ function AssignmentCell({
     router.refresh();
   }
 
+  async function handleResetConversion(id: string) {
+    setPendingId(id);
+    await resetAssignmentConversion(id);
+    setPendingId(null);
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {assignments.map((a) => {
@@ -793,12 +801,13 @@ function AssignmentCell({
           >
             {a.instructor_name}
             {a.converted_at && (
-              <span
-                title="הועבר ללוח הקבוע"
-                className="rounded-full border border-emerald-300 bg-emerald-100 px-1.5 text-[10px] font-medium text-emerald-800"
+              <button
+                onClick={() => handleResetConversion(a.id)}
+                title="הועבר ללוח הקבוע — לחץ/י לאיפוס אם נמחק משם, כדי לאפשר העברה מחדש"
+                className="rounded-full border border-emerald-300 bg-emerald-100 px-1.5 text-[10px] font-medium text-emerald-800 hover:bg-emerald-200"
               >
-                בלוח הקבוע
-              </span>
+                {pendingId === a.id ? <Loader2 size={10} className="inline animate-spin" /> : "בלוח הקבוע"}
+              </button>
             )}
             {a.is_confirmed ? (
               <>

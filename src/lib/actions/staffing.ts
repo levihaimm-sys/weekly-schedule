@@ -695,6 +695,21 @@ export async function deleteAssignment(id: string) {
   return { success: true };
 }
 
+// Clears the "already moved to the fixed schedule" marker on an assignment so it can be
+// converted again — needed when the admin deleted the resulting recurring_schedule/lesson
+// rows by hand (e.g. after a mistaken conversion) and now wants to redo it.
+export async function resetAssignmentConversion(id: string) {
+  const { error } = await createAdminClient()
+    .from("staffing_assignments")
+    .update({ converted_at: null })
+    .eq("id", id);
+
+  if (error) return { error: "שגיאה באיפוס: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 // ----- Converting confirmed staffing lessons into the real production schedule -----
 
 interface ConversionIssue {
