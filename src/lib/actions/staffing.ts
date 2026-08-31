@@ -732,7 +732,10 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
   const [{ data: needs }, { data: assignments }, { data: instructors }, { data: locations }] = await Promise.all([
     supabase
       .from("staffing_needs")
-      .select("id, client_name, region, location_name, framework_name, field, day_of_week, start_time, start_date")
+      .select(
+        "id, client_name, region, location_name, framework_name, field, day_of_week, start_time, start_date, " +
+          "address, manager_name, contact_name, framework, lesson_duration, lessons_count, notes"
+      )
       .in("id", needIds),
     supabase
       .from("staffing_assignments")
@@ -843,6 +846,19 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
           day_of_week: dow,
           start_time: normalizedStartTime,
           group_name: need.framework_name || need.field || null,
+          // Not shown on the fixed/weekly schedule screens yet, but kept so this context
+          // isn't lost once the staffing need is matched off — ready for whenever a field
+          // is added to display it.
+          client_name: need.client_name,
+          address: need.address,
+          manager_name: need.manager_name,
+          contact_name: need.contact_name,
+          framework: need.framework,
+          framework_name: need.framework_name,
+          field: need.field,
+          lesson_duration: need.lesson_duration,
+          lessons_count: need.lessons_count,
+          notes: need.notes,
         })
         .select("id")
         .single();

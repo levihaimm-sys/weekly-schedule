@@ -23,6 +23,18 @@ export interface RecurringSchedule {
   day_of_week: number;
   start_time: string;
   group_name: string | null;
+  // Carried over from the matched staffing need at conversion time — not shown on the
+  // fixed/weekly schedule screens yet, but preserved for when a field is added to display it.
+  client_name: string | null;
+  address: string | null;
+  manager_name: string | null;
+  contact_name: string | null;
+  framework: string | null;
+  framework_name: string | null;
+  field: string | null;
+  lesson_duration: number | null;
+  lessons_count: number | null;
+  notes: string | null;
 }
 
 export interface Lesson {
@@ -260,7 +272,7 @@ export interface StaffingNeed {
   start_time: string | null;
   field: string | null;
   lessons_count: number;
-  status: "open" | "partially_filled" | "filled";
+  status: "open" | "partially_filled" | "safe_assignment" | "filled";
   notes: string | null;
   created_at: string;
 }
