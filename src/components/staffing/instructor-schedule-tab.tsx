@@ -17,6 +17,7 @@ interface Props {
 const STATUS_COLORS: Record<NeedStatus, string> = {
   open: "bg-blue-50 text-blue-700 border-blue-200",
   partially_filled: "bg-amber-50 text-amber-700 border-amber-200",
+  safe_assignment: "bg-purple-50 text-purple-700 border-purple-200",
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
@@ -237,6 +238,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
               <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">כמות שיעורים</th>
               <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">גננת/רכזת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
                 <button
                   onClick={() => handleSortClick("region")}
@@ -264,7 +266,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-10 text-center text-muted-foreground">
+                <td colSpan={11} className="py-10 text-center text-muted-foreground">
                   אין שיעורים תואמים
                 </td>
               </tr>
@@ -292,6 +294,7 @@ export function InstructorScheduleTab({ needs, assignments }: Props) {
                     </td>
                     <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{n.lessons_count}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.address ?? "—"}</td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.manager_name ?? "—"}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{n.region ?? "—"}</td>
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                       {dayLabel(n.day_of_week)} · {timePeriodLabel(n.time_period)}
