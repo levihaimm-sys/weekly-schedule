@@ -14,7 +14,7 @@ interface LessonData {
   change_notes?: string | null;
   instructor?: { id: string; full_name: string } | null;
   substitute_instructor?: { id: string; full_name: string } | null;
-  location?: { id: string; name: string; city: string } | null;
+  location?: { id: string; name: string; city: string; street?: string | null } | null;
   lesson_date?: string;
   day_of_week?: number;
   group_name?: string | null;
@@ -51,6 +51,7 @@ export function LessonEditDialog({
   const [lessonDate, setLessonDate] = useState(item.lesson_date ?? "");
   const [status, setStatus] = useState(item.status ?? "scheduled");
   const [changeNotes, setChangeNotes] = useState(item.change_notes ?? "");
+  const [groupName, setGroupName] = useState(item.group_name ?? "");
 
   if (!open) return null;
 
@@ -92,6 +93,7 @@ export function LessonEditDialog({
             instructor_id: instructorId || null,
             start_time: startTime ? `${startTime}:00` : undefined,
             day_of_week: dayOfWeek !== item.day_of_week ? dayOfWeek : undefined,
+            group_name: groupName.trim() || null,
           });
           if (result.error) {
             setError(result.error);
@@ -300,12 +302,29 @@ export function LessonEditDialog({
         {/* Location info (read-only) */}
         <div className="mt-3 rounded-lg bg-muted p-3">
           <p className="font-medium">{item.location?.name}</p>
-          <p className="text-sm text-muted-foreground">{item.location?.city}</p>
+          <p className="text-sm text-muted-foreground">
+            {item.location?.street && `${item.location.street}, `}
+            {item.location?.city}
+          </p>
         </div>
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
+          {/* Framework/group name (only for recurring mode) */}
+          {mode === "recurring" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="שם המסגרת / חוג"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              />
+            </div>
+          )}
+
           {/* Instructor */}
           <InstructorSearchSelect
             instructors={instructors}

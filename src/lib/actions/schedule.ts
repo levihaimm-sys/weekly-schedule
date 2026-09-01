@@ -160,6 +160,7 @@ export async function updateRecurringSchedule(
     start_time?: string;
     location_id?: string;
     day_of_week?: number;
+    group_name?: string | null;
   }
 ) {
   const supabase = createAdminClient();
@@ -170,6 +171,7 @@ export async function updateRecurringSchedule(
   if (updates.start_time) cleanUpdates.start_time = updates.start_time;
   if (updates.location_id) cleanUpdates.location_id = updates.location_id;
   if (updates.day_of_week !== undefined) cleanUpdates.day_of_week = updates.day_of_week;
+  if (updates.group_name !== undefined) cleanUpdates.group_name = updates.group_name;
 
   if (Object.keys(cleanUpdates).length === 0) {
     return { error: "אין שינויים לשמור" };
