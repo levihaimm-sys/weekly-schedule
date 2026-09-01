@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, X, Search } from "lucide-react";
 
 interface Option {
@@ -28,15 +29,38 @@ export function MultiSelectFilter({
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+  const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // The button can sit inside a horizontally-scrolling row, so the popup is portaled to <body>
+  // and positioned with fixed coordinates from the button's own rect — an absolutely-positioned
+  // popup would otherwise get clipped by that row's overflow instead of floating above the page.
+  useEffect(() => {
+    if (!open) return;
+
+    function updatePosition() {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (rect) setPanelRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    updatePosition();
+
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [open]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+      setSearch("");
     }
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
@@ -61,7 +85,7 @@ export function MultiSelectFilter({
   }, [options, search]);
 
   return (
-    <div ref={ref} className={wrapperClassName ?? "relative flex-1 min-w-0 sm:flex-none sm:min-w-[160px]"}>
+    <div ref={wrapperRef} className={wrapperClassName ?? "relative flex-1 min-w-0 sm:flex-none sm:min-w-[160px]"}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -95,44 +119,52 @@ export function MultiSelectFilter({
         </span>
       </button>
 
-      {open && (
-        <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-background shadow-lg">
-          {/* Search input */}
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <Search size={14} className="text-muted-foreground shrink-0" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="חיפוש..."
-              className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-          </div>
-          <div className="max-h-60 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
-              <div className="px-3 py-3 text-sm text-muted-foreground text-center">
-                לא נמצאו תוצאות
-              </div>
-            ) : (
-              filteredOptions.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(option.value)}
-                    onChange={() => toggle(option.value)}
-                    className="rounded accent-primary"
-                  />
-                  <span>{option.label}</span>
-                </label>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {open &&
+        panelRect &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: panelRect.top, left: panelRect.left, width: panelRect.width }}
+            className="z-50 rounded-lg border border-border bg-background shadow-lg"
+          >
+            {/* Search input */}
+            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+              <Search size={14} className="text-muted-foreground shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="חיפוש..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-3 text-sm text-muted-foreground text-center">
+                  לא נמצאו תוצאות
+                </div>
+              ) : (
+                filteredOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(option.value)}
+                      onChange={() => toggle(option.value)}
+                      className="rounded accent-primary"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
