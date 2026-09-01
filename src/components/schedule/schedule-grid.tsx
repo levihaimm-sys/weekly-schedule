@@ -48,6 +48,16 @@ export function ScheduleGrid({
     [schedule]
   );
 
+  // Only offer instructors who actually have a lesson on this board — not the full instructor
+  // roster (which includes people with nothing scheduled, e.g. this year).
+  const instructorFilterOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const item of schedule) {
+      if (item.instructor) byId.set(item.instructor.id, item.instructor.full_name);
+    }
+    return instructors.filter((inst) => byId.has(inst.id));
+  }, [schedule, instructors]);
+
   const filteredSchedule = useMemo(() => {
     return schedule.filter((item) => {
       if (localCities.length > 0 && !localCities.includes(item.location?.city ?? "")) return false;
@@ -79,7 +89,7 @@ export function ScheduleGrid({
         />
         <MultiSelectFilter
           wrapperClassName="relative w-36 shrink-0 sm:w-40"
-          options={instructors.map((inst) => ({ value: inst.id, label: inst.full_name }))}
+          options={instructorFilterOptions.map((inst) => ({ value: inst.id, label: inst.full_name }))}
           selected={localInstructors}
           onChange={setLocalInstructors}
           placeholder="כל המדריכים"

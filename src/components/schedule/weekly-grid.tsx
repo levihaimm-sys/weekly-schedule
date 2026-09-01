@@ -88,6 +88,16 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     [allLessons]
   );
 
+  // Only offer instructors who actually have a lesson this week — not the full instructor
+  // roster (which includes people with nothing scheduled).
+  const instructorFilterOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const lesson of allLessons) {
+      if (lesson.instructor) byId.set(lesson.instructor.id, lesson.instructor.full_name);
+    }
+    return instructors.filter((inst) => byId.has(inst.id));
+  }, [allLessons, instructors]);
+
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -222,7 +232,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             wrapperClassName="relative w-36 shrink-0 sm:w-40"
             options={[
               { value: "__no_instructor__", label: "ללא מדריך" },
-              ...instructors.map((inst) => ({ value: inst.id, label: inst.full_name })),
+              ...instructorFilterOptions.map((inst) => ({ value: inst.id, label: inst.full_name })),
             ]}
             selected={localInstructors}
             onChange={setLocalInstructors}
