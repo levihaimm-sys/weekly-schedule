@@ -13,6 +13,7 @@ import { createManualLesson, bulkUpdateLessons, bulkDeleteLessons, createLocatio
 interface WeeklyLesson {
   id: string;
   recurring_item_id?: string | null;
+  group_name?: string | null;
   lesson_date: string;
   start_time: string;
   status: string;

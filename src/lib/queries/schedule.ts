@@ -87,6 +87,22 @@ export async function getWeekLessons(
 
   const { data } = await query;
 
+  // Framework name (group_name) lives on the recurring_schedule template, not on each lesson
+  // instance — attach it here so the weekly view can display/edit it without a per-row join.
+  if (data && data.length > 0) {
+    const recurringIds = [...new Set(data.map((l: any) => l.recurring_item_id).filter(Boolean))];
+    if (recurringIds.length > 0) {
+      const { data: recurringRows } = await supabase
+        .from("recurring_schedule")
+        .select("id, group_name")
+        .in("id", recurringIds);
+      const groupNameById = new Map((recurringRows ?? []).map((r) => [r.id, r.group_name]));
+      for (const lesson of data as any[]) {
+        lesson.group_name = lesson.recurring_item_id ? groupNameById.get(lesson.recurring_item_id) ?? null : null;
+      }
+    }
+  }
+
   // Filter by cities client-side (joined field)
   if (filters?.cities && filters.cities.length > 0 && data) {
     return data.filter((item: any) => filters.cities!.includes(item.location?.city));

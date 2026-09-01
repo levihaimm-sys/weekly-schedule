@@ -76,8 +76,22 @@ export function LessonEditDialog({
   }
 
   async function handleSave(scope?: "temporary" | "permanent") {
-    // For lesson mode: first click shows scope dialog, second click saves
-    if (mode === "lesson" && !scope) {
+    // The framework name lives on the recurring template, not the lesson instance, so renaming
+    // it is always a permanent change — independent of whichever scope is picked below for the
+    // instructor/time fields.
+    const groupNameChanged =
+      mode === "lesson" && !!item.recurring_item_id && groupName.trim() !== (item.group_name ?? "").trim();
+    const otherFieldsChanged =
+      instructorId !== (item.instructor?.id ?? "") ||
+      startTime !== (item.start_time?.slice(0, 5) ?? "") ||
+      (mode === "lesson" &&
+        (lessonDate !== (item.lesson_date ?? "") ||
+          status !== (item.status ?? "scheduled") ||
+          changeNotes !== (item.change_notes ?? "")));
+
+    // For lesson mode: first click shows scope dialog (only when instructor/time/status/etc.
+    // actually changed), second click saves
+    if (mode === "lesson" && !scope && otherFieldsChanged) {
       setScopeChoice("temporary"); // show scope chooser
       return;
     }
@@ -86,37 +100,46 @@ export function LessonEditDialog({
     setError(null);
 
     try {
-      if (mode === "recurring" || scope === "permanent") {
-        if (mode === "recurring") {
-          // Direct master schedule update
-          const result = await updateRecurringSchedule(item.id, {
+      if (groupNameChanged) {
+        const groupNameResult = await updateRecurringSchedule(item.recurring_item_id!, {
+          group_name: groupName.trim() || null,
+        });
+        if (groupNameResult.error) {
+          setError(groupNameResult.error);
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (mode === "recurring") {
+        // Direct master schedule update
+        const result = await updateRecurringSchedule(item.id, {
+          instructor_id: instructorId || null,
+          start_time: startTime ? `${startTime}:00` : undefined,
+          day_of_week: dayOfWeek !== item.day_of_week ? dayOfWeek : undefined,
+          group_name: groupName.trim() || null,
+        });
+        if (result.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
+      } else if (scope === "permanent") {
+        // Permanent change from weekly view: update recurring + all future lessons
+        const result = await applyPermanentChange(
+          item.recurring_item_id!,
+          item.id,
+          {
             instructor_id: instructorId || null,
             start_time: startTime ? `${startTime}:00` : undefined,
-            day_of_week: dayOfWeek !== item.day_of_week ? dayOfWeek : undefined,
-            group_name: groupName.trim() || null,
-          });
-          if (result.error) {
-            setError(result.error);
-            setLoading(false);
-            return;
           }
-        } else {
-          // Permanent change from weekly view: update recurring + all future lessons
-          const result = await applyPermanentChange(
-            item.recurring_item_id!,
-            item.id,
-            {
-              instructor_id: instructorId || null,
-              start_time: startTime ? `${startTime}:00` : undefined,
-            }
-          );
-          if (result.error) {
-            setError(result.error);
-            setLoading(false);
-            return;
-          }
+        );
+        if (result.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
         }
-      } else {
+      } else if (scope === "temporary" || otherFieldsChanged) {
         // Temporary change: update only this lesson instance
         const result = await updateLesson(item.id, {
           instructor_id: instructorId || null,
@@ -311,8 +334,10 @@ export function LessonEditDialog({
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
-          {/* Framework/group name (only for recurring mode) */}
-          {mode === "recurring" && (
+          {/* Framework/group name — editable directly in recurring mode, or in lesson mode when
+              this instance is linked to a recurring template (renaming always updates the
+              template, so it applies from here on regardless of instructor/time scope) */}
+          {(mode === "recurring" || (mode === "lesson" && item.recurring_item_id && item.group_name !== undefined)) && (
             <div>
               <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
               <input
