@@ -74,6 +74,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
   const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("staffing-matching-framework", []);
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("staffing-matching-day", []);
   const [statusFilter, setStatusFilter] = usePersistedState<string[]>("staffing-matching-status", []);
+  const [conversionFilter, setConversionFilter] = usePersistedState<string[]>("staffing-matching-conversion", []);
   // Composite sort: the array's order IS the priority (first = primary). Clicking a column
   // makes it primary while keeping any other active column as a secondary tiebreaker, rather
   // than replacing it — e.g. sort by day, then click city: city becomes primary and day still
@@ -135,7 +136,8 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     fieldFilter.length > 0 ||
     frameworkFilter.length > 0 ||
     dayFilter.length > 0 ||
-    statusFilter.length > 0;
+    statusFilter.length > 0 ||
+    conversionFilter.length > 0;
 
   function clearFilters() {
     setSearch("");
@@ -145,6 +147,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
     setFrameworkFilter([]);
     setDayFilter([]);
     setStatusFilter([]);
+    setConversionFilter([]);
   }
 
   const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
@@ -164,6 +167,11 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
         const dayKey = n.day_of_week === null ? "tbd" : String(n.day_of_week);
         if (!dayFilter.includes(dayKey)) return false;
       }
+      if (conversionFilter.length > 0) {
+        const isConverted = assignments.some((a) => a.need_id === n.id && a.converted_at);
+        const conversionKey = isConverted ? "converted" : "not_converted";
+        if (!conversionFilter.includes(conversionKey)) return false;
+      }
       if (search.trim()) {
         const q = search.toLowerCase();
         const match =
@@ -175,7 +183,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
       }
       return true;
     });
-  }, [needs, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, search]);
+  }, [needs, assignments, regionFilter, clientFilter, fieldFilter, frameworkFilter, statusFilter, dayFilter, conversionFilter, search]);
 
   // day sorts chronologically Sun->Thu (not alphabetically), "flexible/not set" last, then by
   // start time; region sorts alphabetically. sortKeys' order sets which column is primary.
@@ -337,6 +345,15 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           selected={statusFilter}
           onChange={setStatusFilter}
           placeholder="כל הסטטוסים"
+        />
+        <MultiSelectFilter
+          options={[
+            { value: "converted", label: "הועבר ללוח הקבוע" },
+            { value: "not_converted", label: "טרם הועבר ללוח הקבוע" },
+          ]}
+          selected={conversionFilter}
+          onChange={setConversionFilter}
+          placeholder="מעבר ללוח הקבוע"
         />
         {hasActiveFilters && (
           <button
