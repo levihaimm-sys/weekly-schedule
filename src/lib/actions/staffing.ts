@@ -521,7 +521,9 @@ export async function importNeeds(rows: ImportNeedRow[]) {
           need_id: needId,
           instructor_name: instructorName,
           availability_id: matchedSlot?.id ?? null,
-          assigned_day_of_week: need.day_of_week ?? matchedSlot?.day_of_week ?? null,
+          // Only record a day here when the need itself has none — otherwise this would freeze
+          // a copy of need.day_of_week that goes stale the next time the need's day is corrected.
+          assigned_day_of_week: need.day_of_week === null || need.day_of_week === undefined ? matchedSlot?.day_of_week ?? null : null,
           is_confirmed: true,
         });
 
@@ -773,7 +775,10 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
     for (const assignment of needAssignments) {
       const reasons: string[] = [];
 
-      const dayOfWeek = assignment.assigned_day_of_week ?? need.day_of_week;
+      // need.day_of_week is the live, editable value (corrected via re-import or manual edit);
+      // assigned_day_of_week only matters as a fallback for "flexible" needs where the day was
+      // chosen per-instructor at confirm time and the need itself has no fixed day.
+      const dayOfWeek = need.day_of_week ?? assignment.assigned_day_of_week;
       if (dayOfWeek === null || dayOfWeek === undefined) reasons.push("לא נקבע יום בשבוע");
 
       const startTimeRaw = need.start_time;
