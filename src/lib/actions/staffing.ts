@@ -714,6 +714,16 @@ export async function resetAssignmentConversion(id: string) {
 
 // ----- Converting confirmed staffing lessons into the real production schedule -----
 
+// need.start_time is when the FIRST of possibly several back-to-back lessons starts (e.g. 3
+// lessons of 40 min starting at 13:00 → 13:00, 13:40, 14:20) — this computes slot N's start.
+function addMinutesToTimeString(time: string, minutesToAdd: number): string {
+  const [h, m, s] = time.split(":").map(Number);
+  const total = (h * 60 + m + minutesToAdd + 24 * 60) % (24 * 60);
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}:${String(s ?? 0).padStart(2, "0")}`;
+}
+
 interface ConversionIssue {
   client_name: string;
   field: string | null;
@@ -832,6 +842,10 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
         );
       }
 
+      if (need.lessons_count && need.lessons_count > 1 && !need.lesson_duration) {
+        reasons.push(`יש ${need.lessons_count} שיעורים אך לא הוגדר משך שיעור, לא ניתן לחשב את שעות ההתחלה הנוספות`);
+      }
+
       if (reasons.length > 0) {
         issues.push({ client_name: need.client_name, field: need.field, framework_name: need.framework_name, reasons });
         continue;
@@ -842,72 +856,88 @@ export async function convertAssignmentsToSchedule(needIds: string[]) {
       const dayDiff = (dow - startDateParsed.getDay() + 7) % 7;
       const firstOccurrence = addDays(startDateParsed, dayDiff);
       const normalizedStartTime = startTimeRaw!.length === 5 ? `${startTimeRaw}:00` : startTimeRaw!;
+      const horizon = eightWeeksFromToday > addDays(firstOccurrence, 8 * 7) ? eightWeeksFromToday : addDays(firstOccurrence, 8 * 7);
 
-      const { data: recurringRow, error: recurringError } = await supabase
-        .from("recurring_schedule")
-        .insert({
-          instructor_id: instructorId,
-          location_id: locationId,
-          day_of_week: dow,
-          start_time: normalizedStartTime,
-          group_name: need.framework_name || need.field || null,
-          // Not shown on the fixed/weekly schedule screens yet, but kept so this context
-          // isn't lost once the staffing need is matched off — ready for whenever a field
-          // is added to display it.
-          client_name: need.client_name,
-          address: need.address,
-          manager_name: need.manager_name,
-          contact_name: need.contact_name,
-          framework: need.framework,
-          framework_name: need.framework_name,
-          field: need.field,
-          lesson_duration: need.lesson_duration,
-          lessons_count: need.lessons_count,
-          notes: need.notes,
-        })
-        .select("id")
-        .single();
+      // Most needs are one lesson. Some cover several back-to-back lessons under the same
+      // instructor/framework — those get one recurring_schedule row per lesson, each starting
+      // lesson_duration minutes after the previous one.
+      const lessonsCount = need.lessons_count && need.lessons_count > 1 ? need.lessons_count : 1;
 
-      if (recurringError || !recurringRow) {
+      let slotErrorMessage: string | null = null;
+      for (let slot = 0; slot < lessonsCount; slot++) {
+        const slotStartTime =
+          slot === 0 ? normalizedStartTime : addMinutesToTimeString(normalizedStartTime, slot * need.lesson_duration!);
+
+        const { data: recurringRow, error: recurringError } = await supabase
+          .from("recurring_schedule")
+          .insert({
+            instructor_id: instructorId,
+            location_id: locationId,
+            day_of_week: dow,
+            start_time: slotStartTime,
+            group_name: need.framework_name || need.field || null,
+            // Not shown on the fixed/weekly schedule screens yet, but kept so this context
+            // isn't lost once the staffing need is matched off — ready for whenever a field
+            // is added to display it.
+            client_name: need.client_name,
+            address: need.address,
+            manager_name: need.manager_name,
+            contact_name: need.contact_name,
+            framework: need.framework,
+            framework_name: need.framework_name,
+            field: need.field,
+            lesson_duration: need.lesson_duration,
+            lessons_count: need.lessons_count,
+            notes: need.notes,
+          })
+          .select("id")
+          .single();
+
+        if (recurringError || !recurringRow) {
+          slotErrorMessage = recurringError?.message ?? "שגיאה לא ידועה";
+          break;
+        }
+
+        const lessonRows: {
+          recurring_item_id: string;
+          location_id: string;
+          instructor_id: string;
+          lesson_date: string;
+          start_time: string;
+          status: string;
+        }[] = [];
+        let weekStart = startOfWeek(firstOccurrence, { weekStartsOn: 0 });
+        while (weekStart <= horizon) {
+          const lessonDate = addDays(weekStart, dow);
+          if (lessonDate >= firstOccurrence) {
+            lessonRows.push({
+              recurring_item_id: recurringRow.id,
+              location_id: locationId,
+              instructor_id: instructorId,
+              lesson_date: format(lessonDate, "yyyy-MM-dd"),
+              start_time: slotStartTime,
+              status: "scheduled",
+            });
+          }
+          weekStart = addDays(weekStart, 7);
+        }
+
+        for (let i = 0; i < lessonRows.length; i += 100) {
+          const batch = lessonRows.slice(i, i + 100);
+          await supabase
+            .from("lessons")
+            .upsert(batch, { onConflict: "instructor_id,location_id,lesson_date,start_time", ignoreDuplicates: true });
+        }
+      }
+
+      if (slotErrorMessage) {
         issues.push({
           client_name: need.client_name,
           field: need.field,
           framework_name: need.framework_name,
-          reasons: [`שגיאה ביצירת הלוח הקבוע: ${recurringError?.message ?? "שגיאה לא ידועה"}`],
+          reasons: [`שגיאה ביצירת הלוח הקבוע: ${slotErrorMessage}`],
         });
         continue;
-      }
-
-      const horizon = eightWeeksFromToday > addDays(firstOccurrence, 8 * 7) ? eightWeeksFromToday : addDays(firstOccurrence, 8 * 7);
-      const lessonRows: {
-        recurring_item_id: string;
-        location_id: string;
-        instructor_id: string;
-        lesson_date: string;
-        start_time: string;
-        status: string;
-      }[] = [];
-      let weekStart = startOfWeek(firstOccurrence, { weekStartsOn: 0 });
-      while (weekStart <= horizon) {
-        const lessonDate = addDays(weekStart, dow);
-        if (lessonDate >= firstOccurrence) {
-          lessonRows.push({
-            recurring_item_id: recurringRow.id,
-            location_id: locationId,
-            instructor_id: instructorId,
-            lesson_date: format(lessonDate, "yyyy-MM-dd"),
-            start_time: normalizedStartTime,
-            status: "scheduled",
-          });
-        }
-        weekStart = addDays(weekStart, 7);
-      }
-
-      for (let i = 0; i < lessonRows.length; i += 100) {
-        const batch = lessonRows.slice(i, i + 100);
-        await supabase
-          .from("lessons")
-          .upsert(batch, { onConflict: "instructor_id,location_id,lesson_date,start_time", ignoreDuplicates: true });
       }
 
       await supabase.from("staffing_assignments").update({ converted_at: new Date().toISOString() }).eq("id", assignment.id);
