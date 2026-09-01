@@ -11,6 +11,9 @@ interface ScheduleItem {
   day_of_week: number;
   start_time: string;
   group_name: string | null;
+  address: string | null;
+  client_name: string | null;
+  contact_name: string | null;
   instructor: { id: string; full_name: string } | null;
   location: {
     id: string;
@@ -38,14 +41,21 @@ export function ScheduleGrid({
   const [selectedDay, setSelectedDay] = useState(0);
   const [localCities, setLocalCities] = useState<string[]>(currentFilters.cities ?? []);
   const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters.instructors ?? []);
+  const [localClients, setLocalClients] = useState<string[]>([]);
+
+  const clientOptions = useMemo(
+    () => Array.from(new Set(schedule.map((item) => item.client_name).filter((c): c is string => !!c))).sort(),
+    [schedule]
+  );
 
   const filteredSchedule = useMemo(() => {
     return schedule.filter((item) => {
       if (localCities.length > 0 && !localCities.includes(item.location?.city ?? "")) return false;
       if (localInstructors.length > 0 && !localInstructors.includes(item.instructor?.id ?? "")) return false;
+      if (localClients.length > 0 && !localClients.includes(item.client_name ?? "")) return false;
       return true;
     });
-  }, [schedule, localCities, localInstructors]);
+  }, [schedule, localCities, localInstructors, localClients]);
 
   // Group by day (Sun-Thu only, no Friday)
   const byDay: Record<number, ScheduleItem[]> = {};
@@ -58,19 +68,28 @@ export function ScheduleGrid({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      {/* Filters — kept to one horizontally-scrolling row instead of wrapping */}
+      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
         <MultiSelectFilter
+          wrapperClassName="relative w-36 shrink-0 sm:w-40"
           options={cities.map((city) => ({ value: city, label: city }))}
           selected={localCities}
           onChange={setLocalCities}
           placeholder="כל הערים"
         />
         <MultiSelectFilter
+          wrapperClassName="relative w-36 shrink-0 sm:w-40"
           options={instructors.map((inst) => ({ value: inst.id, label: inst.full_name }))}
           selected={localInstructors}
           onChange={setLocalInstructors}
           placeholder="כל המדריכים"
+        />
+        <MultiSelectFilter
+          wrapperClassName="relative w-36 shrink-0 sm:w-40"
+          options={clientOptions.map((client) => ({ value: client, label: client }))}
+          selected={localClients}
+          onChange={setLocalClients}
+          placeholder="כל הלקוחות"
         />
       </div>
 
@@ -125,10 +144,10 @@ export function ScheduleGrid({
                       {item.instructor?.full_name ?? <span className="text-red-600">ללא מדריך</span>}
                     </p>
                     <p className="mt-1 text-base leading-tight">
-                      {item.location?.name}
+                      {item.group_name ?? item.location?.name}
                     </p>
                     <p className="text-base text-muted-foreground">
-                      {item.location?.street && `${item.location.street}, `}
+                      {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                       {item.location?.city}
                     </p>
                   </div>
@@ -171,10 +190,10 @@ export function ScheduleGrid({
                             {item.instructor?.full_name ?? <span className="text-red-600 font-medium">ללא מדריך</span>}
                           </p>
                           <p className="mt-1 text-sm leading-tight">
-                            {item.location?.name}
+                            {item.group_name ?? item.location?.name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.location?.street && `${item.location.street}, `}
+                            {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                             {item.location?.city}
                           </p>
                         </div>

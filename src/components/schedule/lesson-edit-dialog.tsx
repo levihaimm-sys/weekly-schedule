@@ -18,6 +18,9 @@ interface LessonData {
   lesson_date?: string;
   day_of_week?: number;
   group_name?: string | null;
+  address?: string | null;
+  client_name?: string | null;
+  contact_name?: string | null;
   instructor_absence_request?: boolean;
 }
 
@@ -326,9 +329,11 @@ export function LessonEditDialog({
         <div className="mt-3 rounded-lg bg-muted p-3">
           <p className="font-medium">{item.location?.name}</p>
           <p className="text-sm text-muted-foreground">
-            {item.location?.street && `${item.location.street}, `}
+            {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
             {item.location?.city}
           </p>
+          {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
+          {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
         </div>
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}

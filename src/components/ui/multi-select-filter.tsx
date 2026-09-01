@@ -13,6 +13,10 @@ interface MultiSelectFilterProps {
   selected: string[];
   onChange: (selected: string[]) => void;
   placeholder: string;
+  // Replaces the default root classes entirely (rather than appending) so callers that need a
+  // different sizing strategy — e.g. a fixed width in a horizontally-scrolling filter row —
+  // don't fight the defaults other pages rely on.
+  wrapperClassName?: string;
 }
 
 export function MultiSelectFilter({
@@ -20,6 +24,7 @@ export function MultiSelectFilter({
   selected,
   onChange,
   placeholder,
+  wrapperClassName,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -56,7 +61,7 @@ export function MultiSelectFilter({
   }, [options, search]);
 
   return (
-    <div ref={ref} className="relative flex-1 min-w-0 sm:flex-none sm:min-w-[160px]">
+    <div ref={ref} className={wrapperClassName ?? "relative flex-1 min-w-0 sm:flex-none sm:min-w-[160px]"}>
       <button
         type="button"
         onClick={() => setOpen(!open)}

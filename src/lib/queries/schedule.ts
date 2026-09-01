@@ -18,6 +18,9 @@ export async function getRecurringSchedule(filters?: {
       day_of_week,
       start_time,
       group_name,
+      address,
+      client_name,
+      contact_name,
       instructor:instructors!recurring_schedule_instructor_id_fkey(id, full_name),
       location:locations!recurring_schedule_location_id_fkey(id, name, city, street, age_group)
     `
@@ -87,18 +90,23 @@ export async function getWeekLessons(
 
   const { data } = await query;
 
-  // Framework name (group_name) lives on the recurring_schedule template, not on each lesson
-  // instance — attach it here so the weekly view can display/edit it without a per-row join.
+  // Framework name, address and client all live on the recurring_schedule template, not on
+  // each lesson instance — attach them here so the weekly view can display/edit them without
+  // a per-row join.
   if (data && data.length > 0) {
     const recurringIds = [...new Set(data.map((l: any) => l.recurring_item_id).filter(Boolean))];
     if (recurringIds.length > 0) {
       const { data: recurringRows } = await supabase
         .from("recurring_schedule")
-        .select("id, group_name")
+        .select("id, group_name, address, client_name, contact_name")
         .in("id", recurringIds);
-      const groupNameById = new Map((recurringRows ?? []).map((r) => [r.id, r.group_name]));
+      const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
       for (const lesson of data as any[]) {
-        lesson.group_name = lesson.recurring_item_id ? groupNameById.get(lesson.recurring_item_id) ?? null : null;
+        const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
+        lesson.group_name = recurring?.group_name ?? null;
+        lesson.address = recurring?.address ?? null;
+        lesson.client_name = recurring?.client_name ?? null;
+        lesson.contact_name = recurring?.contact_name ?? null;
       }
     }
   }

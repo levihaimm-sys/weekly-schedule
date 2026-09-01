@@ -14,6 +14,9 @@ interface WeeklyLesson {
   id: string;
   recurring_item_id?: string | null;
   group_name?: string | null;
+  address?: string | null;
+  client_name?: string | null;
+  contact_name?: string | null;
   lesson_date: string;
   start_time: string;
   status: string;
@@ -77,7 +80,13 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [addingToDate, setAddingToDate] = useState<string | null>(null);
   const [localCities, setLocalCities] = useState<string[]>(currentFilters?.cities ?? []);
   const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters?.instructors ?? []);
+  const [localClients, setLocalClients] = useState<string[]>([]);
   const [localChangesOnly, setLocalChangesOnly] = useState(currentFilters?.changesOnly ?? false);
+
+  const clientOptions = useMemo(
+    () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
+    [allLessons]
+  );
 
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false);
@@ -181,6 +190,9 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
         return instructorIds.includes(l.instructor?.id ?? "");
       });
     }
+    if (localClients.length > 0) {
+      filtered = filtered.filter((l) => localClients.includes(l.client_name ?? ""));
+    }
     if (localChangesOnly) {
       filtered = filtered.filter(
         (l) => l.change_notes || l.instructor_absence_request || l.status !== "scheduled"
@@ -192,56 +204,61 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
     }
     return byDay;
-  }, [allLessons, weekDates, localCities, localInstructors, localChangesOnly]);
+  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly]);
 
   return (
     <>
-      {/* Filters */}
+      {/* Filters — kept to one horizontally-scrolling row instead of wrapping */}
       {cities && cities.length > 0 && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <MultiSelectFilter
-              options={cities.map((city) => ({ value: city, label: city }))}
-              selected={localCities}
-              onChange={setLocalCities}
-              placeholder="כל הערים"
-            />
-            <MultiSelectFilter
-              options={[
-                { value: "__no_instructor__", label: "ללא מדריך" },
-                ...instructors.map((inst) => ({ value: inst.id, label: inst.full_name })),
-              ]}
-              selected={localInstructors}
-              onChange={setLocalInstructors}
-              placeholder="כל המדריכים"
-            />
-          </div>
-          <div className="flex gap-2 items-center">
-            <button
-              type="button"
-              onClick={() => setLocalChangesOnly((prev) => !prev)}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                localChangesOnly
-                  ? "border-orange-300 bg-orange-50 text-orange-700"
-                  : "border-border bg-background hover:bg-muted"
-              }`}
-            >
-              שינויים
-            </button>
-            {/* Multi-select toggle */}
-            <button
-              type="button"
-              onClick={toggleSelectMode}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                selectMode
-                  ? "border-blue-400 bg-blue-50 text-blue-700"
-                  : "border-border bg-background hover:bg-muted"
-              }`}
-            >
-              <MousePointerClick size={14} />
-              בחירה מרובה
-            </button>
-          </div>
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+          <MultiSelectFilter
+            wrapperClassName="relative w-36 shrink-0 sm:w-40"
+            options={cities.map((city) => ({ value: city, label: city }))}
+            selected={localCities}
+            onChange={setLocalCities}
+            placeholder="כל הערים"
+          />
+          <MultiSelectFilter
+            wrapperClassName="relative w-36 shrink-0 sm:w-40"
+            options={[
+              { value: "__no_instructor__", label: "ללא מדריך" },
+              ...instructors.map((inst) => ({ value: inst.id, label: inst.full_name })),
+            ]}
+            selected={localInstructors}
+            onChange={setLocalInstructors}
+            placeholder="כל המדריכים"
+          />
+          <MultiSelectFilter
+            wrapperClassName="relative w-36 shrink-0 sm:w-40"
+            options={clientOptions.map((client) => ({ value: client, label: client }))}
+            selected={localClients}
+            onChange={setLocalClients}
+            placeholder="כל הלקוחות"
+          />
+          <button
+            type="button"
+            onClick={() => setLocalChangesOnly((prev) => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              localChangesOnly
+                ? "border-orange-300 bg-orange-50 text-orange-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            שינויים
+          </button>
+          {/* Multi-select toggle */}
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectMode
+                ? "border-blue-400 bg-blue-50 text-blue-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            <MousePointerClick size={14} />
+            בחירה מרובה
+          </button>
         </div>
       )}
 
@@ -559,10 +576,10 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             )}
                           </p>
                           <p className="mt-1 text-sm leading-tight">
-                            {lesson.location?.name}
+                            {lesson.group_name ?? lesson.location?.name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {lesson.location?.street && `${lesson.location.street}, `}
+                            {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
                             {lesson.location?.city}
                           </p>
                           <RequestBadge lesson={lesson} />
@@ -654,11 +671,11 @@ function MobileLessonCard({
             )}
           </p>
           <p className="mt-1 text-base leading-tight">
-            {lesson.location?.name ?? "—"}
+            {lesson.group_name ?? lesson.location?.name ?? "—"}
           </p>
           <p className="text-base text-muted-foreground">
+            {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
             {lesson.location?.city}
-            {lesson.location?.street && `, ${lesson.location.street}`}
           </p>
         </div>
         <div className="flex items-center gap-2 self-start">

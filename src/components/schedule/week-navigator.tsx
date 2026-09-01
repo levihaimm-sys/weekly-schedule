@@ -57,41 +57,40 @@ export function WeekNavigator({
   const relativeLabel = getRelativeWeekLabel(weekDiff);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => navigate("prev")}
-          className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
-          <ChevronRight size={16} />
-          <span className="text-xs">הקודם</span>
-        </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => navigate("prev")}
+        aria-label="השבוע הקודם"
+        className="flex shrink-0 items-center justify-center rounded-lg border-2 border-border bg-background p-2.5 transition-colors hover:border-secondary hover:bg-muted"
+      >
+        <ChevronRight size={20} />
+      </button>
 
-        <span className="min-w-[100px] text-center text-sm font-medium">
-          {startDisplay}-{endDisplay}
+      <div className="flex min-w-[130px] flex-col items-center rounded-lg bg-secondary/10 px-3 py-1.5">
+        <span className="text-lg font-bold text-[#1C1917] md:text-xl">
+          {startDisplay} - {endDisplay}
         </span>
-
-        <button
-          onClick={() => navigate("next")}
-          className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
-          <span className="text-xs">הבא</span>
-          <ChevronLeft size={16} />
-        </button>
-
-        {!isCurrentWeek && (
-          <button
-            onClick={goToday}
-            className="rounded-lg bg-muted px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted-foreground/20"
-          >
-            היום
-          </button>
-        )}
+        <span className={`text-sm font-semibold ${isCurrentWeek ? "text-secondary" : "text-muted-foreground"}`}>
+          {relativeLabel}
+        </span>
       </div>
 
-      <span className="text-center text-base font-semibold text-foreground/70">
-        {relativeLabel}
-      </span>
+      <button
+        onClick={() => navigate("next")}
+        aria-label="השבוע הבא"
+        className="flex shrink-0 items-center justify-center rounded-lg border-2 border-border bg-background p-2.5 transition-colors hover:border-secondary hover:bg-muted"
+      >
+        <ChevronLeft size={20} />
+      </button>
+
+      {!isCurrentWeek && (
+        <button
+          onClick={goToday}
+          className="shrink-0 rounded-lg bg-secondary px-3 py-2.5 text-sm font-bold text-[#1C1917] transition-colors hover:bg-secondary/80"
+        >
+          היום
+        </button>
+      )}
     </div>
   );
 }
