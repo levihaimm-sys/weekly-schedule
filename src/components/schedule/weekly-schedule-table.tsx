@@ -71,10 +71,6 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{filtered.length} גנים</p>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
         <MultiSelectFilter
           options={DAYS_HEBREW.map((d, i) => ({ value: String(i), label: d }))}
@@ -115,29 +111,60 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
             נקה סינון
           </button>
         )}
+        <span className="text-sm text-muted-foreground">{filtered.length} שורות</span>
       </div>
 
-      <div className="space-y-2">
-        {filtered.map((r) => (
-          <div
-            key={r.id}
-            onClick={() => setEditingItem(r)}
-            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
-          >
-            <div className="min-w-0">
-              <p className="font-medium">{frameworkLabel(r)}</p>
-              <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                {dayLabel(r.day_of_week)} · {formatTime(r.start_time)}
-                {r.address ? ` · ${r.address}` : ""}
-                {r.location?.city ? ` · ${r.location.city}` : ""}
-                {" · "}
-                {r.instructor?.full_name ?? "ללא מדריך"}
-                {r.field ? ` · ${r.field}` : ""}
-              </p>
-            </div>
-          </div>
-        ))}
-        {filtered.length === 0 && <p className="text-sm text-muted-foreground">אין גנים תואמים לסינון</p>}
+      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <table className="w-full min-w-[860px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+              <th className="px-3 py-2.5 whitespace-nowrap">יום</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">שעה</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">עיר</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">מדריך</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">תחום</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                  אין גנים תואמים לסינון
+                </td>
+              </tr>
+            ) : (
+              filtered.map((r) => (
+                <tr key={r.id}>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    {dayLabel(r.day_of_week)}
+                  </td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap" dir="ltr">
+                    {formatTime(r.start_time)}
+                  </td>
+                  <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
+                    <button onClick={() => setEditingItem(r)} className="hover:underline" title="ערוך גן">
+                      {frameworkLabel(r)}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    {r.address ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    {r.location?.city ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    {r.instructor?.full_name ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    {r.field ?? "—"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {editingItem && (
