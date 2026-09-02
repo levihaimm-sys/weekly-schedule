@@ -4,10 +4,12 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   X, Phone, Mail, User, ExternalLink, Check, Loader2, Trash2, FileText,
-  Building2, StickyNote, History, Send, Archive, ArchiveRestore, ChevronDown, type LucideIcon,
+  Building2, StickyNote, History, Send, Archive, ArchiveRestore, ChevronDown, Link2, Copy, type LucideIcon,
 } from "lucide-react";
 import { CLIENT_STATUS, ClientStatus, CLIENT_PRIORITY, ClientPriority } from "@/lib/utils/constants";
-import { updateClient, deleteClient, addClientActivity, toggleClientArchive } from "@/lib/actions/clients";
+import {
+  updateClient, deleteClient, addClientActivity, toggleClientArchive, linkRecurringScheduleByName,
+} from "@/lib/actions/clients";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { ClientRecord } from "@/types/database";
 
@@ -86,6 +88,35 @@ export function ClientDrawer({ client, onClose }: Props) {
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [newNote, setNewNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
+
+  // Client portal link
+  const [portalUrl, setPortalUrl] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [linkByName, setLinkByName] = useState(client.name);
+  const [linkPending, setLinkPending] = useState(false);
+  const [linkResult, setLinkResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPortalUrl(`${window.location.origin}/client-portal/${client.portal_token}`);
+  }, [client.portal_token]);
+
+  function handleCopyPortalLink() {
+    navigator.clipboard.writeText(portalUrl);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }
+
+  async function handleLinkByName() {
+    setLinkPending(true);
+    setLinkResult(null);
+    const result = await linkRecurringScheduleByName(client.id, linkByName);
+    setLinkPending(false);
+    setLinkResult(
+      "error" in result && result.error
+        ? result.error
+        : `קושרו ${(result as { linked: number }).linked} שיבוצים`
+    );
+  }
 
   useEffect(() => {
     const supabase = createBrowserClient();
@@ -308,6 +339,51 @@ export function ClientDrawer({ client, onClose }: Props) {
               <input value={lastContactDate} onChange={(e) => setLastContactDate(e.target.value)} type="date" dir="ltr"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
               <p className="mt-1 text-xs text-muted-foreground/70">מתעדכן ידנית בלבד — לא משתנה אוטומטית כשמוסיפים הערה ביומן</p>
+            </div>
+          </section>
+
+          {/* Client portal link */}
+          <section className="space-y-3 rounded-xl border-2 border-border bg-muted/10 p-4 shadow-sm">
+            <SectionHeader icon={Link2}>קישור ללקוח (ללא התחברות)</SectionHeader>
+            <p className="text-xs text-muted-foreground">
+              קישור קבוע שהלקוח יכול לפתוח כדי לראות את השיעורים העתידיים שלו, כולל סטטוס בזמן אמת.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                value={portalUrl}
+                readOnly
+                dir="ltr"
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground"
+              />
+              <button
+                onClick={handleCopyPortalLink}
+                disabled={!portalUrl}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {linkCopied ? <Check size={14} /> : <Copy size={14} />}
+                {linkCopied ? "הועתק" : "העתק"}
+              </button>
+            </div>
+
+            <div className="border-t border-border/60 pt-3">
+              <label className="mb-1 block text-xs text-muted-foreground">
+                קישור שיבוצים קיימים לפי שם לקוח (אם השיעורים לא מופיעים בקישור)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  value={linkByName}
+                  onChange={(e) => setLinkByName(e.target.value)}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={handleLinkByName}
+                  disabled={linkPending || !linkByName.trim()}
+                  className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                >
+                  {linkPending ? <Loader2 size={14} className="animate-spin" /> : "קשר"}
+                </button>
+              </div>
+              {linkResult && <p className="mt-1.5 text-xs text-muted-foreground">{linkResult}</p>}
             </div>
           </section>
 

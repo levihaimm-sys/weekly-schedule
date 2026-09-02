@@ -201,3 +201,62 @@ export const getAllInstructors = unstable_cache(
   ["all-instructors"],
   { revalidate: 120 }
 );
+
+/**
+ * Public client-portal lookup: resolves a portal token to its client, then the
+ * client's upcoming lessons (via the recurring_schedule rows linked to it).
+ * Uses the admin client since this is read by unauthenticated visitors — the
+ * random token is the only access control.
+ */
+export async function getClientPortalData(token: string) {
+  const supabase = createAdminClient();
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("id, name")
+    .eq("portal_token", token)
+    .single();
+
+  if (!client) return null;
+
+  const { data: recurringRows } = await supabase
+    .from("recurring_schedule")
+    .select("id, group_name, framework_name")
+    .eq("client_id", client.id);
+
+  const recurringIds = (recurringRows ?? []).map((r) => r.id);
+  if (recurringIds.length === 0) {
+    return { client, lessons: [] };
+  }
+
+  const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
+
+  const { data: lessons } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      recurring_item_id,
+      lesson_date,
+      start_time,
+      status,
+      instructor:instructors!lessons_instructor_id_fkey(id, full_name),
+      location:locations!lessons_location_id_fkey(id, name, city, street)
+    `
+    )
+    .in("recurring_item_id", recurringIds)
+    .gte("lesson_date", getTodayInIsrael())
+    .order("lesson_date")
+    .order("start_time")
+    .limit(200);
+
+  const enriched = (lessons ?? []).map((lesson: any) => {
+    const recurring = recurringById.get(lesson.recurring_item_id);
+    return {
+      ...lesson,
+      framework: recurring?.group_name ?? recurring?.framework_name ?? null,
+    };
+  });
+
+  return { client, lessons: enriched };
+}

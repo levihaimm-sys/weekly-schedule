@@ -35,6 +35,7 @@ export interface RecurringSchedule {
   lesson_duration: number | null;
   lessons_count: number | null;
   notes: string | null;
+  client_id: string | null;
 }
 
 export interface Lesson {
@@ -54,6 +55,7 @@ export interface Lesson {
 export interface Profile {
   id: string;
   role: "admin" | "instructor";
+  is_owner: boolean;
   instructor_id: string | null;
   display_name: string;
   phone: string | null;
@@ -220,6 +222,7 @@ export interface ClientRecord {
   last_contact_date: string | null;
   is_archived: boolean;
   monthly_report_link: string | null;
+  portal_token: string;
   created_at: string;
 }
 

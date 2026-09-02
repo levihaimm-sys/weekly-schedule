@@ -86,6 +86,29 @@ export async function deleteClient(id: string) {
   return { success: true };
 }
 
+/**
+ * Link recurring schedule rows to a client by exact client_name text match.
+ * Used to connect the free-text `client_name` on recurring_schedule (carried
+ * over from staffing/CSV imports) to a client-portal-enabled client record.
+ */
+export async function linkRecurringScheduleByName(clientId: string, nameText: string) {
+  const trimmed = nameText.trim();
+  if (!trimmed) return { error: "יש להזין שם לחיפוש" };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("recurring_schedule")
+    .update({ client_id: clientId })
+    .is("client_id", null)
+    .ilike("client_name", trimmed)
+    .select("id");
+
+  if (error) return { error: "שגיאה בקישור: " + error.message };
+
+  revalidatePath("/clients");
+  return { success: true, linked: data?.length ?? 0 };
+}
+
 export async function addClientActivity(clientId: string, note: string) {
   if (!note.trim()) return { error: "יש להזין תוכן" };
 
