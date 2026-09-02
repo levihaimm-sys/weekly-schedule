@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { X, Loader2, Trash2, Search, ChevronDown } from "lucide-react";
-import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, clearInstructorRequest } from "@/lib/actions/schedule";
+import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 
@@ -84,7 +84,10 @@ export function LessonEditDialog({
     setError(null);
 
     try {
-      const result = await deleteRecurringScheduleItem(item.id);
+      const result =
+        mode === "recurring"
+          ? await deleteRecurringScheduleItem(item.id)
+          : await bulkDeleteLessons([item.id]);
       if (result.error) {
         setError(result.error);
         setLoading(false);
@@ -255,15 +258,21 @@ export function LessonEditDialog({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDeleteConfirm(false)}>
         <div className="mx-4 w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <h3 className="text-lg font-bold text-destructive">מחיקת שיעור קבוע</h3>
+          <h3 className="text-lg font-bold text-destructive">
+            {mode === "recurring" ? "מחיקת שיעור קבוע" : "מחיקת שיעור"}
+          </h3>
           <p className="mt-3 text-sm text-muted-foreground">
-            האם אתה בטוח שברצונך למחוק את השיעור הזה מהלוח הקבוע?
+            {mode === "recurring"
+              ? "האם אתה בטוח שברצונך למחוק את השיעור הזה מהלוח הקבוע?"
+              : "האם אתה בטוח שברצונך למחוק את השיעור הזה?"}
           </p>
-          <div className="mt-2 rounded-lg bg-destructive/10 p-3">
-            <p className="text-sm font-medium text-destructive">
-              ⚠️ פעולה זו תמחק גם את כל השיעורים העתידיים שנוצרו מהשיעור הקבוע הזה!
-            </p>
-          </div>
+          {mode === "recurring" && (
+            <div className="mt-2 rounded-lg bg-destructive/10 p-3">
+              <p className="text-sm font-medium text-destructive">
+                ⚠️ פעולה זו תמחק גם את כל השיעורים העתידיים שנוצרו מהשיעור הקבוע הזה!
+              </p>
+            </div>
+          )}
 
           {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
@@ -346,7 +355,7 @@ export function LessonEditDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="mx-4 w-full max-w-md rounded-xl bg-background p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="mx-4 w-full max-w-md rounded-xl bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">
             {mode === "recurring" ? "עריכת שיעור קבוע" : "עריכת שיעור"}
@@ -599,17 +608,14 @@ export function LessonEditDialog({
             </button>
           </div>
 
-          {/* Delete button - only for recurring schedule */}
-          {mode === "recurring" && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-            >
-              <Trash2 size={14} />
-              מחק שיעור קבוע
-            </button>
-          )}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+          >
+            <Trash2 size={14} />
+            {mode === "recurring" ? "מחק שיעור קבוע" : "מחק שיעור"}
+          </button>
         </div>
       </div>
     </div>
