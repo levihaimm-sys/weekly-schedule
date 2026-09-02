@@ -14,6 +14,13 @@ interface ScheduleItem {
   address: string | null;
   client_name: string | null;
   contact_name: string | null;
+  manager_name: string | null;
+  framework: string | null;
+  framework_name: string | null;
+  field: string | null;
+  lesson_duration: number | null;
+  lessons_count: number | null;
+  notes: string | null;
   instructor: { id: string; full_name: string } | null;
   location: {
     id: string;

@@ -23,6 +23,7 @@ interface LessonData {
   contact_name?: string | null;
   instructor_absence_request?: boolean;
   framework?: string | null;
+  framework_name?: string | null;
   field?: string | null;
   manager_name?: string | null;
   lesson_duration?: number | null;
@@ -61,6 +62,20 @@ export function LessonEditDialog({
   const [status, setStatus] = useState(item.status ?? "scheduled");
   const [changeNotes, setChangeNotes] = useState(item.change_notes ?? "");
   const [groupName, setGroupName] = useState(item.group_name ?? "");
+  const [address, setAddress] = useState(item.address ?? "");
+  const [clientName, setClientName] = useState(item.client_name ?? "");
+  const [contactName, setContactName] = useState(item.contact_name ?? "");
+  const [managerName, setManagerName] = useState(item.manager_name ?? "");
+  const [framework, setFramework] = useState(item.framework ?? "");
+  const [frameworkName, setFrameworkName] = useState(item.framework_name ?? "");
+  const [field, setField] = useState(item.field ?? "");
+  const [lessonDuration, setLessonDuration] = useState(
+    item.lesson_duration != null ? String(item.lesson_duration) : ""
+  );
+  const [lessonsCount, setLessonsCount] = useState(
+    item.lessons_count != null ? String(item.lessons_count) : ""
+  );
+  const [notes, setNotes] = useState(item.notes ?? "");
 
   if (!open) return null;
 
@@ -127,6 +142,16 @@ export function LessonEditDialog({
           start_time: startTime ? `${startTime}:00` : undefined,
           day_of_week: dayOfWeek !== item.day_of_week ? dayOfWeek : undefined,
           group_name: groupName.trim() || null,
+          address: address.trim() || null,
+          client_name: clientName.trim() || null,
+          contact_name: contactName.trim() || null,
+          manager_name: managerName.trim() || null,
+          framework: framework.trim() || null,
+          framework_name: frameworkName.trim() || null,
+          field: field.trim() || null,
+          lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+          lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
+          notes: notes.trim() || null,
         });
         if (result.error) {
           setError(result.error);
@@ -331,26 +356,30 @@ export function LessonEditDialog({
           </button>
         </div>
 
-        {/* Location info (read-only) */}
+        {/* Location info (read-only — the physical location record itself isn't edited here) */}
         <div className="mt-3 rounded-lg bg-muted p-3">
           <p className="font-medium">{item.location?.name}</p>
           <p className="text-sm text-muted-foreground">
             {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
             {item.location?.city}
           </p>
-          {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
-          {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
-          {item.manager_name && <p className="text-sm text-muted-foreground">גננת/רכזת: {item.manager_name}</p>}
-          {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
-          {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
-          {(item.lesson_duration || item.lessons_count) && (
-            <p className="text-sm text-muted-foreground">
-              {item.lesson_duration ? `${item.lesson_duration} דק'` : ""}
-              {item.lesson_duration && item.lessons_count ? " · " : ""}
-              {item.lessons_count ? `${item.lessons_count} שיעורים` : ""}
-            </p>
+          {mode === "lesson" && (
+            <>
+              {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
+              {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
+              {item.manager_name && <p className="text-sm text-muted-foreground">גננת/רכזת: {item.manager_name}</p>}
+              {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
+              {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
+              {(item.lesson_duration || item.lessons_count) && (
+                <p className="text-sm text-muted-foreground">
+                  {item.lesson_duration ? `${item.lesson_duration} דק'` : ""}
+                  {item.lesson_duration && item.lessons_count ? " · " : ""}
+                  {item.lessons_count ? `${item.lessons_count} שיעורים` : ""}
+                </p>
+              )}
+              {item.notes && <p className="text-sm text-muted-foreground">הערות: {item.notes}</p>}
+            </>
           )}
-          {item.notes && <p className="text-sm text-muted-foreground">הערות: {item.notes}</p>}
         </div>
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
@@ -370,6 +399,105 @@ export function LessonEditDialog({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
               />
             </div>
+          )}
+
+          {/* Full field set — only for the fixed (recurring) schedule, where these live on the
+              recurring_schedule row itself rather than a per-instance lesson */}
+          {mode === "recurring" && (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium">כתובת</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">לקוח</label>
+                <input
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">איש קשר</label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">גננת/רכזת</label>
+                <input
+                  type="text"
+                  value={managerName}
+                  onChange={(e) => setManagerName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">תחום</label>
+                <input
+                  type="text"
+                  value={field}
+                  onChange={(e) => setField(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">מסגרת</label>
+                <input
+                  type="text"
+                  value={framework}
+                  onChange={(e) => setFramework(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">שם מסגרת</label>
+                <input
+                  type="text"
+                  value={frameworkName}
+                  onChange={(e) => setFrameworkName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium">משך שיעור (דק&apos;)</label>
+                  <input
+                    type="number"
+                    value={lessonDuration}
+                    onChange={(e) => setLessonDuration(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium">מס&apos; שיעורים</label>
+                  <input
+                    type="number"
+                    value={lessonsCount}
+                    onChange={(e) => setLessonsCount(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">הערות</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+            </>
           )}
 
           {/* Instructor */}

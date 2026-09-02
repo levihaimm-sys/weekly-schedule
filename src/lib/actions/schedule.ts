@@ -161,6 +161,16 @@ export async function updateRecurringSchedule(
     location_id?: string;
     day_of_week?: number;
     group_name?: string | null;
+    address?: string | null;
+    client_name?: string | null;
+    contact_name?: string | null;
+    manager_name?: string | null;
+    framework?: string | null;
+    framework_name?: string | null;
+    field?: string | null;
+    lesson_duration?: number | null;
+    lessons_count?: number | null;
+    notes?: string | null;
   }
 ) {
   const supabase = createAdminClient();
@@ -172,6 +182,16 @@ export async function updateRecurringSchedule(
   if (updates.location_id) cleanUpdates.location_id = updates.location_id;
   if (updates.day_of_week !== undefined) cleanUpdates.day_of_week = updates.day_of_week;
   if (updates.group_name !== undefined) cleanUpdates.group_name = updates.group_name;
+  if (updates.address !== undefined) cleanUpdates.address = updates.address;
+  if (updates.client_name !== undefined) cleanUpdates.client_name = updates.client_name;
+  if (updates.contact_name !== undefined) cleanUpdates.contact_name = updates.contact_name;
+  if (updates.manager_name !== undefined) cleanUpdates.manager_name = updates.manager_name;
+  if (updates.framework !== undefined) cleanUpdates.framework = updates.framework;
+  if (updates.framework_name !== undefined) cleanUpdates.framework_name = updates.framework_name;
+  if (updates.field !== undefined) cleanUpdates.field = updates.field;
+  if (updates.lesson_duration !== undefined) cleanUpdates.lesson_duration = updates.lesson_duration;
+  if (updates.lessons_count !== undefined) cleanUpdates.lessons_count = updates.lessons_count;
+  if (updates.notes !== undefined) cleanUpdates.notes = updates.notes;
 
   if (Object.keys(cleanUpdates).length === 0) {
     return { error: "אין שינויים לשמור" };
