@@ -22,6 +22,12 @@ interface LessonData {
   client_name?: string | null;
   contact_name?: string | null;
   instructor_absence_request?: boolean;
+  framework?: string | null;
+  field?: string | null;
+  manager_name?: string | null;
+  lesson_duration?: number | null;
+  lessons_count?: number | null;
+  notes?: string | null;
 }
 
 interface LessonEditDialogProps {
@@ -334,6 +340,17 @@ export function LessonEditDialog({
           </p>
           {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
           {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
+          {item.manager_name && <p className="text-sm text-muted-foreground">גננת/רכזת: {item.manager_name}</p>}
+          {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
+          {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
+          {(item.lesson_duration || item.lessons_count) && (
+            <p className="text-sm text-muted-foreground">
+              {item.lesson_duration ? `${item.lesson_duration} דק'` : ""}
+              {item.lesson_duration && item.lessons_count ? " · " : ""}
+              {item.lessons_count ? `${item.lessons_count} שיעורים` : ""}
+            </p>
+          )}
+          {item.notes && <p className="text-sm text-muted-foreground">הערות: {item.notes}</p>}
         </div>
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}

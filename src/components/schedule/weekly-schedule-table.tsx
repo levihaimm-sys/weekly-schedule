@@ -1,20 +1,29 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 import { dayLabel } from "@/lib/utils/staffing";
+import { formatTime } from "@/lib/utils/date";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { LessonEditDialog } from "./lesson-edit-dialog";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { RecurringScheduleWithDetails } from "@/types/database";
 
 interface Props {
   schedule: RecurringScheduleWithDetails[];
+  instructors: { id: string; full_name: string }[];
 }
 
 const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
 
-export function WeeklyScheduleTable({ schedule }: Props) {
+function frameworkLabel(r: RecurringScheduleWithDetails): string {
+  return r.framework_name || r.group_name || "—";
+}
+
+export function WeeklyScheduleTable({ schedule, instructors }: Props) {
+  const [editingItem, setEditingItem] = useState<RecurringScheduleWithDetails | null>(null);
+
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("weekly-table-day", []);
   const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("weekly-table-framework", []);
   const [clientFilter, setClientFilter] = usePersistedState<string[]>("weekly-table-client", []);
@@ -37,7 +46,7 @@ export function WeeklyScheduleTable({ schedule }: Props) {
   }
 
   const existingFrameworks = (
-    Array.from(new Set(schedule.map((r) => r.framework).filter(Boolean))) as string[]
+    Array.from(new Set(schedule.map((r) => frameworkLabel(r)).filter((f) => f !== "—"))) as string[]
   ).sort(sortHe);
   const existingClients = (
     Array.from(new Set(schedule.map((r) => r.client_name).filter(Boolean))) as string[]
@@ -52,7 +61,7 @@ export function WeeklyScheduleTable({ schedule }: Props) {
   const filtered = useMemo(() => {
     return schedule.filter((r) => {
       if (dayFilter.length > 0 && !dayFilter.includes(String(r.day_of_week))) return false;
-      if (frameworkFilter.length > 0 && !frameworkFilter.includes(r.framework ?? "")) return false;
+      if (frameworkFilter.length > 0 && !frameworkFilter.includes(frameworkLabel(r))) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(r.client_name ?? "")) return false;
       if (cityFilter.length > 0 && !cityFilter.includes(r.location?.city ?? "")) return false;
       if (instructorFilter.length > 0 && !instructorFilter.includes(r.instructor?.full_name ?? "")) return false;
@@ -108,63 +117,38 @@ export function WeeklyScheduleTable({ schedule }: Props) {
         )}
       </div>
 
-      <div className="overflow-auto rounded-lg border border-border max-h-[calc(100vh-260px)]">
-        <table className="w-full border-collapse text-sm" dir="rtl">
-          <thead className="sticky top-0 z-10 bg-secondary text-[#1C1917]">
-            <tr>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">יום</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">שעה</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">לקוח</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">עיר</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">כתובת / גן</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">מסגרת</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">קבוצה</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">מדריך</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">תחום</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">גננת/רכזת</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">איש קשר</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">משך / כמות</th>
-              <th className="border border-secondary/70 px-3 py-2 text-right font-bold whitespace-nowrap">הערות</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id} className="hover:bg-muted/30">
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{dayLabel(r.day_of_week)}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap" dir="ltr">
-                  {r.start_time}
-                </td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.client_name ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.location?.city ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">
-                  {r.location?.name ?? r.address ?? "—"}
-                </td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">
-                  {r.framework ?? "—"}
-                  {r.framework_name ? ` - ${r.framework_name}` : ""}
-                </td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.group_name ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.instructor?.full_name ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.field ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.manager_name ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">{r.contact_name ?? "—"}</td>
-                <td className="border border-border px-3 py-2 whitespace-nowrap">
-                  {r.lesson_duration ? `${r.lesson_duration} דק'` : "—"}
-                  {r.lessons_count ? ` · ${r.lessons_count} שיעורים` : ""}
-                </td>
-                <td className="border border-border px-3 py-2">{r.notes ?? "—"}</td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={13} className="border border-border px-3 py-6 text-center text-muted-foreground">
-                  אין גנים תואמים לסינון
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="space-y-2">
+        {filtered.map((r) => (
+          <div
+            key={r.id}
+            onClick={() => setEditingItem(r)}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
+          >
+            <div className="min-w-0">
+              <p className="font-medium">{frameworkLabel(r)}</p>
+              <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                {dayLabel(r.day_of_week)} · {formatTime(r.start_time)}
+                {r.address ? ` · ${r.address}` : ""}
+                {r.location?.city ? ` · ${r.location.city}` : ""}
+                {" · "}
+                {r.instructor?.full_name ?? "ללא מדריך"}
+                {r.field ? ` · ${r.field}` : ""}
+              </p>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <p className="text-sm text-muted-foreground">אין גנים תואמים לסינון</p>}
       </div>
+
+      {editingItem && (
+        <LessonEditDialog
+          item={editingItem}
+          instructors={instructors}
+          mode="recurring"
+          open={!!editingItem}
+          onClose={() => setEditingItem(null)}
+        />
+      )}
     </div>
   );
 }
