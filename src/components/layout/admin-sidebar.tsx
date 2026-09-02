@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   UserSearch,
   GitMerge,
+  Table,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -27,6 +28,7 @@ import { logout } from "@/lib/actions/auth";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "דשבורד", icon: ClipboardList },
   { href: "/schedule/weekly", label: "לוח שבועי", icon: CalendarClock },
+  { href: "/schedule/weekly-table", label: "לוח שבועי טבלה", icon: Table },
   { href: "/schedule", label: "לוח קבוע", icon: CalendarDays },
   { href: "/instructors", label: "מדריכים", icon: Users },
   { href: "/recruitment", label: "גיוס", icon: UserSearch },
@@ -103,9 +105,13 @@ export function AdminSidebar() {
                     ? pathname.startsWith("/lesson-plans/manage")
                     : item.href === "/schedule/weekly-overview"
                       ? pathname.startsWith("/schedule/weekly-overview")
-                      : item.href === "/schedule/weekly"
-                        ? pathname.startsWith("/schedule/weekly") && !pathname.startsWith("/schedule/weekly-overview")
-                        : pathname === item.href || pathname.startsWith(item.href + "/");
+                      : item.href === "/schedule/weekly-table"
+                        ? pathname.startsWith("/schedule/weekly-table")
+                        : item.href === "/schedule/weekly"
+                          ? pathname.startsWith("/schedule/weekly") &&
+                            !pathname.startsWith("/schedule/weekly-overview") &&
+                            !pathname.startsWith("/schedule/weekly-table")
+                          : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}

@@ -21,6 +21,13 @@ export async function getRecurringSchedule(filters?: {
       address,
       client_name,
       contact_name,
+      manager_name,
+      framework,
+      framework_name,
+      field,
+      lesson_duration,
+      lessons_count,
+      notes,
       instructor:instructors!recurring_schedule_instructor_id_fkey(id, full_name),
       location:locations!recurring_schedule_location_id_fkey(id, name, city, street, age_group)
     `
