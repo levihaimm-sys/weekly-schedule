@@ -83,6 +83,7 @@ export function AssignmentsOverviewTable({
   const [dialogEquipment, setDialogEquipment] = useState<EquipmentItem[]>([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [distributing, setDistributing] = useState(false);
+  const [extraInstructorIds, setExtraInstructorIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
@@ -144,6 +145,7 @@ export function AssignmentsOverviewTable({
       isDistributed: assignment?.equipment_distributed ?? false,
     });
     setSelectedLessonPlanId(initialSelection);
+    setExtraInstructorIds(new Set());
     setDialogEquipment([]);
     if (currentLessonPlanId) {
       setLoadingEquipment(true);
@@ -161,19 +163,23 @@ export function AssignmentsOverviewTable({
     setSaving(true);
 
     const lessonPlanId = selectedLessonPlanId === "__none__" ? null : selectedLessonPlanId;
+    const targetInstructorIds = [editingCell.instructorId, ...extraInstructorIds];
 
     try {
-      if (editingCell.assignmentId) {
-        await updateWeeklyAssignment(editingCell.assignmentId, lessonPlanId, isPermanent);
-      } else {
-        await createWeeklyAssignment(
-          editingCell.instructorId,
-          lessonPlanId,
-          editingCell.week,
-          isPermanent
-        );
+      for (const instructorId of targetInstructorIds) {
+        const existing =
+          instructorId === editingCell.instructorId
+            ? editingCell.assignmentId
+            : assignmentMap[editingCell.week]?.[instructorId]?.id ?? null;
+
+        if (existing) {
+          await updateWeeklyAssignment(existing, lessonPlanId, isPermanent);
+        } else {
+          await createWeeklyAssignment(instructorId, lessonPlanId, editingCell.week, isPermanent);
+        }
       }
       setEditingCell(null);
+      setExtraInstructorIds(new Set());
       startTransition(() => {
         router.refresh();
       });
@@ -290,28 +296,41 @@ export function AssignmentsOverviewTable({
     if (!editingCell || !selectedLessonPlanId) return;
     setDistributing(true);
     try {
-      let assignmentId = editingCell.assignmentId;
-      if (!assignmentId) {
-        const createResult = await createWeeklyAssignment(
-          editingCell.instructorId,
-          selectedLessonPlanId,
-          editingCell.week,
-          false
-        );
-        if (!createResult.success || !createResult.data) {
-          alert("שגיאה ביצירת שיבוץ: " + createResult.error);
+      const targetInstructorIds = [editingCell.instructorId, ...extraInstructorIds];
+
+      for (const instructorId of targetInstructorIds) {
+        let assignmentId =
+          instructorId === editingCell.instructorId
+            ? editingCell.assignmentId
+            : assignmentMap[editingCell.week]?.[instructorId]?.id ?? null;
+        const currentLessonPlanId =
+          instructorId === editingCell.instructorId
+            ? editingCell.currentLessonPlanId
+            : assignmentMap[editingCell.week]?.[instructorId]?.lesson_plan_id ?? null;
+
+        if (!assignmentId) {
+          const createResult = await createWeeklyAssignment(
+            instructorId,
+            selectedLessonPlanId,
+            editingCell.week,
+            false
+          );
+          if (!createResult.success || !createResult.data) {
+            alert("שגיאה ביצירת שיבוץ: " + createResult.error);
+            return;
+          }
+          assignmentId = createResult.data.id;
+        } else if (selectedLessonPlanId !== currentLessonPlanId) {
+          await updateWeeklyAssignment(assignmentId, selectedLessonPlanId, false);
+        }
+        const result = await distributeEquipmentToInstructor(assignmentId, selectedLessonPlanId);
+        if (!result.success) {
+          alert("שגיאה באישור חלוקת ציוד: " + result.error);
           return;
         }
-        assignmentId = createResult.data.id;
-      } else if (selectedLessonPlanId !== editingCell.currentLessonPlanId) {
-        await updateWeeklyAssignment(assignmentId, selectedLessonPlanId, false);
-      }
-      const result = await distributeEquipmentToInstructor(assignmentId, selectedLessonPlanId);
-      if (!result.success) {
-        alert("שגיאה באישור חלוקת ציוד: " + result.error);
-        return;
       }
       setEditingCell(null);
+      setExtraInstructorIds(new Set());
       startTransition(() => router.refresh());
     } finally {
       setDistributing(false);
@@ -701,6 +720,38 @@ export function AssignmentsOverviewTable({
               </select>
             </div>
 
+            {/* Also assign to other instructors this week */}
+            {instructors.length > 1 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">גם למדריכות נוספות באותו שבוע</label>
+                <div className="max-h-36 overflow-y-auto rounded-lg border border-border p-2 space-y-1">
+                  {instructors
+                    .filter((inst) => inst.id !== editingCell.instructorId)
+                    .map((inst) => (
+                      <label
+                        key={inst.id}
+                        className="flex items-center gap-2 rounded px-1.5 py-1 text-sm cursor-pointer hover:bg-muted"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={extraInstructorIds.has(inst.id)}
+                          onChange={(e) => {
+                            setExtraInstructorIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(inst.id);
+                              else next.delete(inst.id);
+                              return next;
+                            });
+                          }}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <span>{inst.name}</span>
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* Equipment list */}
             {loadingEquipment && (
               <p className="mb-4 text-xs text-muted-foreground">טוען ציוד...</p>
@@ -733,8 +784,11 @@ export function AssignmentsOverviewTable({
             {(() => {
               const nothingSelected = selectedLessonPlanId === "";
               const effectivePlanId = selectedLessonPlanId === "__none__" ? null : (selectedLessonPlanId || null);
-              // noChange only applies when an assignment already exists — without one, any selection creates a new record
-              const noChange = editingCell.assignmentId !== null && effectivePlanId === editingCell.currentLessonPlanId;
+              // noChange only applies when an assignment already exists, nothing else is being assigned, and the plan is unchanged
+              const noChange =
+                editingCell.assignmentId !== null &&
+                effectivePlanId === editingCell.currentLessonPlanId &&
+                extraInstructorIds.size === 0;
               return (
               <div className="flex flex-col gap-2">
               {/* Distribute button — only for real lesson plans */}
