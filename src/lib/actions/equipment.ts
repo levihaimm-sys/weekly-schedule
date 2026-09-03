@@ -134,10 +134,10 @@ export async function updateWeeklyAssignment(
 ) {
   const supabase = await createClient();
 
-  // Get the current assignment to find week and instructor
+  // Confirm the assignment exists
   const { data: currentAssignment, error: fetchError } = await supabase
     .from("weekly_lesson_assignments")
-    .select("instructor_id, week_start_date, lesson_plan_id")
+    .select("id")
     .eq("id", assignmentId)
     .single();
 
@@ -145,10 +145,8 @@ export async function updateWeeklyAssignment(
     return { success: false, error: "Assignment not found" };
   }
 
-  const oldLessonPlanId = currentAssignment.lesson_plan_id;
-  const changedWeek = currentAssignment.week_start_date;
-
-  // Update the assignment
+  // Update the assignment. Lesson plans are not exclusive per week - multiple
+  // instructors can be assigned the same one, so no swap-displacement here.
   const { error: updateError } = await supabase
     .from("weekly_lesson_assignments")
     .update({
@@ -160,70 +158,6 @@ export async function updateWeeklyAssignment(
   if (updateError) {
     console.error("Error updating assignment:", updateError);
     return { success: false, error: updateError.message };
-  }
-
-  if (isPermanentChange && oldLessonPlanId !== lessonPlanId && oldLessonPlanId && lessonPlanId) {
-    // Swap: find who had the NEW lesson plan in this week, give them the OLD one
-    const { data: swapTarget } = await supabase
-      .from("weekly_lesson_assignments")
-      .select("id")
-      .eq("week_start_date", changedWeek)
-      .eq("lesson_plan_id", lessonPlanId)
-      .neq("id", assignmentId)
-      .single();
-
-    if (swapTarget) {
-      await supabase
-        .from("weekly_lesson_assignments")
-        .update({ lesson_plan_id: oldLessonPlanId, is_permanent_change: true })
-        .eq("id", swapTarget.id);
-    }
-
-    // Now propagate the same swap to ALL future weeks
-    const { data: futureWeeks } = await supabase
-      .from("weekly_lesson_assignments")
-      .select("id, instructor_id, week_start_date, lesson_plan_id")
-      .gt("week_start_date", changedWeek)
-      .or(`lesson_plan_id.eq.${oldLessonPlanId},lesson_plan_id.eq.${lessonPlanId}`)
-      .order("week_start_date");
-
-    if (futureWeeks && futureWeeks.length > 0) {
-      // Group by week to do swaps per week
-      const byWeek = new Map<string, typeof futureWeeks>();
-      for (const a of futureWeeks) {
-        if (!byWeek.has(a.week_start_date)) byWeek.set(a.week_start_date, []);
-        byWeek.get(a.week_start_date)!.push(a);
-      }
-
-      for (const [, weekAssignments] of byWeek) {
-        const hasOld = weekAssignments.find((a) => a.lesson_plan_id === oldLessonPlanId);
-        const hasNew = weekAssignments.find((a) => a.lesson_plan_id === lessonPlanId);
-
-        // Swap them
-        if (hasOld && hasNew) {
-          await supabase
-            .from("weekly_lesson_assignments")
-            .update({ lesson_plan_id: lessonPlanId, is_permanent_change: true })
-            .eq("id", hasOld.id);
-          await supabase
-            .from("weekly_lesson_assignments")
-            .update({ lesson_plan_id: oldLessonPlanId, is_permanent_change: true })
-            .eq("id", hasNew.id);
-        } else if (hasOld) {
-          // Only old exists, change it to new
-          await supabase
-            .from("weekly_lesson_assignments")
-            .update({ lesson_plan_id: lessonPlanId, is_permanent_change: true })
-            .eq("id", hasOld.id);
-        } else if (hasNew) {
-          // Only new exists, change it to old
-          await supabase
-            .from("weekly_lesson_assignments")
-            .update({ lesson_plan_id: oldLessonPlanId, is_permanent_change: true })
-            .eq("id", hasNew.id);
-        }
-      }
-    }
   }
 
   revalidatePath("/schedule");
