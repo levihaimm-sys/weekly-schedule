@@ -62,13 +62,24 @@ export default async function MyLessonPlanPage() {
     getInstructorNextWeekAssignment(profile.instructor_id),
   ]);
 
-  if (!assignment || !assignment.lesson_plan?.id) {
+  // Parallel: fetch lesson plans for current + next week (independently — a missing
+  // current-week plan should not hide an existing next-week one, and vice versa)
+  const [lessonPlan, nextWeekPlan] = await Promise.all([
+    assignment?.lesson_plan?.id
+      ? getLessonPlanWithEquipment(assignment.lesson_plan.id)
+      : Promise.resolve(null),
+    nextWeekAssignment?.lesson_plan?.id
+      ? getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id)
+      : Promise.resolve(null),
+  ]);
+
+  if (!lessonPlan && !nextWeekPlan) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-foreground">המערך השבועי שלי</h1>
         <div className="rounded-3xl bg-secondary p-10 text-center shadow-md">
           <p className="text-2xl font-bold text-foreground">
-            לא נמצא מערך שיעור עבור השבוע הנוכחי
+            לא נמצא מערך שיעור עבור השבוע הנוכחי או הבא
           </p>
           <p className="text-base font-medium text-foreground/70 mt-3">
             אנא פנה למנהל המערכת
@@ -78,68 +89,60 @@ export default async function MyLessonPlanPage() {
     );
   }
 
-  // Parallel: fetch lesson plans for current + next week
-  const [lessonPlan, nextWeekPlan] = await Promise.all([
-    getLessonPlanWithEquipment(assignment.lesson_plan.id),
-    nextWeekAssignment?.lesson_plan?.id
-      ? getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id)
-      : Promise.resolve(null),
-  ]);
-
-  if (!lessonPlan) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-foreground">המערך השבועי שלי</h1>
-        <div className="rounded-3xl bg-destructive/20 p-10 text-center shadow-md">
-          <p className="text-2xl font-bold text-destructive">שגיאה בטעינת מערך השיעור</p>
-        </div>
-      </div>
+  // Get or create equipment confirmations for the current week, if there is one
+  if (assignment && lessonPlan) {
+    const confirmations = await getOrCreateEquipmentConfirmations(
+      profile.instructor_id,
+      assignment.id,
+      lessonPlan.id
     );
+
+    const canConfirm = canConfirmEquipmentToday();
+    const sunday = getSundayOfWeek();
+    const weekEndDate = new Date(sunday);
+    weekEndDate.setDate(sunday.getDate() + 6);
   }
-
-  // Get or create equipment confirmations
-  const confirmations = await getOrCreateEquipmentConfirmations(
-    profile.instructor_id,
-    assignment.id,
-    lessonPlan.id
-  );
-
-  const canConfirm = canConfirmEquipmentToday();
-  const sunday = getSundayOfWeek();
-  const weekEndDate = new Date(sunday);
-  weekEndDate.setDate(sunday.getDate() + 6);
 
   return (
     <div className="space-y-6">
-      {/* Header with green background */}
-      <div className="rounded-3xl bg-accent p-7 shadow-md">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground">
-              מערך שבועי: {lessonPlan.name}
-            </h1>
+      {/* Current Week */}
+      {lessonPlan ? (
+        <>
+          {/* Header with green background */}
+          <div className="rounded-3xl bg-accent p-7 shadow-md">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-lg font-bold text-foreground">
+                  מערך שבועי: {lessonPlan.name}
+                </h1>
+              </div>
+
+              <div className="flex flex-col gap-3 shrink-0">
+                {lessonPlan.playlist_url && (
+                  <a
+                    href={lessonPlan.playlist_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-6 py-3 bg-tertiary rounded-2xl font-bold text-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                  >
+                    <Music className="w-5 h-5" />
+                    מוזיקה
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3 shrink-0">
-            {lessonPlan.playlist_url && (
-              <a
-                href={lessonPlan.playlist_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-3 bg-tertiary rounded-2xl font-bold text-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
-              >
-                <Music className="w-5 h-5" />
-                מוזיקה
-              </a>
-            )}
+          {/* PDF Viewer - Maximum Width */}
+          <div>
+            <PdfViewerWrapper pdfPath={lessonPlan.pdf_path} lessonName={lessonPlan.name} />
           </div>
+        </>
+      ) : (
+        <div className="rounded-3xl bg-secondary p-10 text-center shadow-md">
+          <p className="text-xl font-bold text-foreground">לא נמצא מערך שיעור עבור השבוע הנוכחי</p>
         </div>
-      </div>
-
-      {/* PDF Viewer - Maximum Width */}
-      <div>
-        <PdfViewerWrapper pdfPath={lessonPlan.pdf_path} lessonName={lessonPlan.name} />
-      </div>
+      )}
 
       {/* Next Week Section */}
       {nextWeekAssignment && nextWeekPlan && (
