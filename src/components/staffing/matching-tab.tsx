@@ -552,6 +552,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
               </th>
               <th className="px-3 py-2.5 whitespace-nowrap">חוג</th>
               <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
               <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
               <th className="px-3 py-2.5 min-w-[220px]">מדריך/ה משובץ/ת</th>
@@ -560,7 +561,7 @@ export function MatchingTab({ availability, needs, assignments }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                <td colSpan={10} className="py-10 text-center text-muted-foreground">
                   אין שיעורים נדרשים תואמים
                 </td>
               </tr>
@@ -684,6 +685,7 @@ function NeedRow({
         {need.framework ?? "—"}
         {need.framework_name ? ` · ${need.framework_name}` : ""}
       </td>
+      <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">{need.address ?? "—"}</td>
       <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{need.lessons_count}</td>
       <td className="px-3 py-2.5 align-top whitespace-nowrap">
         <StatusSelect need={need} />
