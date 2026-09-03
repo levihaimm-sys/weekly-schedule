@@ -110,6 +110,8 @@ export function LessonEditDialog({
     // instructor/time fields.
     const groupNameChanged =
       mode === "lesson" && !!item.recurring_item_id && groupName.trim() !== (item.group_name ?? "").trim();
+    const addressChanged =
+      mode === "lesson" && !!item.recurring_item_id && address.trim() !== (item.address ?? "").trim();
     const otherFieldsChanged =
       instructorId !== (item.instructor?.id ?? "") ||
       startTime !== (item.start_time?.slice(0, 5) ?? "") ||
@@ -129,12 +131,13 @@ export function LessonEditDialog({
     setError(null);
 
     try {
-      if (groupNameChanged) {
-        const groupNameResult = await updateRecurringSchedule(item.recurring_item_id!, {
-          group_name: groupName.trim() || null,
-        });
-        if (groupNameResult.error) {
-          setError(groupNameResult.error);
+      if (groupNameChanged || addressChanged) {
+        const masterUpdates: { group_name?: string | null; address?: string | null } = {};
+        if (groupNameChanged) masterUpdates.group_name = groupName.trim() || null;
+        if (addressChanged) masterUpdates.address = address.trim() || null;
+        const masterResult = await updateRecurringSchedule(item.recurring_item_id!, masterUpdates);
+        if (masterResult.error) {
+          setError(masterResult.error);
           setLoading(false);
           return;
         }
@@ -402,9 +405,9 @@ export function LessonEditDialog({
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
-          {/* Framework/group name — editable directly in recurring mode, or in lesson mode when
-              this instance is linked to a recurring template (renaming always updates the
-              template, so it applies from here on regardless of instructor/time scope) */}
+          {/* Framework name / address — editable directly in recurring mode, or in lesson mode
+              when this instance is linked to a recurring template (these always update the
+              template, so they apply from here on regardless of instructor/time scope) */}
           {(mode === "recurring" || (mode === "lesson" && item.recurring_item_id && item.group_name !== undefined)) && (
             <div>
               <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
@@ -413,6 +416,18 @@ export function LessonEditDialog({
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="שם המסגרת / חוג"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              />
+            </div>
+          )}
+
+          {mode === "lesson" && item.recurring_item_id && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">כתובת המסגרת</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
               />
             </div>

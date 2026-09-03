@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Package, Music } from "lucide-react";
+import { Music } from "lucide-react";
 import {
   getInstructorCurrentWeekAssignment,
   getInstructorNextWeekAssignment,
@@ -115,8 +115,8 @@ export default async function MyLessonPlanPage() {
       <div className="rounded-3xl bg-accent p-7 shadow-md">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">
-              {lessonPlan.name}
+            <h1 className="text-lg font-bold text-foreground">
+              מערך שבועי: {lessonPlan.name}
             </h1>
           </div>
 
@@ -141,70 +141,42 @@ export default async function MyLessonPlanPage() {
         <PdfViewerWrapper pdfPath={lessonPlan.pdf_path} lessonName={lessonPlan.name} />
       </div>
 
-      {/* Equipment Card */}
-      <div className="rounded-3xl bg-card p-7 shadow-md">
-        <div className="flex items-center gap-3 mb-5">
-          <Package className="w-6 h-6 text-foreground" />
-          <h3 className="text-xl font-bold text-foreground">ציוד נדרש</h3>
-        </div>
-
-        {lessonPlan.equipment && lessonPlan.equipment.length > 0 ? (
-          <ul className="space-y-3">
-            {lessonPlan.equipment.map((item, idx) => (
-              <li key={idx} className="flex items-center gap-4 p-4 bg-white/30 rounded-2xl">
-                <span className="text-3xl font-bold text-foreground">{item.quantity}</span>
-                <span className="text-lg font-semibold text-foreground">{item.equipment_name}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-base font-medium text-foreground/70">אין ציוד רשום למערך זה</p>
-        )}
-      </div>
-
-      {/* Separator - Next Week */}
+      {/* Next Week Section */}
       {nextWeekAssignment && nextWeekPlan && (
         <>
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-foreground/20" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background px-6 py-2 text-xl font-bold text-foreground rounded-full border-2 border-foreground/20">
-                המערך לשבוע הבא
-              </span>
-            </div>
-          </div>
+          <h2 className="text-3xl font-bold text-foreground text-center mt-8">
+            מערך לשבוע הבא:
+          </h2>
 
-          {/* Next Week Header */}
-          <div className="rounded-3xl bg-accent/60 p-7 shadow-md">
-            <h2 className="text-2xl font-bold text-foreground">
-              {nextWeekPlan.name}
-            </h2>
+          {/* Next Week Header - same layout as current week */}
+          <div className="rounded-3xl bg-accent p-7 shadow-md">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-lg font-bold text-foreground">
+                  מערך שבועי: {nextWeekPlan.name}
+                </h1>
+              </div>
+
+              <div className="flex flex-col gap-3 shrink-0">
+                {nextWeekPlan.playlist_url && (
+                  <a
+                    href={nextWeekPlan.playlist_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-6 py-3 bg-tertiary rounded-2xl font-bold text-foreground shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                  >
+                    <Music className="w-5 h-5" />
+                    מוזיקה
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Next Week PDF Viewer */}
           {nextWeekPlan.pdf_path && (
             <div>
               <PdfViewerWrapper pdfPath={nextWeekPlan.pdf_path} lessonName={nextWeekPlan.name} />
-            </div>
-          )}
-
-          {/* Next Week Equipment */}
-          {nextWeekPlan.equipment && nextWeekPlan.equipment.length > 0 && (
-            <div className="rounded-3xl bg-card p-7 shadow-md">
-              <div className="flex items-center gap-3 mb-5">
-                <Package className="w-6 h-6 text-foreground" />
-                <h3 className="text-xl font-bold text-foreground">ציוד נדרש - שבוע הבא</h3>
-              </div>
-              <ul className="space-y-3">
-                {nextWeekPlan.equipment.map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-4 p-4 bg-white/30 rounded-2xl">
-                    <span className="text-3xl font-bold text-foreground">{item.quantity}</span>
-                    <span className="text-lg font-semibold text-foreground">{item.equipment_name}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
           )}
         </>
