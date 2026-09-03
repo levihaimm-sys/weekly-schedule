@@ -80,7 +80,9 @@ export default async function MyLessonPlanPage() {
 
   // Parallel: fetch lesson plans for current + next week
   const [lessonPlan, nextWeekPlan] = await Promise.all([
-    getLessonPlanWithEquipment(assignment.lesson_plan.id),
+    assignment.lesson_plan?.id
+      ? getLessonPlanWithEquipment(assignment.lesson_plan.id)
+      : Promise.resolve(null),
     nextWeekAssignment?.lesson_plan?.id
       ? getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id)
       : Promise.resolve(null),
