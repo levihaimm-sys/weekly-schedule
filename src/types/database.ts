@@ -28,6 +28,7 @@ export interface RecurringSchedule {
   client_name: string | null;
   address: string | null;
   manager_name: string | null;
+  manager_phone: string | null;
   contact_name: string | null;
   framework: string | null;
   framework_name: string | null;

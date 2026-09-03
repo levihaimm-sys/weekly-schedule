@@ -165,6 +165,7 @@ export async function updateRecurringSchedule(
     client_name?: string | null;
     contact_name?: string | null;
     manager_name?: string | null;
+    manager_phone?: string | null;
     framework?: string | null;
     framework_name?: string | null;
     field?: string | null;
@@ -186,6 +187,7 @@ export async function updateRecurringSchedule(
   if (updates.client_name !== undefined) cleanUpdates.client_name = updates.client_name;
   if (updates.contact_name !== undefined) cleanUpdates.contact_name = updates.contact_name;
   if (updates.manager_name !== undefined) cleanUpdates.manager_name = updates.manager_name;
+  if (updates.manager_phone !== undefined) cleanUpdates.manager_phone = updates.manager_phone;
   if (updates.framework !== undefined) cleanUpdates.framework = updates.framework;
   if (updates.framework_name !== undefined) cleanUpdates.framework_name = updates.framework_name;
   if (updates.field !== undefined) cleanUpdates.field = updates.field;

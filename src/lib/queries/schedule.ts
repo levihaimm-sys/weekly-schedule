@@ -22,6 +22,7 @@ export async function getRecurringSchedule(filters?: {
       client_name,
       contact_name,
       manager_name,
+      manager_phone,
       framework,
       framework_name,
       field,

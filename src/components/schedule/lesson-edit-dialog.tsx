@@ -26,6 +26,7 @@ interface LessonData {
   framework_name?: string | null;
   field?: string | null;
   manager_name?: string | null;
+  manager_phone?: string | null;
   lesson_duration?: number | null;
   lessons_count?: number | null;
   notes?: string | null;
@@ -66,6 +67,7 @@ export function LessonEditDialog({
   const [clientName, setClientName] = useState(item.client_name ?? "");
   const [contactName, setContactName] = useState(item.contact_name ?? "");
   const [managerName, setManagerName] = useState(item.manager_name ?? "");
+  const [managerPhone, setManagerPhone] = useState(item.manager_phone ?? "");
   const [framework, setFramework] = useState(item.framework ?? "");
   const [frameworkName, setFrameworkName] = useState(item.framework_name ?? "");
   const [field, setField] = useState(item.field ?? "");
@@ -149,6 +151,7 @@ export function LessonEditDialog({
           client_name: clientName.trim() || null,
           contact_name: contactName.trim() || null,
           manager_name: managerName.trim() || null,
+          manager_phone: managerPhone.trim() || null,
           framework: framework.trim() || null,
           framework_name: frameworkName.trim() || null,
           field: field.trim() || null,
@@ -376,7 +379,12 @@ export function LessonEditDialog({
             <>
               {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
               {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
-              {item.manager_name && <p className="text-sm text-muted-foreground">גננת/רכזת: {item.manager_name}</p>}
+              {item.manager_name && (
+                <p className="text-sm text-muted-foreground">
+                  גננת/רכזת: {item.manager_name}
+                  {item.manager_phone ? ` · ${item.manager_phone}` : ""}
+                </p>
+              )}
               {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
               {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
               {(item.lesson_duration || item.lessons_count) && (
@@ -448,6 +456,16 @@ export function LessonEditDialog({
                   value={managerName}
                   onChange={(e) => setManagerName(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">טלפון גננת/רכזת</label>
+                <input
+                  type="tel"
+                  value={managerPhone}
+                  onChange={(e) => setManagerPhone(e.target.value)}
+                  dir="ltr"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-right"
                 />
               </div>
               <div>

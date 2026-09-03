@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { DAYS_HEBREW, DAYS_SHORT, LESSON_STATUS } from "@/lib/utils/constants";
 import { formatTime, formatDateShort, getTodayInIsrael, getNowInIsrael } from "@/lib/utils/date";
-import { MapPin, Clock, CalendarDays } from "lucide-react";
+import { MapPin, Clock, CalendarDays, Phone } from "lucide-react";
 import Link from "next/link";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
@@ -67,6 +67,7 @@ export default async function MySchedulePage({
       instructor_absence_request,
       instructor_request_type,
       instructor_notes,
+      recurring_item_id,
       location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
     `
     )
@@ -75,6 +76,23 @@ export default async function MySchedulePage({
     .lte("lesson_date", weekEndStr)
     .order("lesson_date")
     .order("start_time");
+
+  // Group name and manager (גננת/רכזת) contact details live on the recurring_schedule
+  // template, not on each lesson instance — attach them here so the card can show them.
+  const recurringIds = [...new Set((weekLessons ?? []).map((l: any) => l.recurring_item_id).filter(Boolean))];
+  if (recurringIds.length > 0 && weekLessons) {
+    const { data: recurringRows } = await supabase
+      .from("recurring_schedule")
+      .select("id, group_name, framework_name, manager_name, manager_phone")
+      .in("id", recurringIds);
+    const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
+    for (const lesson of weekLessons as any[]) {
+      const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
+      lesson.framework_name = recurring?.framework_name || recurring?.group_name || null;
+      lesson.manager_name = recurring?.manager_name ?? null;
+      lesson.manager_phone = recurring?.manager_phone ?? null;
+    }
+  }
 
   // Fetch signatures for this week's lessons
   const lessonIds = (weekLessons ?? []).map((l) => l.id);
@@ -234,7 +252,7 @@ export default async function MySchedulePage({
                                 </span>
                               </div>
                               <p className="text-lg font-semibold text-foreground">
-                                {lesson.location?.name}
+                                {lesson.framework_name || lesson.location?.name}
                               </p>
                               <div className="flex items-center gap-2 text-sm text-foreground/70">
                                 <MapPin size={14} />
@@ -245,6 +263,25 @@ export default async function MySchedulePage({
                                     : ""}
                                 </span>
                               </div>
+                              {lesson.manager_name && (
+                                <div className="flex items-center gap-2 text-sm text-foreground/70">
+                                  <Phone size={14} />
+                                  <span>
+                                    {lesson.manager_name}
+                                    {lesson.manager_phone && (
+                                      <>
+                                        {" · "}
+                                        <a
+                                          href={`tel:${lesson.manager_phone}`}
+                                          className="font-semibold text-foreground underline"
+                                        >
+                                          {lesson.manager_phone}
+                                        </a>
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                              )}
                               {lesson.location?.age_group && (
                                 <span className="inline-block rounded-xl bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                                   גיל {lesson.location.age_group}
