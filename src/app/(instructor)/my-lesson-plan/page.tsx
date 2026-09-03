@@ -62,7 +62,7 @@ export default async function MyLessonPlanPage() {
     getInstructorNextWeekAssignment(profile.instructor_id),
   ]);
 
-  if (!assignment) {
+  if (!assignment || !assignment.lesson_plan?.id) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-foreground">המערך השבועי שלי</h1>
@@ -80,9 +80,7 @@ export default async function MyLessonPlanPage() {
 
   // Parallel: fetch lesson plans for current + next week
   const [lessonPlan, nextWeekPlan] = await Promise.all([
-    assignment.lesson_plan?.id
-      ? getLessonPlanWithEquipment(assignment.lesson_plan.id)
-      : Promise.resolve(null),
+    getLessonPlanWithEquipment(assignment.lesson_plan.id),
     nextWeekAssignment?.lesson_plan?.id
       ? getLessonPlanWithEquipment(nextWeekAssignment.lesson_plan.id)
       : Promise.resolve(null),
