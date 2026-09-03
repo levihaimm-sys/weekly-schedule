@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 import { dayLabel } from "@/lib/utils/staffing";
 import { formatTime } from "@/lib/utils/date";
@@ -21,6 +21,38 @@ function frameworkLabel(r: RecurringScheduleWithDetails): string {
   return r.framework_name || r.group_name || "—";
 }
 
+type SortKey = "day" | "time" | "framework" | "address" | "city" | "instructor" | "field";
+type SortDir = "asc" | "desc";
+
+const SORT_COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "day", label: "יום" },
+  { key: "time", label: "שעה" },
+  { key: "framework", label: "מסגרת" },
+  { key: "address", label: "כתובת" },
+  { key: "city", label: "עיר" },
+  { key: "instructor", label: "מדריך" },
+  { key: "field", label: "תחום" },
+];
+
+function sortValue(r: RecurringScheduleWithDetails, key: SortKey): string | number {
+  switch (key) {
+    case "day":
+      return r.day_of_week;
+    case "time":
+      return r.start_time;
+    case "framework":
+      return frameworkLabel(r);
+    case "address":
+      return r.address ?? "";
+    case "city":
+      return r.location?.city ?? "";
+    case "instructor":
+      return r.instructor?.full_name ?? "";
+    case "field":
+      return r.field ?? "";
+  }
+}
+
 export function WeeklyScheduleTable({ schedule, instructors }: Props) {
   const [editingItem, setEditingItem] = useState<RecurringScheduleWithDetails | null>(null);
 
@@ -29,6 +61,18 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
   const [clientFilter, setClientFilter] = usePersistedState<string[]>("weekly-table-client", []);
   const [cityFilter, setCityFilter] = usePersistedState<string[]>("weekly-table-city", []);
   const [instructorFilter, setInstructorFilter] = usePersistedState<string[]>("weekly-table-instructor", []);
+
+  const [sortKey, setSortKey] = usePersistedState<SortKey>("weekly-table-sort-key", "day");
+  const [sortDir, setSortDir] = usePersistedState<SortDir>("weekly-table-sort-dir", "asc");
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   const hasActiveFilters =
     dayFilter.length > 0 ||
@@ -59,7 +103,7 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
   ).sort(sortHe);
 
   const filtered = useMemo(() => {
-    return schedule.filter((r) => {
+    const result = schedule.filter((r) => {
       if (dayFilter.length > 0 && !dayFilter.includes(String(r.day_of_week))) return false;
       if (frameworkFilter.length > 0 && !frameworkFilter.includes(frameworkLabel(r))) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(r.client_name ?? "")) return false;
@@ -67,7 +111,17 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
       if (instructorFilter.length > 0 && !instructorFilter.includes(r.instructor?.full_name ?? "")) return false;
       return true;
     });
-  }, [schedule, dayFilter, frameworkFilter, clientFilter, cityFilter, instructorFilter]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    result.sort((a, b) => {
+      const va = sortValue(a, sortKey);
+      const vb = sortValue(b, sortKey);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return sortHe(String(va), String(vb)) * dir;
+    });
+
+    return result;
+  }, [schedule, dayFilter, frameworkFilter, clientFilter, cityFilter, instructorFilter, sortKey, sortDir]);
 
   return (
     <div className="space-y-4">
@@ -118,13 +172,25 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-              <th className="px-3 py-2.5 whitespace-nowrap">יום</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">שעה</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">מסגרת</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">כתובת</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">עיר</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">מדריך</th>
-              <th className="px-3 py-2.5 whitespace-nowrap">תחום</th>
+              {SORT_COLUMNS.map((col) => (
+                <th key={col.key} className="px-3 py-2.5 whitespace-nowrap">
+                  <button
+                    onClick={() => handleSort(col.key)}
+                    className="flex items-center gap-1 hover:text-foreground"
+                  >
+                    {col.label}
+                    {sortKey === col.key ? (
+                      sortDir === "asc" ? (
+                        <ArrowUp size={12} />
+                      ) : (
+                        <ArrowDown size={12} />
+                      )
+                    ) : (
+                      <ArrowUpDown size={12} className="opacity-40" />
+                    )}
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -140,8 +206,10 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
                   <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                     {dayLabel(r.day_of_week)}
                   </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap" dir="ltr">
-                    {formatTime(r.start_time)}
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    <span dir="ltr" className="block text-right">
+                      {formatTime(r.start_time)}
+                    </span>
                   </td>
                   <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
                     <button onClick={() => setEditingItem(r)} className="hover:underline" title="ערוך גן">
