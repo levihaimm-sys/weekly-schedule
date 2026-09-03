@@ -465,7 +465,7 @@ export function AssignmentsOverviewTable({
       </div>
 
       <div className="overflow-auto rounded-lg border border-border max-h-[calc(100vh-200px)]">
-        <table className="w-full border-collapse text-sm" dir="rtl">
+        <table className="border-collapse text-sm" dir="rtl">
           <thead className="sticky top-0 z-20">
             {/* City header row */}
             <tr className="bg-secondary text-[#1C1917]">
