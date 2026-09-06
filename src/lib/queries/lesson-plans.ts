@@ -144,6 +144,7 @@ export async function getLessonPlanWithEquipment(
       `
       equipment_id,
       quantity,
+      instructor_quantity,
       equipment_type,
       equipment:equipment(id, name)
     `
@@ -159,6 +160,7 @@ export async function getLessonPlanWithEquipment(
     equipment_id: item.equipment_id,
     equipment_name: item.equipment.name,
     quantity: item.quantity,
+    instructor_quantity: item.instructor_quantity,
     equipment_type: item.equipment_type,
   }));
 
@@ -221,13 +223,16 @@ export async function getOrCreateEquipmentConfirmations(
     return existing as any;
   }
 
-  // If not, create confirmations based on lesson plan equipment
+  // If not, create confirmations based on lesson plan equipment. instructor_quantity is an
+  // admin override for what's actually handed out (e.g. extra units to cover breakage/loss) —
+  // it takes precedence over the plan's nominal required quantity when set.
   const { data: equipmentItems } = await supabase
     .from("lesson_plan_equipment")
     .select(
       `
       equipment_id,
-      quantity
+      quantity,
+      instructor_quantity
     `
     )
     .eq("lesson_plan_id", lessonPlanId);
@@ -240,7 +245,7 @@ export async function getOrCreateEquipmentConfirmations(
     assignment_id: assignmentId,
     instructor_id: instructorId,
     equipment_id: item.equipment_id,
-    expected_quantity: item.quantity,
+    expected_quantity: item.instructor_quantity ?? item.quantity,
     received_quantity: null,
     is_confirmed: false,
   }));
@@ -445,6 +450,83 @@ export async function getLessonPlansByCategory(): Promise<
     }
     grouped[plan.category].push(plan);
   });
+
+  return grouped;
+}
+
+/**
+ * Get every lesson plan together with its full equipment list (required quantity and the
+ * instructor-facing override), grouped by category — for the equipment-matching admin screen.
+ */
+export async function getLessonPlansWithEquipmentByCategory(): Promise<
+  Record<
+    string,
+    Array<
+      LessonPlan & {
+        equipment: Array<{
+          id: string;
+          equipment_id: string;
+          equipment_name: string;
+          quantity: number;
+          instructor_quantity: number | null;
+        }>;
+      }
+    >
+  >
+> {
+  const supabase = await createClient();
+
+  const { data: plans, error } = await supabase
+    .from("lesson_plans")
+    .select("*")
+    .order("category")
+    .order("week_number");
+
+  if (error || !plans) {
+    console.error("Error fetching lesson plans:", error);
+    return {};
+  }
+
+  const { data: equipmentRows } = await supabase
+    .from("lesson_plan_equipment")
+    .select(
+      `
+      id,
+      lesson_plan_id,
+      equipment_id,
+      quantity,
+      instructor_quantity,
+      equipment:equipment(id, name)
+    `
+    );
+
+  const equipmentByPlan = new Map<string, Array<{
+    id: string;
+    equipment_id: string;
+    equipment_name: string;
+    quantity: number;
+    instructor_quantity: number | null;
+  }>>();
+  for (const row of (equipmentRows ?? []) as any[]) {
+    const list = equipmentByPlan.get(row.lesson_plan_id) ?? [];
+    list.push({
+      id: row.id,
+      equipment_id: row.equipment_id,
+      equipment_name: row.equipment.name,
+      quantity: row.quantity,
+      instructor_quantity: row.instructor_quantity,
+    });
+    equipmentByPlan.set(row.lesson_plan_id, list);
+  }
+
+  const grouped: Record<string, Array<LessonPlan & { equipment: any[] }>> = {};
+  for (const plan of plans) {
+    if (!grouped[plan.category]) grouped[plan.category] = [];
+    grouped[plan.category].push({
+      ...plan,
+      equipment: equipmentByPlan.get(plan.id) ?? [],
+    });
+  }
 
   return grouped;
 }

@@ -285,10 +285,12 @@ export async function distributeEquipmentToInstructor(
     .delete()
     .eq("assignment_id", assignmentId);
 
-  // Get equipment for the lesson plan
+  // Get equipment for the lesson plan. instructor_quantity is an admin override for what's
+  // actually handed out (e.g. extra units to cover breakage/loss) — it takes precedence over
+  // the plan's nominal required quantity when set.
   const { data: equipmentItems } = await supabase
     .from("lesson_plan_equipment")
-    .select("equipment_id, quantity")
+    .select("equipment_id, quantity, instructor_quantity")
     .eq("lesson_plan_id", lessonPlanId);
 
   if (equipmentItems && equipmentItems.length > 0) {
@@ -297,7 +299,7 @@ export async function distributeEquipmentToInstructor(
       assignment_id: assignmentId,
       instructor_id: assignment.instructor_id,
       equipment_id: item.equipment_id,
-      expected_quantity: item.quantity,
+      expected_quantity: item.instructor_quantity ?? item.quantity,
       received_quantity: null,
       is_confirmed: false,
     }));
@@ -361,4 +363,29 @@ export async function addExtraEquipment(
   revalidatePath("/today");
   revalidatePath("/lesson-plans/equipment-report");
   return { success: true, data };
+}
+
+/**
+ * Set the quantity of one equipment item that instructors are actually told they're
+ * receiving for a lesson plan (e.g. handing out 40 sticks when the plan calls for 35, to
+ * cover breakage/loss). Pass null to fall back to the plan's own required quantity.
+ */
+export async function updateLessonPlanEquipmentInstructorQuantity(
+  lessonPlanEquipmentId: string,
+  instructorQuantity: number | null
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("lesson_plan_equipment")
+    .update({ instructor_quantity: instructorQuantity })
+    .eq("id", lessonPlanEquipmentId);
+
+  if (error) {
+    console.error("Error updating instructor quantity:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/lesson-plans/equipment-matching");
+  return { success: true };
 }

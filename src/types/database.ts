@@ -123,6 +123,7 @@ export interface LessonPlanEquipment {
   lesson_plan_id: string;
   equipment_id: string;
   quantity: number;
+  instructor_quantity: number | null;
   equipment_type: 'main' | 'track' | 'stamp';
   created_at: string;
 }
@@ -189,6 +190,7 @@ export interface LessonPlanWithEquipment extends LessonPlan {
     equipment_id: string;
     equipment_name: string;
     quantity: number;
+    instructor_quantity: number | null;
     equipment_type: 'main' | 'track' | 'stamp';
   }>;
 }

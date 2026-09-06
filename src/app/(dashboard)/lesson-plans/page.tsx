@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { BookOpen, Package, Calendar } from "lucide-react";
+import { BookOpen, Package, Calendar, Scale } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -40,23 +40,6 @@ export default async function LessonPlansPage() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Link
-          href="/equipment-distribution"
-          className="bg-white border border-gray-200 rounded-lg p-6 hover:border-orange-300 hover:shadow-md transition-all"
-        >
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <Package className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold mb-2">חלוקת ציוד</h3>
-              <p className="text-sm text-gray-600">
-                חלוקת ציוד למדריכים לשבוע הנוכחי
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
           href="/lesson-plans/assignments"
           className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-300 hover:shadow-md transition-all"
         >
@@ -68,6 +51,23 @@ export default async function LessonPlansPage() {
               <h3 className="text-lg font-semibold mb-2">הקצאות שבועיות</h3>
               <p className="text-sm text-gray-600">
                 ניהול והקצאת מערכי שיעור למדריכים לפי שבועות
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/equipment-distribution"
+          className="bg-white border border-gray-200 rounded-lg p-6 hover:border-orange-300 hover:shadow-md transition-all"
+        >
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-orange-50 rounded-lg">
+              <Package className="w-6 h-6 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold mb-2">חלוקת ציוד</h3>
+              <p className="text-sm text-gray-600">
+                חלוקת ציוד למדריכים לשבוע הנוכחי
               </p>
             </div>
           </div>
@@ -119,6 +119,23 @@ export default async function LessonPlansPage() {
               <h3 className="text-lg font-semibold mb-2">ניהול מערכים</h3>
               <p className="text-sm text-gray-600">
                 עריכת מערכי שיעור, הוספת ציוד ועדכון קבצי PDF
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/lesson-plans/equipment-matching"
+          className="bg-white border border-gray-200 rounded-lg p-6 hover:border-teal-300 hover:shadow-md transition-all"
+        >
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-teal-50 rounded-lg">
+              <Scale className="w-6 h-6 text-teal-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold mb-2">התאמת ציוד למערך</h3>
+              <p className="text-sm text-gray-600">
+                עדכון הכמות שמוצגת למדריכים לעומת הכמות הרשומה במערך
               </p>
             </div>
           </div>
