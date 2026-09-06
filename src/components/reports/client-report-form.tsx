@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CLIENTS, DAYS_SHORT } from "@/lib/utils/constants";
+import { DAYS_SHORT } from "@/lib/utils/constants";
 import { getClientReportData, ClientReportData } from "@/lib/actions/reports";
 import { Loader2, Download, Printer } from "lucide-react";
 
@@ -37,9 +37,9 @@ const statusColor: Record<string, string> = {
   substitute: "bg-purple-50 text-purple-700",
 };
 
-export function ClientReportForm() {
+export function ClientReportForm({ clients }: { clients: string[] }) {
   const now = new Date();
-  const [client, setClient] = useState<string>(CLIENTS[0]);
+  const [client, setClient] = useState<string>(clients[0] ?? "");
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [mode, setMode] = useState<"full" | "summary">("full");
@@ -116,7 +116,7 @@ export function ClientReportForm() {
             onChange={(e) => { setClient(e.target.value); setReport(null); }}
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
-            {CLIENTS.map((c) => (
+            {clients.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>

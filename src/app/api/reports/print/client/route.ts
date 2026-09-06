@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { CLIENT_CITIES } from "@/lib/utils/constants";
 
 const HEBREW_DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const MONTHS_HEBREW = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
@@ -20,20 +19,24 @@ export async function GET(request: NextRequest) {
   const mode     = p.get("mode") ?? "full";
   const showSigs = p.get("sigs") !== "0";
 
-  const cities = CLIENT_CITIES[clientName];
-  if (!cities?.length) return new NextResponse("לקוח לא נמצא", { status: 404 });
+  const { data: recurringRows } = await supabase
+    .from("recurring_schedule")
+    .select("id, location:locations!recurring_schedule_location_id_fkey(city)")
+    .eq("client_name", clientName);
+  const recurringIds = (recurringRows ?? []).map((r: any) => r.id);
+  if (!recurringIds.length) return new NextResponse("לקוח לא נמצא", { status: 404 });
+
+  const cities = [
+    ...new Set((recurringRows ?? []).map((r: any) => r.location?.city).filter(Boolean)),
+  ].sort((a: string, b: string) => a.localeCompare(b, "he"));
 
   const startDate = `${year}-${String(month).padStart(2,"0")}-01`;
   const endDate   = `${year}-${String(month).padStart(2,"0")}-${new Date(year,month,0).getDate()}`;
 
-  const { data: locations } = await supabase.from("locations").select("id,city").in("city", cities);
-  const locationIds = (locations ?? []).map((l: any) => l.id);
-  if (!locationIds.length) return new NextResponse("אין שיעורים לתקופה זו", { status: 404 });
-
   const { data: rawLessons } = await supabase
     .from("lessons")
     .select("id,lesson_date,start_time,status,instructor:instructors!lessons_instructor_id_fkey(full_name),location:locations!lessons_location_id_fkey(name,city)")
-    .in("location_id", locationIds)
+    .in("recurring_item_id", recurringIds)
     .gte("lesson_date", startDate).lte("lesson_date", endDate)
     .order("lesson_date").order("start_time");
 

@@ -3,7 +3,6 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { ClientReportDocument } from "@/lib/pdf/report-template";
 import { NextRequest, NextResponse } from "next/server";
 import React from "react";
-import { CLIENT_CITIES } from "@/lib/utils/constants";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,25 +24,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cities = CLIENT_CITIES[clientName as string];
-    if (!cities?.length)
+    const { data: recurringRows } = await supabase
+      .from("recurring_schedule")
+      .select("id, location:locations!recurring_schedule_location_id_fkey(city)")
+      .eq("client_name", clientName as string);
+
+    const recurringIds = (recurringRows ?? []).map((r) => r.id);
+    if (!recurringIds.length)
       return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+
+    const cities = [
+      ...new Set(
+        (recurringRows ?? [])
+          .map((r) => (r.location as any)?.city)
+          .filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b, "he"));
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-
-    const { data: locations } = await supabase
-      .from("locations")
-      .select("id, city")
-      .in("city", cities);
-
-    const locationIds = (locations ?? []).map((l) => l.id);
-    if (!locationIds.length)
-      return NextResponse.json(
-        { error: "אין שיעורים לתקופה זו" },
-        { status: 404 }
-      );
 
     const { data: rawLessons } = await supabase
       .from("lessons")
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
          instructor:instructors!lessons_instructor_id_fkey(full_name),
          location:locations!lessons_location_id_fkey(name, city)`
       )
-      .in("location_id", locationIds)
+      .in("recurring_item_id", recurringIds)
       .gte("lesson_date", startDate)
       .lte("lesson_date", endDate)
       .order("lesson_date")
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       (signatures ?? []).map((s) => [s.lesson_id, s])
     );
 
-    // Group by city (preserving CLIENT_CITIES order)
+    // Group by city (alphabetical order)
     const cityDataMap = new Map<
       string,
       {

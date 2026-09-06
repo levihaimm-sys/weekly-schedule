@@ -1,7 +1,27 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CLIENT_CITIES, CITY_TO_CLIENT } from "@/lib/utils/constants";
+
+/**
+ * The real client for a lesson is whichever recurring_schedule template it was
+ * generated from (recurring_item_id -> client_name) — not the city its location
+ * happens to be in. Several clients now run lessons in the same city (e.g. אפטר
+ * סקול and קיטו מרום both in תל אביב), so city can no longer stand in for client.
+ */
+export async function getDistinctClientNames(): Promise<string[]> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("recurring_schedule")
+    .select("client_name")
+    .not("client_name", "is", null);
+
+  const names = new Set(
+    (data ?? [])
+      .map((r) => r.client_name?.trim())
+      .filter((n): n is string => !!n)
+  );
+  return [...names].sort((a, b) => a.localeCompare(b, "he"));
+}
 
 export interface ClientReportLesson {
   id: string;
@@ -30,31 +50,18 @@ export async function getClientReportData(
   month: number,
   year: number
 ): Promise<{ data?: ClientReportData; error?: string }> {
-  const cities = CLIENT_CITIES[client];
-  if (!cities || cities.length === 0) return { error: "לקוח לא נמצא" };
-
   const supabase = createAdminClient();
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-  const { data: locations } = await supabase
-    .from("locations")
+  const { data: recurringRows } = await supabase
+    .from("recurring_schedule")
     .select("id")
-    .in("city", cities);
+    .eq("client_name", client);
 
-  const locationIds = (locations ?? []).map((l) => l.id);
-  if (locationIds.length === 0)
-    return {
-      data: {
-        lessons: [],
-        total: 0,
-        completed: 0,
-        cancelled: 0,
-        teacherConfirmed: 0,
-        instructorConfirmed: 0,
-      },
-    };
+  const recurringIds = (recurringRows ?? []).map((r) => r.id);
+  if (recurringIds.length === 0) return { error: "לקוח לא נמצא" };
 
   const { data: rawLessons, error } = await supabase
     .from("lessons")
@@ -63,7 +70,7 @@ export async function getClientReportData(
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(name, city)`
     )
-    .in("location_id", locationIds)
+    .in("recurring_item_id", recurringIds)
     .gte("lesson_date", startDate)
     .lte("lesson_date", endDate)
     .order("lesson_date")
@@ -147,10 +154,18 @@ export async function getMonthlyClientSummary(
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
+  const { data: recurringRows } = await supabase
+    .from("recurring_schedule")
+    .select("id, client_name")
+    .not("client_name", "is", null);
+  const clientByRecurringId = new Map(
+    (recurringRows ?? []).map((r) => [r.id, r.client_name])
+  );
+
   const { data: rawLessons, error } = await supabase
     .from("lessons")
     .select(
-      `id, status,
+      `id, status, recurring_item_id,
        location:locations!lessons_location_id_fkey(city),
        signatures(signer_role)`
     )
@@ -164,7 +179,7 @@ export async function getMonthlyClientSummary(
 
   for (const lesson of rawLessons ?? []) {
     const city = (lesson.location as any)?.city ?? "";
-    const client = CITY_TO_CLIENT[city];
+    const client = clientByRecurringId.get((lesson as any).recurring_item_id);
     if (!client) continue;
 
     if (!clientMap.has(client)) clientMap.set(client, new Map());
@@ -244,10 +259,18 @@ export async function getInstructorMonthlySummary(
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
+  const { data: recurringRows } = await supabase
+    .from("recurring_schedule")
+    .select("id, client_name")
+    .not("client_name", "is", null);
+  const clientByRecurringId = new Map(
+    (recurringRows ?? []).map((r) => [r.id, r.client_name])
+  );
+
   const { data: rawLessons, error } = await supabase
     .from("lessons")
     .select(
-      `id, status,
+      `id, status, recurring_item_id,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(city),
        signatures(signer_role)`
@@ -263,7 +286,7 @@ export async function getInstructorMonthlySummary(
   for (const lesson of rawLessons ?? []) {
     const instructorName = (lesson.instructor as any)?.full_name ?? "לא ידוע";
     const city = (lesson.location as any)?.city ?? "";
-    if (!city || !CITY_TO_CLIENT[city]) continue;
+    if (!city || !clientByRecurringId.get((lesson as any).recurring_item_id)) continue;
 
     if (!instructorMap.has(instructorName))
       instructorMap.set(instructorName, new Map());

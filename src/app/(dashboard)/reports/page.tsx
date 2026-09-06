@@ -1,4 +1,5 @@
 import { getAllInstructors } from "@/lib/queries/schedule";
+import { getDistinctClientNames } from "@/lib/actions/reports";
 import { FileText, Building2, BarChart3, Users } from "lucide-react";
 import { ReportForm } from "@/components/reports/report-form";
 import { ClientReportForm } from "@/components/reports/client-report-form";
@@ -6,7 +7,10 @@ import { MonthlySummaryForm } from "@/components/reports/monthly-summary-form";
 import { InstructorSummaryForm } from "@/components/reports/instructor-summary-form";
 
 export default async function ReportsPage() {
-  const instructors = await getAllInstructors();
+  const [instructors, clients] = await Promise.all([
+    getAllInstructors(),
+    getDistinctClientNames(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -17,7 +21,7 @@ export default async function ReportsPage() {
           <Building2 className="text-violet-500" size={24} />
           <h3 className="text-lg font-semibold">דוח לקוח</h3>
         </div>
-        <ClientReportForm />
+        <ClientReportForm clients={clients} />
       </div>
 
       <div className="rounded-xl border border-border bg-background p-6">
@@ -33,7 +37,7 @@ export default async function ReportsPage() {
           <BarChart3 className="text-emerald-500" size={24} />
           <h3 className="text-lg font-semibold">סיכום חודשי לפי לקוח</h3>
         </div>
-        <MonthlySummaryForm />
+        <MonthlySummaryForm clients={clients} />
       </div>
 
       <div className="rounded-xl border border-border bg-background p-6">

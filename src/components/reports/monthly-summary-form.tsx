@@ -5,7 +5,6 @@ import {
   getMonthlyClientSummary,
   ClientMonthlySummary,
 } from "@/lib/actions/reports";
-import { CLIENTS } from "@/lib/utils/constants";
 import { Loader2 } from "lucide-react";
 
 const MONTHS = [
@@ -16,7 +15,7 @@ const MONTHS = [
 const COL = "px-4 py-2 text-center tabular-nums";
 const COL_LABEL = "px-4 py-2";
 
-export function MonthlySummaryForm() {
+export function MonthlySummaryForm({ clients }: { clients: string[] }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -69,7 +68,7 @@ export function MonthlySummaryForm() {
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
           >
             <option value="">כל הלקוחות</option>
-            {CLIENTS.map((c) => <option key={c} value={c}>{c}</option>)}
+            {clients.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <button
