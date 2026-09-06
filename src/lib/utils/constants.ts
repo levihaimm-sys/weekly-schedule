@@ -105,7 +105,8 @@ export type TimePeriod = keyof typeof TIME_PERIODS;
 
 export const NEED_STATUS = {
   open: "פתוח",
-  partially_filled: "משובץ חלקית",
+  partially_filled: "שיבוץ זמני",
+  safe_assignment: "שיבוץ בטוח",
   filled: "מלא",
 } as const;
 

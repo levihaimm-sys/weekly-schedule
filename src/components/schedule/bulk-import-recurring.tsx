@@ -2,13 +2,13 @@
 
 import { useState, useRef } from "react";
 import { Upload, FileText, CheckCircle, AlertCircle, Download } from "lucide-react";
-import { bulkImportLessons } from "@/lib/actions/schedule";
+import { bulkImportRecurringSchedule } from "@/lib/actions/schedule";
 import { CITY_TO_CLIENT } from "@/lib/utils/constants";
 import { buildLessonSampleCsv, downloadLessonCsvTemplate, parseCsvTable } from "@/lib/utils/lesson-import-csv";
 
 const EXAMPLE_CSV = buildLessonSampleCsv().replace("\r\n", "\n");
 
-export function BulkImportLessons({
+export function BulkImportRecurringSchedule({
   locations,
   instructors,
 }: {
@@ -19,7 +19,7 @@ export function BulkImportLessons({
   const [rawCsv, setRawCsv] = useState("");
   const [result, setResult] = useState<{
     success?: boolean;
-    inserted?: number;
+    created?: number;
     skipped?: number;
     error?: string;
     details?: string[];
@@ -34,14 +34,10 @@ export function BulkImportLessons({
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       setRawCsv(text);
-      parsePreview(text);
+      setPreview(parseCsvTable(text));
       setResult(null);
     };
     reader.readAsText(file);
-  }
-
-  function parsePreview(text: string) {
-    setPreview(parseCsvTable(text));
   }
 
   async function handleImport() {
@@ -49,7 +45,7 @@ export function BulkImportLessons({
     setLoading(true);
     setResult(null);
     try {
-      const res = await bulkImportLessons(rawCsv);
+      const res = await bulkImportRecurringSchedule(rawCsv);
       setResult(res);
       if (res.success) {
         setPreview(null);
@@ -75,16 +71,17 @@ export function BulkImportLessons({
         </p>
         <div className="text-sm text-muted-foreground space-y-1">
           <p>
-            <strong>עמודות חובה:</strong> לקוח / עיר / מתחם (לפחות אחת מהן לזיהוי המיקום), תאריך התחלה, שעת התחלה
+            <strong>עמודות חובה:</strong> לקוח / עיר / מתחם (לפחות אחת מהן לזיהוי המיקום), יום, שעת התחלה,
+            מדריך/ה משובץ/ת
           </p>
           <p>
-            <strong>עמודות אופציונליות:</strong> כתובת, גננת/רכזת, איש קשר, קב&apos;, מסגרת, שם המסגרת, חוג, יום,
-            משך שיעור, הערות, מדריך/ה משובץ/ת
+            <strong>עמודות אופציונליות:</strong> כתובת, גננת/רכזת, איש קשר, קב&apos;, מסגרת, שם המסגרת, חוג,
+            משך שיעור, תאריך התחלה, הערות
           </p>
           <p>
-            שיעור זה חד-פעמי בתאריך שצוין. אם יש קב&apos; (כמות שיעורים) גדולה מ-1, ייווצרו כמה שיעורים באותו תאריך
-            בזה אחר זה לפי משך השיעור. עמודת &quot;יום&quot; אינה מחייבת כאן — התאריך בעמודת &quot;תאריך התחלה&quot;
-            הוא הקובע.
+            כל שורה תיכנס באופן קבוע ללוח (חוזרת כל שבוע ביום ובשעה שצוינו) ותיצור מיד גם את השיעורים הקרובים בלוח
+            השבועי. עמודת &quot;תאריך התחלה&quot; קובעת רק ממתי להתחיל את החזרה השבועית (אם ריקה — מהיום). אם יש
+            קב&apos; (כמות שיעורים) גדולה מ-1, ייווצרו כמה שיעורים קבועים באותו יום בזה אחר זה לפי משך השיעור.
           </p>
         </div>
         <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono overflow-x-auto whitespace-pre" dir="ltr">
@@ -143,10 +140,10 @@ export function BulkImportLessons({
           accept=".csv"
           onChange={handleFile}
           className="hidden"
-          id="csv-upload"
+          id="recurring-csv-upload"
         />
         <label
-          htmlFor="csv-upload"
+          htmlFor="recurring-csv-upload"
           className="cursor-pointer flex flex-col items-center gap-3"
         >
           <Upload className="h-10 w-10 text-muted-foreground" />
@@ -170,7 +167,7 @@ export function BulkImportLessons({
               disabled={loading}
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
             >
-              {loading ? "מייבא..." : `ייבא ${preview.length - 1} שיעורים`}
+              {loading ? "מייבא..." : `ייבא ${preview.length - 1} שיעורים קבועים`}
             </button>
           </div>
           <div className="overflow-x-auto">
@@ -223,7 +220,7 @@ export function BulkImportLessons({
             {result.success ? (
               <>
                 <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span>יובאו {result.inserted} שיעורים בהצלחה</span>
+                <span>נוספו {result.created} שיעורים קבועים בהצלחה</span>
                 {result.skipped ? (
                   <span className="text-sm text-muted-foreground">
                     ({result.skipped} שורות דולגו)

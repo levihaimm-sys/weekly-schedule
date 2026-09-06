@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format } from "date-fns";
 import { getTodayInIsrael, isHoliday } from "@/lib/utils/date";
 import { CLIENT_CITIES } from "@/lib/utils/constants";
+import { parseLessonCsv } from "@/lib/utils/lesson-import-csv";
+import { nameMatch, parseFreeTextDate } from "@/lib/utils/staffing";
+import { addMinutesToTimeString } from "@/lib/actions/staffing";
 
 
 /**
@@ -737,26 +740,6 @@ export async function createLocation(data: {
   return { success: true, id: loc.id as string };
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
-      else if (ch === '"') { inQuotes = false; }
-      else { current += ch; }
-    } else {
-      if (ch === '"') { inQuotes = true; }
-      else if (ch === ',') { result.push(current.trim()); current = ""; }
-      else { current += ch; }
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
-
 const CITY_ALIASES: Record<string, string> = {
   "פתח תקווה": "פת",
 };
@@ -774,26 +757,20 @@ function parseDate(raw: string): string | null {
   return `${year}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
 }
 
+// One-time lessons import — same CSV format as the staffing-needs import (needs-csv.tsx),
+// but each row lands directly in `lessons` as a one-off occurrence rather than a
+// recurring_schedule master row. Fields that lessons has no column for (address, manager,
+// contact, framework, field) are folded into change_notes so the data isn't lost.
 export async function bulkImportLessons(csvText: string) {
   const supabase = await createClient();
 
-  const lines = csvText
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+  const { rows: csvRows, skipped: skippedNoClient } = parseLessonCsv(csvText);
 
-  if (lines.length < 2) {
-    return { error: "הקובץ ריק או חסרת שורת כותרת" };
-  }
-
-  const header = parseCSVLine(lines[0]);
-  // Support both "שם הגן" (new) and "מיקום" (legacy)
-  const gardenCol = header.includes("שם הגן") ? "שם הגן" : "מיקום";
-  const requiredCols = ["תאריך", "שעה", gardenCol];
-  for (const col of requiredCols) {
-    if (!header.includes(col)) {
-      return { error: `עמודה חובה חסרה: ${col}` };
-    }
+  if (csvRows.length === 0) {
+    return {
+      error:
+        "לא נמצאו שורות תקינות בקובץ. יש לוודא שיש כותרות בעברית (לקוח, עיר, מתחם, תאריך התחלה, שעת התחלה וכו') ושבכל שורה יש לקוח, עיר או מתחם.",
+    };
   }
 
   const { data: allLocations } = await supabase
@@ -806,8 +783,8 @@ export async function bulkImportLessons(csvText: string) {
 
   // mutable maps — auto-created locations get added during the loop.
   // Keyed by city+name to avoid cross-city name collisions (e.g. "גן כרכום"
-  // exists in both ראש העין and פת); name-only map is a fallback for legacy
-  // CSVs ("מיקום" column) that don't carry a city.
+  // exists in both ראש העין and פת); name-only map is a fallback for rows
+  // that don't carry a city.
   const locationMapByCityName = new Map(
     (allLocations ?? []).map((l) => [`${(l.city ?? "").trim()}||${l.name.trim()}`, l.id])
   );
@@ -830,20 +807,16 @@ export async function bulkImportLessons(csvText: string) {
   }[] = [];
   const errors: string[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    const row: Record<string, string> = {};
-    header.forEach((col, idx) => {
-      row[col] = values[idx] ?? "";
-    });
+  for (let i = 0; i < csvRows.length; i++) {
+    const row = csvRows[i];
+    const rowLabel = `שורה ${i + 2} (${row.client_name})`;
 
-    const gardenName = row[gardenCol];
-    const rawCityName = row["עיר"] ?? "";
-    const cityName = normalizeCity(rawCityName);
+    const gardenName = row.location_name || row.client_name;
+    const cityName = normalizeCity(row.city ?? "");
 
     // Find or auto-create location. When the row carries a city, match/create
-    // by city+name; only fall back to name-only matching for legacy rows
-    // that have no city column at all.
+    // by city+name; only fall back to name-only matching for rows that have
+    // no city column at all.
     let locationId: string | undefined = cityName
       ? locationMapByCityName.get(`${cityName}||${gardenName}`)
       : locationMapByNameOnly.get(gardenName);
@@ -854,7 +827,7 @@ export async function bulkImportLessons(csvText: string) {
         .select("id")
         .single();
       if (locErr || !newLoc) {
-        errors.push(`שורה ${i + 1}: שגיאה ביצירת גן "${gardenName}": ${locErr?.message}`);
+        errors.push(`${rowLabel}: שגיאה ביצירת מיקום "${gardenName}": ${locErr?.message}`);
         continue;
       }
       locationId = newLoc.id as string;
@@ -863,38 +836,60 @@ export async function bulkImportLessons(csvText: string) {
     }
 
     let instructorId: string | null = null;
-    if (row["מדריך"]) {
-      instructorId = instructorMap.get(row["מדריך"]) ?? null;
+    const instructorName = row.instructor_name?.trim();
+    if (instructorName) {
+      instructorId = instructorMap.get(instructorName) ?? null;
       if (!instructorId) {
-        errors.push(`שורה ${i + 1}: מדריך לא נמצא "${row["מדריך"]}"`);
+        errors.push(`${rowLabel}: מדריך/ה לא נמצא/ה "${instructorName}"`);
         continue;
       }
     }
 
-    const dateVal = parseDate(row["תאריך"]);
+    const dateVal = parseDate(row.start_date ?? "");
     if (!dateVal) {
-      errors.push(`שורה ${i + 1}: תאריך לא תקין "${row["תאריך"]}"`);
+      errors.push(`${rowLabel}: תאריך התחלה לא תקין "${row.start_date ?? ""}"`);
       continue;
     }
 
-    const timeVal = row["שעה"];
+    const timeVal = row.start_time ?? "";
     if (!timeVal || !/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeVal)) {
-      errors.push(`שורה ${i + 1}: שעה לא תקינה "${timeVal}"`);
+      errors.push(`${rowLabel}: שעת התחלה לא תקינה "${timeVal}"`);
       continue;
     }
 
     const startTime = timeVal.length <= 5 ? `${timeVal.padStart(5, "0")}:00` : timeVal;
 
-    rows.push({
-      instructor_id: instructorId,
-      location_id: locationId,
-      lesson_date: dateVal,
-      start_time: startTime,
-      status: "scheduled",
-      change_notes: row["הערות"] || null,
-      is_one_time_change: true,
-      recurring_item_id: null,
-    });
+    const extraNotes = [
+      row.address ? `כתובת: ${row.address}` : null,
+      row.manager_name ? `גננת/רכזת: ${row.manager_name}` : null,
+      row.contact_name ? `איש קשר: ${row.contact_name}` : null,
+      row.framework || row.framework_name
+        ? `מסגרת: ${[row.framework, row.framework_name].filter(Boolean).join(" - ")}`
+        : null,
+      row.field ? `חוג: ${row.field}` : null,
+    ].filter((v): v is string => !!v);
+    const changeNotes = [row.notes, ...extraNotes].filter(Boolean).join(" · ") || null;
+
+    const lessonsCount = row.group_count > 1 ? row.group_count : 1;
+    if (lessonsCount > 1 && !row.lesson_duration) {
+      errors.push(`${rowLabel}: יש ${lessonsCount} שיעורים (קב') אך לא הוגדר משך שיעור`);
+      continue;
+    }
+
+    for (let slot = 0; slot < lessonsCount; slot++) {
+      const slotStartTime =
+        slot === 0 ? startTime : addMinutesToTimeString(startTime, slot * row.lesson_duration);
+      rows.push({
+        instructor_id: instructorId,
+        location_id: locationId,
+        lesson_date: dateVal,
+        start_time: slotStartTime,
+        status: "scheduled",
+        change_notes: changeNotes,
+        is_one_time_change: true,
+        recurring_item_id: null,
+      });
+    }
   }
 
   if (rows.length === 0) {
@@ -933,12 +928,214 @@ export async function bulkImportLessons(csvText: string) {
 
   revalidatePath("/schedule/weekly");
   revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/schedule/weekly-table");
   revalidatePath("/dashboard");
 
   return {
     success: true,
     inserted,
-    skipped: (lines.length - 1 - rows.length) + skippedDuplicates,
+    skipped: skippedNoClient + skippedDuplicates,
+    details: errors.length > 0 ? errors : undefined,
+  };
+}
+
+// Permanent-schedule import — same CSV format, but each row becomes a recurring_schedule
+// master row (like matching a staffing need to an instructor does) plus its concrete weekly
+// lesson instances going forward. Unlike the one-time import, an instructor is required here
+// since recurring_schedule rows always belong to one.
+export async function bulkImportRecurringSchedule(csvText: string) {
+  const supabase = createAdminClient();
+
+  const { rows: csvRows, skipped: skippedNoClient } = parseLessonCsv(csvText);
+
+  if (csvRows.length === 0) {
+    return {
+      error:
+        "לא נמצאו שורות תקינות בקובץ. יש לוודא שיש כותרות בעברית (לקוח, עיר, מתחם, יום, שעת התחלה, מדריך/ה משובץ/ת וכו') ושבכל שורה יש לקוח, עיר או מתחם.",
+    };
+  }
+
+  const [{ data: instructorRows }, { data: locationRows }, { data: recurringRows }] = await Promise.all([
+    supabase.from("instructors").select("id, full_name").in("status", ["active", "substitute"]),
+    supabase.from("locations").select("id, name, city"),
+    supabase.from("recurring_schedule").select("instructor_id, location_id, day_of_week, start_time"),
+  ]);
+
+  const instructorList = instructorRows ?? [];
+  // mutable — new sites (new cities/frameworks not yet in the locations module) get
+  // auto-created during the loop below and reused for later rows.
+  const locationList = locationRows ? [...locationRows] : [];
+  const existingKeys = new Set(
+    (recurringRows ?? []).map((r) => `${r.instructor_id}|${r.location_id}|${r.day_of_week}|${r.start_time}`)
+  );
+
+  const today = new Date();
+  const eightWeeksFromToday = addDays(today, 8 * 7);
+
+  let created = 0;
+  let skippedDuplicates = 0;
+  const errors: string[] = [];
+
+  for (const row of csvRows) {
+    const reasons: string[] = [];
+
+    if (row.day_of_week === null) reasons.push('לא זוהה יום תקין (יש להשתמש בשם יום, למשל "חמישי")');
+    if (!row.start_time) reasons.push("לא הוגדרה שעת התחלה");
+
+    const instructorName = row.instructor_name?.trim();
+    let instructorId: string | null = null;
+    if (!instructorName) {
+      reasons.push("לא הוגדר/ה מדריך/ה — לא ניתן להוסיף ללוח הקבוע בלי מדריך/ה משובץ/ת");
+    } else {
+      const exact = instructorList.find((inst) => inst.full_name.trim() === instructorName);
+      if (exact) {
+        instructorId = exact.id;
+      } else {
+        const fuzzy = instructorList.filter((inst) => nameMatch(inst.full_name, instructorName));
+        if (fuzzy.length === 1) {
+          instructorId = fuzzy[0].id;
+        } else if (fuzzy.length > 1) {
+          reasons.push(`נמצאו כמה מדריכים מתאימים ל-"${instructorName}", יש לתקן את השם לשם המלא`);
+        } else {
+          reasons.push(`המדריך/ה "${instructorName}" לא נמצא/ה ברשימת המדריכים הפעילים`);
+        }
+      }
+    }
+
+    const city = normalizeCity(row.city ?? "");
+    const candidateNames = [row.location_name, row.client_name].filter(
+      (n): n is string => !!n && n.trim() !== ""
+    );
+    let locationId: string | null = null;
+    for (const candidateName of candidateNames) {
+      const match = locationList.find((l) => (l.city ?? "").trim() === city && l.name.trim() === candidateName.trim());
+      if (match) {
+        locationId = match.id;
+        break;
+      }
+    }
+    if (!locationId && candidateNames.length > 0 && city) {
+      const newLocationName = candidateNames[0];
+      const { data: newLoc, error: locationError } = await supabase
+        .from("locations")
+        .insert({ name: newLocationName, city })
+        .select("id, name, city")
+        .single();
+      if (newLoc && !locationError) {
+        locationId = newLoc.id;
+        locationList.push(newLoc);
+      }
+    }
+    if (!locationId) {
+      reasons.push(city ? `לא ניתן היה ליצור/למצוא מיקום ב-${city}` : "לא הוגדרה עיר, לא ניתן ליצור מיקום");
+    }
+
+    const lessonsCount = row.group_count > 1 ? row.group_count : 1;
+    if (lessonsCount > 1 && !row.lesson_duration) {
+      reasons.push("יש כמה שיעורים (קב') אך לא הוגדר משך שיעור, לא ניתן לחשב את שעות ההתחלה הנוספות");
+    }
+
+    if (reasons.length > 0) {
+      errors.push(`${row.client_name}: ${reasons.join("; ")}`);
+      continue;
+    }
+
+    const startDateParsed = parseFreeTextDate(row.start_date) ?? today;
+    const dow = row.day_of_week as number;
+    const dayDiff = (dow - startDateParsed.getDay() + 7) % 7;
+    const firstOccurrence = addDays(startDateParsed, dayDiff);
+    const normalizedStartTime = row.start_time!.length === 5 ? `${row.start_time}:00` : row.start_time!;
+    const horizon =
+      eightWeeksFromToday > addDays(firstOccurrence, 8 * 7) ? eightWeeksFromToday : addDays(firstOccurrence, 8 * 7);
+
+    let rowErrorMessage: string | null = null;
+    for (let slot = 0; slot < lessonsCount; slot++) {
+      const slotStartTime =
+        slot === 0 ? normalizedStartTime : addMinutesToTimeString(normalizedStartTime, slot * row.lesson_duration);
+
+      const key = `${instructorId}|${locationId}|${dow}|${slotStartTime}`;
+      if (existingKeys.has(key)) {
+        skippedDuplicates++;
+        continue;
+      }
+
+      const { data: recurringRow, error: recurringError } = await supabase
+        .from("recurring_schedule")
+        .insert({
+          instructor_id: instructorId,
+          location_id: locationId,
+          day_of_week: dow,
+          start_time: slotStartTime,
+          group_name: row.framework_name || row.field || null,
+          client_name: row.client_name,
+          address: row.address,
+          manager_name: row.manager_name,
+          contact_name: row.contact_name,
+          framework: row.framework,
+          framework_name: row.framework_name,
+          field: row.field,
+          lesson_duration: row.lesson_duration,
+          lessons_count: row.group_count,
+          notes: row.notes,
+        })
+        .select("id")
+        .single();
+
+      if (recurringError || !recurringRow) {
+        rowErrorMessage = recurringError?.message ?? "שגיאה לא ידועה";
+        break;
+      }
+      existingKeys.add(key);
+
+      const lessonRows: {
+        recurring_item_id: string;
+        location_id: string;
+        instructor_id: string;
+        lesson_date: string;
+        start_time: string;
+        status: string;
+      }[] = [];
+      let weekStart = startOfWeek(firstOccurrence, { weekStartsOn: 0 });
+      while (weekStart <= horizon) {
+        const lessonDate = addDays(weekStart, dow);
+        if (lessonDate >= firstOccurrence) {
+          lessonRows.push({
+            recurring_item_id: recurringRow.id,
+            location_id: locationId!,
+            instructor_id: instructorId!,
+            lesson_date: format(lessonDate, "yyyy-MM-dd"),
+            start_time: slotStartTime,
+            status: "scheduled",
+          });
+        }
+        weekStart = addDays(weekStart, 7);
+      }
+
+      for (let b = 0; b < lessonRows.length; b += 100) {
+        const batch = lessonRows.slice(b, b + 100);
+        await supabase
+          .from("lessons")
+          .upsert(batch, { onConflict: "instructor_id,location_id,lesson_date,start_time", ignoreDuplicates: true });
+      }
+
+      created++;
+    }
+
+    if (rowErrorMessage) {
+      errors.push(`${row.client_name}: שגיאה ביצירת הלוח הקבוע: ${rowErrorMessage}`);
+    }
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
+  revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    created,
+    skipped: skippedNoClient + skippedDuplicates,
     details: errors.length > 0 ? errors : undefined,
   };
 }

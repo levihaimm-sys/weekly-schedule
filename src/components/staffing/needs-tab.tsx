@@ -19,6 +19,7 @@ interface Props {
 const STATUS_COLORS: Record<NeedStatus, string> = {
   open: "bg-blue-50 text-blue-700 border-blue-200",
   partially_filled: "bg-amber-50 text-amber-700 border-amber-200",
+  safe_assignment: "bg-purple-50 text-purple-700 border-purple-200",
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
