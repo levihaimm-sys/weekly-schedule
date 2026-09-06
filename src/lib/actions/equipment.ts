@@ -137,13 +137,15 @@ export async function updateWeeklyAssignment(
   // Confirm the assignment exists
   const { data: currentAssignment, error: fetchError } = await supabase
     .from("weekly_lesson_assignments")
-    .select("id")
+    .select("id, lesson_plan_id")
     .eq("id", assignmentId)
     .single();
 
   if (fetchError || !currentAssignment) {
     return { success: false, error: "Assignment not found" };
   }
+
+  const planChanged = currentAssignment.lesson_plan_id !== lessonPlanId;
 
   // Update the assignment. Lesson plans are not exclusive per week - multiple
   // instructors can be assigned the same one, so no swap-displacement here.
@@ -160,9 +162,21 @@ export async function updateWeeklyAssignment(
     return { success: false, error: updateError.message };
   }
 
+  // Equipment confirmations are generated lazily (on the instructor's next visit) from
+  // whatever plan is assigned. If the plan just changed, the confirmations already generated
+  // for the OLD plan are now stale — clear them so they get regenerated against the new plan.
+  if (planChanged) {
+    await supabase
+      .from("equipment_confirmations")
+      .delete()
+      .eq("assignment_id", assignmentId);
+  }
+
   revalidatePath("/schedule");
   revalidatePath("/dashboard");
   revalidatePath("/lesson-plans/assignments");
+  revalidatePath("/today");
+  revalidatePath("/my-lesson-plan");
   return { success: true };
 }
 
