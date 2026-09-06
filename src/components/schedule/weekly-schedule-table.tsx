@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowUp, ArrowUpDown, X, MousePointerClick, CheckSquare, Square, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 import { dayLabel } from "@/lib/utils/staffing";
@@ -9,6 +10,7 @@ import { formatTime, getDayIndex } from "@/lib/utils/date";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { bulkUpdateLessons, bulkDeleteLessons, bulkApplyPermanentChange } from "@/lib/actions/schedule";
 
 interface WeeklyLessonRow {
   id: string;
@@ -86,7 +88,10 @@ function sortValue(r: WeeklyLessonRow, key: SortKey): string | number {
 
 const NO_INSTRUCTOR = "__no_instructor__";
 
+type BulkAction = "instructor" | "time" | "status" | "date" | "notes" | "delete" | null;
+
 export function WeeklyScheduleTable({ lessons, instructors }: Props) {
+  const router = useRouter();
   const [editingItem, setEditingItem] = useState<WeeklyLessonRow | null>(null);
 
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("weekly-table-day", []);
@@ -97,6 +102,37 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
 
   const [sortKey, setSortKey] = usePersistedState<SortKey>("weekly-table-sort-key", "day");
   const [sortDir, setSortDir] = usePersistedState<SortDir>("weekly-table-sort-dir", "asc");
+
+  // Multi-select state
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<BulkAction>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkInstructorId, setBulkInstructorId] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("cancelled");
+  const [bulkTime, setBulkTime] = useState("");
+  const [bulkNotes, setBulkNotes] = useState("");
+  const [bulkDate, setBulkDate] = useState("");
+
+  function toggleSelectMode() {
+    setSelectMode((prev) => !prev);
+    setSelectedIds(new Set());
+    setBulkAction(null);
+  }
+
+  function toggleRow(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setBulkAction(null);
+  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -168,6 +204,83 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
     return result;
   }, [lessons, dayFilter, frameworkFilter, clientFilter, cityFilter, instructorFilter, sortKey, sortDir]);
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filtered.forEach((r) => next.delete(r.id));
+      } else {
+        filtered.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  }
+
+  async function executeBulkAction(scope: "temporary" | "permanent" = "temporary") {
+    if (selectedIds.size === 0 || !bulkAction) return;
+    setBulkLoading(true);
+    const ids = Array.from(selectedIds);
+
+    if (bulkAction === "delete") {
+      const result = await bulkDeleteLessons(ids);
+      setBulkLoading(false);
+      if (!result.error) {
+        clearSelection();
+        setSelectMode(false);
+        router.refresh();
+      }
+      return;
+    }
+
+    let updates: Parameters<typeof bulkUpdateLessons>[1] = {};
+    if (bulkAction === "instructor") {
+      updates = { instructor_id: bulkInstructorId || null };
+    } else if (bulkAction === "time") {
+      if (!bulkTime) { setBulkLoading(false); return; }
+      updates = { start_time: `${bulkTime}:00` };
+    } else if (bulkAction === "status") {
+      updates = { status: bulkStatus };
+    } else if (bulkAction === "notes") {
+      updates = { change_notes: bulkNotes };
+    } else if (bulkAction === "date") {
+      if (!bulkDate) { setBulkLoading(false); return; }
+      updates = { lesson_date: bulkDate };
+    }
+
+    if (scope === "permanent" && (bulkAction === "instructor" || bulkAction === "time")) {
+      const selectedLessons = lessons.filter((r) => selectedIds.has(r.id));
+      const recurringIds = Array.from(
+        new Set(selectedLessons.filter((l) => l.recurring_item_id).map((l) => l.recurring_item_id as string))
+      );
+      const manualIds = selectedLessons.filter((l) => !l.recurring_item_id).map((l) => l.id);
+
+      if (recurringIds.length > 0) {
+        const result = await bulkApplyPermanentChange(recurringIds, updates);
+        if (result.error) { setBulkLoading(false); return; }
+      }
+      if (manualIds.length > 0) {
+        await bulkUpdateLessons(manualIds, updates);
+      }
+      setBulkLoading(false);
+      clearSelection();
+      setSelectMode(false);
+      router.refresh();
+      return;
+    }
+
+    const result = await bulkUpdateLessons(ids, updates);
+    setBulkLoading(false);
+    if (!result.error) {
+      clearSelection();
+      setSelectMode(false);
+      router.refresh();
+    }
+  }
+
+  const totalCols = SORT_COLUMNS.length + 1 + (selectMode ? 1 : 0);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -213,13 +326,167 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
             נקה סינון
           </button>
         )}
+        <button
+          type="button"
+          onClick={toggleSelectMode}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            selectMode
+              ? "border-blue-400 bg-blue-50 text-blue-700"
+              : "border-border bg-background hover:bg-muted"
+          }`}
+        >
+          <MousePointerClick size={14} />
+          בחירה מרובה
+        </button>
         <span className="text-sm text-muted-foreground">{filtered.length} שורות</span>
       </div>
+
+      {selectMode && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-blue-700">{selectedIds.size} שורות נבחרו</span>
+          <div className="flex flex-wrap gap-2 mr-auto">
+            {selectedIds.size > 0 && (
+              <>
+                {(["instructor", "time", "status", "date", "notes"] as const).map((action) => (
+                  <button
+                    key={action}
+                    onClick={() => setBulkAction(action)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      bulkAction === action
+                        ? "border-blue-400 bg-blue-100 text-blue-700"
+                        : "border-border bg-background hover:bg-muted"
+                    }`}
+                  >
+                    {{ instructor: "שנה מדריך", time: "שנה שעה", status: "שנה סטטוס", date: "שנה תאריך", notes: "הערות" }[action]}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setBulkAction("delete")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bulkAction === "delete"
+                      ? "border-red-400 bg-red-100 text-red-700"
+                      : "border-red-200 bg-background text-red-600 hover:bg-red-50"
+                  }`}
+                >
+                  מחק שיעורים
+                </button>
+                <button
+                  onClick={clearSelection}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                >
+                  נקה בחירה
+                </button>
+              </>
+            )}
+          </div>
+
+          {bulkAction === "instructor" && (
+            <div className="flex w-full flex-wrap items-center gap-2 mt-2">
+              <select
+                value={bulkInstructorId}
+                onChange={(e) => setBulkInstructorId(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">ללא מדריך</option>
+                {instructors.map((i) => (
+                  <option key={i.id} value={i.id}>{i.full_name}</option>
+                ))}
+              </select>
+              <BulkScopeButtons loading={bulkLoading} onApply={executeBulkAction} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "time" && (
+            <div className="flex w-full flex-wrap items-center gap-2 mt-2">
+              <input
+                type="time"
+                value={bulkTime}
+                onChange={(e) => setBulkTime(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkScopeButtons loading={bulkLoading} onApply={executeBulkAction} disabled={!bulkTime} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "status" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="scheduled">מתוכנן</option>
+                <option value="completed">הושלם</option>
+                <option value="cancelled">בוטל</option>
+                <option value="substitute">מחליף</option>
+              </select>
+              <BulkApplyButton loading={bulkLoading} onClick={() => executeBulkAction("temporary")} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "date" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="date"
+                value={bulkDate}
+                onChange={(e) => setBulkDate(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkApplyButton loading={bulkLoading} onClick={() => executeBulkAction("temporary")} disabled={!bulkDate} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "notes" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="text"
+                value={bulkNotes}
+                onChange={(e) => setBulkNotes(e.target.value)}
+                placeholder="הערה לשיעורים..."
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkApplyButton loading={bulkLoading} onClick={() => executeBulkAction("temporary")} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
+          {bulkAction === "delete" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <span className="flex-1 text-sm text-red-700">
+                האם למחוק {selectedIds.size} שיעורים? פעולה זו בלתי הפיכה.
+              </span>
+              <button
+                onClick={() => executeBulkAction("temporary")}
+                disabled={bulkLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "מחק"}
+              </button>
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
         <table className="w-full min-w-[940px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+              {selectMode && (
+                <th className="w-8 px-3 py-2.5">
+                  <button onClick={toggleSelectAll} title={allFilteredSelected ? "בטל בחירת הכל" : "בחר הכל"}>
+                    {allFilteredSelected ? (
+                      <CheckSquare size={15} className="text-blue-600" />
+                    ) : (
+                      <Square size={15} className="text-muted-foreground" />
+                    )}
+                  </button>
+                </th>
+              )}
               {SORT_COLUMNS.map((col) => (
                 <th key={col.key} className="px-3 py-2.5 whitespace-nowrap">
                   <button
@@ -247,43 +514,61 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
           <tbody className="divide-y divide-border">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={SORT_COLUMNS.length + 1} className="py-10 text-center text-muted-foreground">
+                <td colSpan={totalCols} className="py-10 text-center text-muted-foreground">
                   אין שיעורים תואמים לסינון
                 </td>
               </tr>
             ) : (
-              filtered.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {dayLabel(getDayIndex(dateOf(r)))}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    <span dir="ltr" className="block text-right">
-                      {formatTime(r.start_time)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
-                    <button onClick={() => setEditingItem(r)} className="hover:underline" title="ערוך שיעור">
-                      {frameworkLabel(r)}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {r.address ?? "—"}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {r.location?.city ?? "—"}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {r.instructor?.full_name ?? "—"}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {r.field ?? "—"}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {format(dateOf(r), "dd/MM")}
-                  </td>
-                </tr>
-              ))
+              filtered.map((r) => {
+                const isSelected = selectedIds.has(r.id);
+                return (
+                  <tr key={r.id} className={isSelected ? "bg-blue-50/60" : undefined}>
+                    {selectMode && (
+                      <td className="px-3 py-2.5 align-top">
+                        <button onClick={() => toggleRow(r.id)}>
+                          {isSelected ? (
+                            <CheckSquare size={15} className="text-blue-600" />
+                          ) : (
+                            <Square size={15} className="text-muted-foreground" />
+                          )}
+                        </button>
+                      </td>
+                    )}
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {dayLabel(getDayIndex(dateOf(r)))}
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      <span dir="ltr" className="block text-right">
+                        {formatTime(r.start_time)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
+                      <button
+                        onClick={() => (selectMode ? toggleRow(r.id) : setEditingItem(r))}
+                        className="hover:underline"
+                        title="ערוך שיעור"
+                      >
+                        {frameworkLabel(r)}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {r.address ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {r.location?.city ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {r.instructor?.full_name ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {r.field ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {format(dateOf(r), "dd/MM")}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -296,9 +581,62 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
           mode="lesson"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
-          hideScopeChoice
         />
       )}
     </div>
+  );
+}
+
+function BulkApplyButton({ loading, onClick, disabled }: { loading: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading || disabled}
+      className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shrink-0"
+    >
+      {loading && <Loader2 size={13} className="animate-spin" />}
+      החל
+    </button>
+  );
+}
+
+function BulkScopeButtons({
+  loading,
+  onApply,
+  disabled,
+}: {
+  loading: boolean;
+  onApply: (scope: "temporary" | "permanent") => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <button
+        onClick={() => onApply("temporary")}
+        disabled={loading || disabled}
+        title="ישונה רק לשיעורים הקיימים, בשבוע הבא יחזור ללוח הקבוע"
+        className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {loading && <Loader2 size={13} className="animate-spin" />}
+        החל (חד פעמי)
+      </button>
+      <button
+        onClick={() => onApply("permanent")}
+        disabled={loading || disabled}
+        title="ישנה גם את הלוח הקבוע ואת כל השיעורים העתידיים"
+        className="flex items-center gap-1.5 rounded-lg border-2 border-secondary bg-secondary/5 px-3 py-2 text-sm font-medium hover:bg-secondary/10 disabled:opacity-50"
+      >
+        {loading && <Loader2 size={13} className="animate-spin" />}
+        החל (קבוע)
+      </button>
+    </div>
+  );
+}
+
+function BulkCancelButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
+      <X size={14} />
+    </button>
   );
 }
