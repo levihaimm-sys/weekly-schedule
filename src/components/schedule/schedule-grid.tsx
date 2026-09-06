@@ -41,6 +41,8 @@ interface ScheduleGridProps {
   currentFilters: { cities?: string[]; instructors?: string[]; day?: string };
 }
 
+const NO_INSTRUCTOR = "__no_instructor__";
+
 export function ScheduleGrid({
   schedule,
   cities,
@@ -116,20 +118,24 @@ export function ScheduleGrid({
     [schedule]
   );
 
-  // Only offer instructors who actually have a lesson on this board — not the full instructor
-  // roster (which includes people with nothing scheduled, e.g. this year).
-  const instructorFilterOptions = useMemo(() => {
-    const byId = new Map<string, string>();
-    for (const item of schedule) {
-      if (item.instructor) byId.set(item.instructor.id, item.instructor.full_name);
-    }
-    return instructors.filter((inst) => byId.has(inst.id));
-  }, [schedule, instructors]);
+  // Full instructor roster — not just those with a lesson on this board. Scoping this list to
+  // the current board broke the filter chip's label lookup for a previously-selected instructor
+  // once their lessons dropped off the (filtered) board: it fell back to showing their raw id
+  // instead of their name, alongside a confusing empty result underneath.
+  const instructorFilterOptions = useMemo(
+    () => instructors.slice().sort((a, b) => a.full_name.localeCompare(b.full_name, "he")),
+    [instructors]
+  );
 
   const filteredSchedule = useMemo(() => {
     return schedule.filter((item) => {
       if (localCities.length > 0 && !localCities.includes(item.location?.city ?? "")) return false;
-      if (localInstructors.length > 0 && !localInstructors.includes(item.instructor?.id ?? "")) return false;
+      if (localInstructors.length > 0) {
+        const wantsNoInstructor = localInstructors.includes(NO_INSTRUCTOR);
+        const ids = localInstructors.filter((v) => v !== NO_INSTRUCTOR);
+        const matches = (wantsNoInstructor && !item.instructor) || (item.instructor && ids.includes(item.instructor.id));
+        if (!matches) return false;
+      }
       if (localClients.length > 0 && !localClients.includes(item.client_name ?? "")) return false;
       return true;
     });
@@ -157,7 +163,10 @@ export function ScheduleGrid({
         />
         <MultiSelectFilter
           wrapperClassName="relative w-36 shrink-0 sm:w-40"
-          options={instructorFilterOptions.map((inst) => ({ value: inst.id, label: inst.full_name }))}
+          options={[
+            { value: NO_INSTRUCTOR, label: "ללא מדריך" },
+            ...instructorFilterOptions.map((inst) => ({ value: inst.id, label: inst.full_name })),
+          ]}
           selected={localInstructors}
           onChange={setLocalInstructors}
           placeholder="כל המדריכים"

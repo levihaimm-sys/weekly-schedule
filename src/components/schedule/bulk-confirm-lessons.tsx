@@ -182,85 +182,92 @@ export function BulkConfirmLessons({ lessons, sigMap }: BulkConfirmLessonsProps)
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-4">
-                      <div className="shrink-0">
-                        <span className="font-bold text-sm text-foreground block">
-                          {dateStr}
-                        </span>
-                        <span className="font-bold text-sm text-foreground">
-                          {dayName}
-                        </span>
-                      </div>
-                      <div className="shrink-0">
-                        <span className="flex items-center gap-1 font-bold text-sm text-foreground">
-                          <Clock size={12} />
-                          {formatTime(lesson.start_time)}
-                        </span>
-                        <div className="flex items-center gap-1 font-bold text-sm text-foreground mt-0.5">
-                          <MapPin size={11} />
-                          {lesson.location?.city}
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex items-start gap-4 min-w-0">
+                        <div className="shrink-0">
+                          <span className="font-bold text-sm text-foreground block">
+                            {dateStr}
+                          </span>
+                          <span className="font-bold text-sm text-foreground">
+                            {dayName}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="flex items-center gap-1 font-bold text-sm text-foreground">
+                            <Clock size={12} className="shrink-0" />
+                            {formatTime(lesson.start_time)}
+                          </span>
+                          <div className="flex items-center gap-1 font-bold text-sm text-foreground mt-0.5">
+                            <MapPin size={11} className="shrink-0" />
+                            <span className="truncate">{lesson.location?.city}</span>
+                          </div>
                         </div>
                       </div>
+
+                      {!selectionMode && (
+                        <div className="shrink-0">
+                          {isConfirmed ? (
+                            <div className="flex flex-col items-end">
+                              <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
+                                ✓ מאושר
+                              </span>
+                              {sigMap[lesson.id]?.signer_role === "instructor" && (
+                                <RevokeApprovalButton lessonId={lesson.id} />
+                              )}
+                            </div>
+                          ) : lesson.status === "cancelled" ? (
+                            <div className="flex flex-col items-end">
+                              <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
+                                בוטל
+                              </span>
+                              {lesson.change_notes ===
+                                "לא התקיים - דווח ע״י המדריכה" && (
+                                <UndoCancellationButton lessonId={lesson.id} />
+                              )}
+                            </div>
+                          ) : lesson.instructor_absence_request ? (
+                            <span className="flex items-center gap-1 rounded-xl bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-700">
+                              <AlertTriangle size={12} />
+                              {INSTRUCTOR_REQUEST_TYPES[
+                                lesson.instructor_request_type as keyof typeof INSTRUCTOR_REQUEST_TYPES
+                              ] ?? "דווח"}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {selectionMode && !isEligible && (
+                        <div className="shrink-0">
+                          {isConfirmed && (
+                            <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
+                              ✓ מאושר
+                            </span>
+                          )}
+                          {lesson.status === "cancelled" && !isConfirmed && (
+                            <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
+                              בוטל
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <p className="font-bold text-sm text-foreground truncate mt-2">
                       {lesson.location?.name}
                     </p>
                   </div>
-
-                  {!selectionMode && (
-                    <div className="shrink-0">
-                      {isConfirmed ? (
-                        <div className="flex flex-col items-end">
-                          <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
-                            ✓ מאושר
-                          </span>
-                          {sigMap[lesson.id]?.signer_role === "instructor" && (
-                            <RevokeApprovalButton lessonId={lesson.id} />
-                          )}
-                        </div>
-                      ) : lesson.status === "cancelled" ? (
-                        <div className="flex flex-col items-end">
-                          <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
-                            בוטל
-                          </span>
-                          {lesson.change_notes ===
-                            "לא התקיים - דווח ע״י המדריכה" && (
-                            <UndoCancellationButton lessonId={lesson.id} />
-                          )}
-                        </div>
-                      ) : lesson.instructor_absence_request ? (
-                        <span className="flex items-center gap-1 rounded-xl bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-700">
-                          <AlertTriangle size={12} />
-                          {INSTRUCTOR_REQUEST_TYPES[
-                            lesson.instructor_request_type as keyof typeof INSTRUCTOR_REQUEST_TYPES
-                          ] ?? "דווח"}
-                        </span>
-                      ) : hasStartedPlus10 ? (
-                        <LessonConfirmButtons
-                          lessonId={lesson.id}
-                          locationName={lesson.location?.name ?? ""}
-                          startTime={lesson.start_time}
-                          signature={null}
-                        />
-                      ) : null}
-                    </div>
-                  )}
-
-                  {selectionMode && !isEligible && (
-                    <div className="shrink-0">
-                      {isConfirmed && (
-                        <span className="rounded-xl bg-success/20 px-2 py-1 text-[10px] font-bold text-success">
-                          ✓ מאושר
-                        </span>
-                      )}
-                      {lesson.status === "cancelled" && !isConfirmed && (
-                        <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
-                          בוטל
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
+
+                {!selectionMode && !isConfirmed && !lesson.instructor_absence_request &&
+                  lesson.status !== "cancelled" && hasStartedPlus10 && (
+                    <div className="mt-3 border-t border-border/50 pt-3">
+                      <LessonConfirmButtons
+                        lessonId={lesson.id}
+                        locationName={lesson.location?.name ?? ""}
+                        startTime={lesson.start_time}
+                        signature={null}
+                      />
+                    </div>
+                  )}
 
                 {!selectionMode && isFutureLesson && (
                   <div className="mt-3 border-t border-border/50 pt-3">

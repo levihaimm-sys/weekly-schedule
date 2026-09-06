@@ -167,16 +167,13 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
   const existingCities = (
     Array.from(new Set(lessons.map((r) => r.location?.city).filter(Boolean))) as string[]
   ).sort(sortHe);
-  // Only offer instructors who actually have a lesson this week — not the full roster.
+  // Full instructor roster — not just those with a lesson this week. A persisted filter
+  // selection (localStorage) survives navigating to a week where that instructor has no
+  // lessons; scoping this list to the current week broke the chip's label lookup and showed
+  // the raw instructor id instead of their name (with a confusing empty result underneath).
   const instructorFilterOptions = useMemo(() => {
-    const byId = new Map<string, string>();
-    for (const r of lessons) {
-      if (r.instructor) byId.set(r.instructor.id, r.instructor.full_name);
-    }
-    return Array.from(byId.entries())
-      .map(([id, full_name]) => ({ id, full_name }))
-      .sort((a, b) => sortHe(a.full_name, b.full_name));
-  }, [lessons]);
+    return instructors.slice().sort((a, b) => sortHe(a.full_name, b.full_name));
+  }, [instructors]);
 
   const filtered = useMemo(() => {
     const result = lessons.filter((r) => {

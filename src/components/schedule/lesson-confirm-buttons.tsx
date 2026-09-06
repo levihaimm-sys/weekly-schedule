@@ -69,23 +69,23 @@ export function LessonConfirmButtons({
 
   return (
     <>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setShowDialog(true)}
-          className="flex items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-foreground shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+          className="flex flex-1 basis-[30%] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-accent px-2 py-2 text-xs font-bold text-foreground shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
         >
-          <PenLine size={14} />
+          <PenLine size={14} className="shrink-0" />
           אישור גננת
         </button>
         <button
           onClick={handleInstructorConfirm}
           disabled={isPending}
-          className="flex items-center justify-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-bold text-foreground shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-50"
+          className="flex flex-1 basis-[30%] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-secondary px-2 py-2 text-xs font-bold text-foreground shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-50"
         >
           {isPending ? (
-            <Loader2 size={14} className="animate-spin" />
+            <Loader2 size={14} className="shrink-0 animate-spin" />
           ) : (
-            <Check size={14} />
+            <Check size={14} className="shrink-0" />
           )}
           אישור מדריכה
         </button>
@@ -97,12 +97,12 @@ export function LessonConfirmButtons({
             });
           }}
           disabled={isDidNotHappenPending}
-          className="flex items-center justify-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive shadow-sm transition-all hover:bg-destructive/20 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
+          className="flex flex-1 basis-[30%] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-destructive/10 px-2 py-2 text-xs font-bold text-destructive shadow-sm transition-all hover:bg-destructive/20 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
         >
           {isDidNotHappenPending ? (
-            <Loader2 size={14} className="animate-spin" />
+            <Loader2 size={14} className="shrink-0 animate-spin" />
           ) : (
-            <XCircle size={14} />
+            <XCircle size={14} className="shrink-0" />
           )}
           לא התקיים
         </button>
