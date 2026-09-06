@@ -27,8 +27,8 @@ import { logout } from "@/lib/actions/auth";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "דשבורד", icon: ClipboardList },
-  { href: "/schedule/weekly", label: "לוח שבועי", icon: CalendarClock },
-  { href: "/schedule/weekly-table", label: "לוח שבועי טבלה", icon: Table },
+  { href: "/schedule/weekly", label: "לוח שבועי - אריחים", icon: CalendarClock },
+  { href: "/schedule/weekly-table", label: "לוח שבועי - טבלה", icon: Table },
   { href: "/schedule", label: "לוח קבוע", icon: CalendarDays },
   { href: "/instructors", label: "מדריכים", icon: Users },
   { href: "/recruitment", label: "גיוס", icon: UserSearch },

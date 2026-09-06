@@ -30,7 +30,7 @@ export default async function WeeklyScheduleTablePage({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח שבועי טבלה</h2>
+        <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח שבועי - טבלה</h2>
         <WeekNavigator weekStartStr={weekStartStr} weekEndStr={weekEndStr} basePath="/schedule/weekly-table" />
       </div>
       <WeeklyScheduleTable lessons={lessons as any[]} instructors={instructors} />
