@@ -106,7 +106,9 @@ export async function getWeekLessons(
     if (recurringIds.length > 0) {
       const { data: recurringRows } = await supabase
         .from("recurring_schedule")
-        .select("id, group_name, address, client_name, contact_name")
+        .select(
+          "id, group_name, address, client_name, contact_name, manager_name, framework, framework_name, field, lesson_duration, lessons_count, notes"
+        )
         .in("id", recurringIds);
       const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
       for (const lesson of data as any[]) {
@@ -115,6 +117,13 @@ export async function getWeekLessons(
         lesson.address = recurring?.address ?? null;
         lesson.client_name = recurring?.client_name ?? null;
         lesson.contact_name = recurring?.contact_name ?? null;
+        lesson.manager_name = recurring?.manager_name ?? null;
+        lesson.framework = recurring?.framework ?? null;
+        lesson.framework_name = recurring?.framework_name ?? null;
+        lesson.field = recurring?.field ?? null;
+        lesson.lesson_duration = recurring?.lesson_duration ?? null;
+        lesson.lessons_count = recurring?.lessons_count ?? null;
+        lesson.notes = recurring?.notes ?? null;
       }
     }
   }

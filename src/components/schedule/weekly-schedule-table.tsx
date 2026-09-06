@@ -2,23 +2,54 @@
 
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
+import { format } from "date-fns";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 import { dayLabel } from "@/lib/utils/staffing";
-import { formatTime } from "@/lib/utils/date";
+import { formatTime, getDayIndex } from "@/lib/utils/date";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import type { RecurringScheduleWithDetails } from "@/types/database";
+
+interface WeeklyLessonRow {
+  id: string;
+  recurring_item_id?: string | null;
+  lesson_date: string;
+  start_time: string;
+  status: string;
+  change_notes: string | null;
+  instructor_absence_request?: boolean;
+  instructor_request_handled?: boolean;
+  instructor_request_type?: string | null;
+  instructor_notes?: string | null;
+  instructor: { id: string; full_name: string } | null;
+  substitute_instructor?: { id: string; full_name: string } | null;
+  location: { id: string; name: string; city: string; street?: string | null; age_group?: string | null } | null;
+  group_name?: string | null;
+  address?: string | null;
+  client_name?: string | null;
+  contact_name?: string | null;
+  manager_name?: string | null;
+  framework?: string | null;
+  framework_name?: string | null;
+  field?: string | null;
+  lesson_duration?: number | null;
+  lessons_count?: number | null;
+  notes?: string | null;
+}
 
 interface Props {
-  schedule: RecurringScheduleWithDetails[];
+  lessons: WeeklyLessonRow[];
   instructors: { id: string; full_name: string }[];
 }
 
 const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
 
-function frameworkLabel(r: RecurringScheduleWithDetails): string {
+function frameworkLabel(r: WeeklyLessonRow): string {
   return r.framework_name || r.group_name || "—";
+}
+
+function dateOf(r: WeeklyLessonRow): Date {
+  return new Date(r.lesson_date + "T00:00:00");
 }
 
 type SortKey = "day" | "time" | "framework" | "address" | "city" | "instructor" | "field";
@@ -34,10 +65,10 @@ const SORT_COLUMNS: { key: SortKey; label: string }[] = [
   { key: "field", label: "תחום" },
 ];
 
-function sortValue(r: RecurringScheduleWithDetails, key: SortKey): string | number {
+function sortValue(r: WeeklyLessonRow, key: SortKey): string | number {
   switch (key) {
     case "day":
-      return r.day_of_week;
+      return r.lesson_date;
     case "time":
       return r.start_time;
     case "framework":
@@ -53,8 +84,10 @@ function sortValue(r: RecurringScheduleWithDetails, key: SortKey): string | numb
   }
 }
 
-export function WeeklyScheduleTable({ schedule, instructors }: Props) {
-  const [editingItem, setEditingItem] = useState<RecurringScheduleWithDetails | null>(null);
+const NO_INSTRUCTOR = "__no_instructor__";
+
+export function WeeklyScheduleTable({ lessons, instructors }: Props) {
+  const [editingItem, setEditingItem] = useState<WeeklyLessonRow | null>(null);
 
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("weekly-table-day", []);
   const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("weekly-table-framework", []);
@@ -90,25 +123,37 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
   }
 
   const existingFrameworks = (
-    Array.from(new Set(schedule.map((r) => frameworkLabel(r)).filter((f) => f !== "—"))) as string[]
+    Array.from(new Set(lessons.map((r) => frameworkLabel(r)).filter((f) => f !== "—"))) as string[]
   ).sort(sortHe);
   const existingClients = (
-    Array.from(new Set(schedule.map((r) => r.client_name).filter(Boolean))) as string[]
+    Array.from(new Set(lessons.map((r) => r.client_name).filter(Boolean))) as string[]
   ).sort(sortHe);
   const existingCities = (
-    Array.from(new Set(schedule.map((r) => r.location?.city).filter(Boolean))) as string[]
+    Array.from(new Set(lessons.map((r) => r.location?.city).filter(Boolean))) as string[]
   ).sort(sortHe);
-  const existingInstructors = (
-    Array.from(new Set(schedule.map((r) => r.instructor?.full_name).filter(Boolean))) as string[]
-  ).sort(sortHe);
+  // Only offer instructors who actually have a lesson this week — not the full roster.
+  const instructorFilterOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const r of lessons) {
+      if (r.instructor) byId.set(r.instructor.id, r.instructor.full_name);
+    }
+    return Array.from(byId.entries())
+      .map(([id, full_name]) => ({ id, full_name }))
+      .sort((a, b) => sortHe(a.full_name, b.full_name));
+  }, [lessons]);
 
   const filtered = useMemo(() => {
-    const result = schedule.filter((r) => {
-      if (dayFilter.length > 0 && !dayFilter.includes(String(r.day_of_week))) return false;
+    const result = lessons.filter((r) => {
+      if (dayFilter.length > 0 && !dayFilter.includes(String(getDayIndex(dateOf(r))))) return false;
       if (frameworkFilter.length > 0 && !frameworkFilter.includes(frameworkLabel(r))) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(r.client_name ?? "")) return false;
       if (cityFilter.length > 0 && !cityFilter.includes(r.location?.city ?? "")) return false;
-      if (instructorFilter.length > 0 && !instructorFilter.includes(r.instructor?.full_name ?? "")) return false;
+      if (instructorFilter.length > 0) {
+        const wantsNoInstructor = instructorFilter.includes(NO_INSTRUCTOR);
+        const ids = instructorFilter.filter((v) => v !== NO_INSTRUCTOR);
+        const matches = (wantsNoInstructor && !r.instructor) || (r.instructor && ids.includes(r.instructor.id));
+        if (!matches) return false;
+      }
       return true;
     });
 
@@ -121,13 +166,13 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
     });
 
     return result;
-  }, [schedule, dayFilter, frameworkFilter, clientFilter, cityFilter, instructorFilter, sortKey, sortDir]);
+  }, [lessons, dayFilter, frameworkFilter, clientFilter, cityFilter, instructorFilter, sortKey, sortDir]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <MultiSelectFilter
-          options={DAYS_HEBREW.map((d, i) => ({ value: String(i), label: d }))}
+          options={DAYS_HEBREW.slice(0, 6).map((d, i) => ({ value: String(i), label: d }))}
           selected={dayFilter}
           onChange={setDayFilter}
           placeholder="כל הימים"
@@ -151,7 +196,10 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
           placeholder="כל הערים"
         />
         <MultiSelectFilter
-          options={existingInstructors.map((i) => ({ value: i, label: i }))}
+          options={[
+            { value: NO_INSTRUCTOR, label: "ללא מדריך" },
+            ...instructorFilterOptions.map((i) => ({ value: i.id, label: i.full_name })),
+          ]}
           selected={instructorFilter}
           onChange={setInstructorFilter}
           placeholder="כל המדריכים"
@@ -169,7 +217,7 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background">
-        <table className="w-full min-w-[860px] text-sm">
+        <table className="w-full min-w-[940px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               {SORT_COLUMNS.map((col) => (
@@ -191,20 +239,23 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
                   </button>
                 </th>
               ))}
+              {/* תאריך sits right after יום; it always tracks the same chronological order, so it
+                  shares the "day" sort control instead of getting a second, redundant one. */}
+              <th className="px-3 py-2.5 whitespace-nowrap">תאריך</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-muted-foreground">
-                  אין גנים תואמים לסינון
+                <td colSpan={SORT_COLUMNS.length + 1} className="py-10 text-center text-muted-foreground">
+                  אין שיעורים תואמים לסינון
                 </td>
               </tr>
             ) : (
               filtered.map((r) => (
                 <tr key={r.id}>
                   <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
-                    {dayLabel(r.day_of_week)}
+                    {dayLabel(getDayIndex(dateOf(r)))}
                   </td>
                   <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                     <span dir="ltr" className="block text-right">
@@ -212,7 +263,7 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
                     </span>
                   </td>
                   <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
-                    <button onClick={() => setEditingItem(r)} className="hover:underline" title="ערוך גן">
+                    <button onClick={() => setEditingItem(r)} className="hover:underline" title="ערוך שיעור">
                       {frameworkLabel(r)}
                     </button>
                   </td>
@@ -228,6 +279,9 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
                   <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                     {r.field ?? "—"}
                   </td>
+                  <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                    {format(dateOf(r), "dd/MM")}
+                  </td>
                 </tr>
               ))
             )}
@@ -239,7 +293,7 @@ export function WeeklyScheduleTable({ schedule, instructors }: Props) {
         <LessonEditDialog
           item={editingItem}
           instructors={instructors}
-          mode="recurring"
+          mode="lesson"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
         />
