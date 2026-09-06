@@ -1003,6 +1003,69 @@ export async function bulkUpdateLessons(
 }
 
 /**
+ * Bulk permanent change: updates the recurring schedule rows behind the given
+ * recurring_item_ids AND all their future lesson instances (today onward).
+ * Mirrors applyPermanentChange but for multiple recurring items sharing the
+ * same instructor/time update in one multi-select action.
+ */
+export async function bulkApplyPermanentChange(
+  recurringItemIds: string[],
+  updates: {
+    instructor_id?: string | null;
+    start_time?: string;
+  }
+) {
+  const supabase = createAdminClient();
+  const uniqueIds = Array.from(new Set(recurringItemIds));
+
+  if (uniqueIds.length === 0) {
+    return { error: "לא נבחרו שיעורים מהלוח הקבוע" };
+  }
+
+  const cleanUpdates: Record<string, string | null> = {};
+  if (updates.instructor_id !== undefined) cleanUpdates.instructor_id = updates.instructor_id;
+  if (updates.start_time) cleanUpdates.start_time = updates.start_time;
+
+  if (Object.keys(cleanUpdates).length === 0) {
+    return { error: "אין שינויים לשמור" };
+  }
+
+  const { error: recurringError } = await supabase
+    .from("recurring_schedule")
+    .update(cleanUpdates)
+    .in("id", uniqueIds);
+
+  if (recurringError) {
+    return { error: "שגיאה בעדכון הלוח הקבוע: " + recurringError.message };
+  }
+
+  const today = getTodayInIsrael();
+  const { error: lessonsError } = await supabase
+    .from("lessons")
+    .update(cleanUpdates)
+    .in("recurring_item_id", uniqueIds)
+    .gte("lesson_date", today);
+
+  if (lessonsError) {
+    return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
+  }
+
+  await supabase
+    .from("lessons")
+    .update({ instructor_absence_request: false, instructor_request_handled: false })
+    .in("recurring_item_id", uniqueIds)
+    .gte("lesson_date", today)
+    .eq("instructor_absence_request", true);
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
+/**
  * Admin clears an instructor request completely (removes it).
  */
 export async function clearInstructorRequest(lessonId: string) {
