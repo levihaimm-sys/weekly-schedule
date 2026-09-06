@@ -296,6 +296,7 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
           mode="lesson"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
+          hideScopeChoice
         />
       )}
     </div>

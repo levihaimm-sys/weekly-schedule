@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { X, Loader2, Trash2, Search, ChevronDown } from "lucide-react";
-import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest } from "@/lib/actions/schedule";
+import { X, Loader2, Trash2, Search, ChevronDown, UserMinus } from "lucide-react";
+import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 
@@ -22,6 +22,8 @@ interface LessonData {
   client_name?: string | null;
   contact_name?: string | null;
   instructor_absence_request?: boolean;
+  instructor_request_type?: string | null;
+  instructor_notes?: string | null;
   framework?: string | null;
   framework_name?: string | null;
   field?: string | null;
@@ -38,6 +40,9 @@ interface LessonEditDialogProps {
   mode: "lesson" | "recurring";
   open: boolean;
   onClose: () => void;
+  // Skips the permanent/temporary chooser in favor of a single one-time-change
+  // confirmation — used by screens that shouldn't be able to touch the recurring master.
+  hideScopeChoice?: boolean;
 }
 
 type SaveScope = null | "temporary" | "permanent";
@@ -48,6 +53,7 @@ export function LessonEditDialog({
   mode,
   open,
   onClose,
+  hideScopeChoice,
 }: LessonEditDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -55,6 +61,11 @@ export function LessonEditDialog({
   const [scopeChoice, setScopeChoice] = useState<SaveScope>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAbsenceRemoval, setShowAbsenceRemoval] = useState(false);
+  const [showAbsenceReport, setShowAbsenceReport] = useState(false);
+  const [absenceNote, setAbsenceNote] = useState("");
+  const [absenceLoading, setAbsenceLoading] = useState(false);
+  const [absenceError, setAbsenceError] = useState<string | null>(null);
+  const [absenceReported, setAbsenceReported] = useState(false);
 
   const [instructorId, setInstructorId] = useState(item.instructor?.id ?? "");
   const [startTime, setStartTime] = useState(item.start_time?.slice(0, 5) ?? "");
@@ -210,6 +221,24 @@ export function LessonEditDialog({
     setLoading(false);
   }
 
+  async function handleReportAbsence() {
+    if (!absenceNote.trim()) {
+      setAbsenceError("יש להזין הערה");
+      return;
+    }
+    setAbsenceLoading(true);
+    setAbsenceError(null);
+    const result = await submitInstructorRequest(item.id, "absence", absenceNote.trim());
+    setAbsenceLoading(false);
+    if (result.error) {
+      setAbsenceError(result.error);
+      return;
+    }
+    setShowAbsenceReport(false);
+    setAbsenceReported(true);
+    router.refresh();
+  }
+
   async function handleRemoveAbsence() {
     setLoading(true);
     const result = await clearInstructorRequest(item.id);
@@ -294,6 +323,40 @@ export function LessonEditDialog({
             </button>
             <button
               onClick={() => setShowDeleteConfirm(false)}
+              disabled={loading}
+              className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // One-time-change confirmation (screens that hide the permanent/temporary choice)
+  if (scopeChoice !== null && mode === "lesson" && hideScopeChoice) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+        <div className="mx-4 w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <h3 className="text-lg font-bold">שינוי חד פעמי בלבד</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            השינוי יחול רק על השיעור הזה. בשבוע הבא הוא יחזור ללוח הקבוע.
+          </p>
+
+          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() => handleSave("temporary")}
+              disabled={loading}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {loading && <Loader2 size={14} className="animate-spin" />}
+              אישור
+            </button>
+            <button
+              onClick={() => setScopeChoice(null)}
               disabled={loading}
               className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
@@ -619,6 +682,63 @@ export function LessonEditDialog({
                 placeholder="הערה לשינוי..."
                 className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
               />
+            </div>
+          )}
+
+          {/* Absence report — lets an admin mark a lesson as an instructor-reported absence,
+              exactly like when the instructor submits it herself from her app. */}
+          {mode === "lesson" && (
+            <div>
+              {item.instructor_absence_request || absenceReported ? (
+                <div className="rounded-xl bg-warning/10 px-3 py-2">
+                  <span className="text-sm font-bold text-foreground">
+                    📢 {item.instructor_request_type === "absence" || absenceReported ? "חיסור צפוי" : "בקשה"} נשלחה
+                  </span>
+                  {item.instructor_notes && (
+                    <span className="text-sm font-medium text-foreground/80"> - {item.instructor_notes}</span>
+                  )}
+                </div>
+              ) : !showAbsenceReport ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAbsenceReport(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-orange-300 py-2.5 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-50"
+                >
+                  <UserMinus size={15} />
+                  סמן חיסור (המדריכה הודיעה)
+                </button>
+              ) : (
+                <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3 space-y-2">
+                  <label className="block text-sm font-medium">סיבת החיסור</label>
+                  <textarea
+                    value={absenceNote}
+                    onChange={(e) => setAbsenceNote(e.target.value)}
+                    placeholder="למשל: מחלה, אירוע משפחתי..."
+                    rows={2}
+                    autoFocus
+                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  {absenceError && <p className="text-sm text-destructive">{absenceError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleReportAbsence}
+                      disabled={absenceLoading}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+                    >
+                      {absenceLoading && <Loader2 size={14} className="animate-spin" />}
+                      שלח דיווח
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAbsenceReport(false); setAbsenceNote(""); setAbsenceError(null); }}
+                      className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                    >
+                      ביטול
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
