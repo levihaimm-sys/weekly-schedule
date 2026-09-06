@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format } from "date-fns";
-import { getTodayInIsrael } from "@/lib/utils/date";
+import { getTodayInIsrael, isHoliday } from "@/lib/utils/date";
 import { CLIENT_CITIES } from "@/lib/utils/constants";
 
 
@@ -61,18 +61,20 @@ export async function replicateWeekSchedule(targetDate?: string) {
     return { error: "שגיאה בטעינת הלוח הקבוע: " + fetchError?.message };
   }
 
-  // Create lesson instances
-  const lessons = masterSchedule.map((entry) => {
-    const lessonDate = addDays(weekStart, entry.day_of_week);
-    return {
-      recurring_item_id: entry.id,
-      location_id: entry.location_id,
-      instructor_id: entry.instructor_id,
-      lesson_date: format(lessonDate, "yyyy-MM-dd"),
-      start_time: entry.start_time,
-      status: "scheduled",
-    };
-  });
+  // Create lesson instances (skip holiday dates)
+  const lessons = masterSchedule
+    .map((entry) => {
+      const lessonDate = addDays(weekStart, entry.day_of_week);
+      return {
+        recurring_item_id: entry.id,
+        location_id: entry.location_id,
+        instructor_id: entry.instructor_id,
+        lesson_date: format(lessonDate, "yyyy-MM-dd"),
+        start_time: entry.start_time,
+        status: "scheduled",
+      };
+    })
+    .filter((lesson) => !isHoliday(lesson.lesson_date));
 
   // Insert in batches
   let totalInserted = 0;
@@ -500,19 +502,21 @@ export async function syncFutureWeeksWithRecurring() {
     await admin.from("lessons").delete().in("id", wrongIds);
 
     // Recreate each lesson with the correct date (same week, correct day_of_week)
-    const recreated = wrongDayLessons.map((lesson) => {
-      const master = recurringMap.get(lesson.recurring_item_id)!;
-      const lessonWeekStart = startOfWeek(new Date(lesson.lesson_date + "T00:00:00"), { weekStartsOn: 0 });
-      const correctDate = addDays(lessonWeekStart, master.day_of_week);
-      return {
-        recurring_item_id: lesson.recurring_item_id,
-        location_id: master.location_id,
-        instructor_id: master.instructor_id,
-        lesson_date: format(correctDate, "yyyy-MM-dd"),
-        start_time: master.start_time,
-        status: "scheduled",
-      };
-    });
+    const recreated = wrongDayLessons
+      .map((lesson) => {
+        const master = recurringMap.get(lesson.recurring_item_id)!;
+        const lessonWeekStart = startOfWeek(new Date(lesson.lesson_date + "T00:00:00"), { weekStartsOn: 0 });
+        const correctDate = addDays(lessonWeekStart, master.day_of_week);
+        return {
+          recurring_item_id: lesson.recurring_item_id,
+          location_id: master.location_id,
+          instructor_id: master.instructor_id,
+          lesson_date: format(correctDate, "yyyy-MM-dd"),
+          start_time: master.start_time,
+          status: "scheduled",
+        };
+      })
+      .filter((lesson) => !isHoliday(lesson.lesson_date));
 
     if (recreated.length > 0) {
       await admin.from("lessons").insert(recreated);
@@ -579,14 +583,18 @@ export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) 
 
     if (!masterSchedule || masterSchedule.length === 0) continue;
 
-    const lessons = masterSchedule.map((entry) => ({
-      recurring_item_id: entry.id,
-      location_id: entry.location_id,
-      instructor_id: entry.instructor_id,
-      lesson_date: format(addDays(wkStart, entry.day_of_week), "yyyy-MM-dd"),
-      start_time: entry.start_time,
-      status: "scheduled",
-    }));
+    const lessons = masterSchedule
+      .map((entry) => ({
+        recurring_item_id: entry.id,
+        location_id: entry.location_id,
+        instructor_id: entry.instructor_id,
+        lesson_date: format(addDays(wkStart, entry.day_of_week), "yyyy-MM-dd"),
+        start_time: entry.start_time,
+        status: "scheduled",
+      }))
+      .filter((lesson) => !isHoliday(lesson.lesson_date));
+
+    if (lessons.length === 0) continue;
 
     const { data } = await supabase.from("lessons").insert(lessons).select();
     created += data?.length ?? 0;

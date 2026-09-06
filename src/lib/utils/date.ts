@@ -68,6 +68,25 @@ export function getDayIndex(date: Date): number {
 }
 
 /**
+ * School holiday dates (no lessons) through the end of the 2026-2027 school year.
+ * Auto-replication (ensureFutureWeeks / replicateWeekSchedule / syncFutureWeeksWithRecurring)
+ * skips these dates instead of generating lessons from the recurring schedule.
+ */
+export const HOLIDAY_DATES = new Set([
+  "2026-09-13", // ראש השנה
+  "2026-09-20", "2026-09-21", // יום כיפור
+  "2026-12-06", "2026-12-07", "2026-12-08", "2026-12-09", "2026-12-10", // חנוכה
+  "2027-03-23", "2027-03-24", // פורים
+  "2027-04-13", "2027-04-14", "2027-04-15", "2027-04-18", "2027-04-19", "2027-04-20", "2027-04-21", "2027-04-22", "2027-04-28", // פסח
+  "2027-05-12", // יום העצמאות
+  "2027-06-10", // שבועות
+]);
+
+export function isHoliday(dateStr: string): boolean {
+  return HOLIDAY_DATES.has(dateStr);
+}
+
+/**
  * Smart sort: time ascending, group consecutive lessons by the same instructor.
  * For each instructor, their block starts at their earliest lesson time.
  */
