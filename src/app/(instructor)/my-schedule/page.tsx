@@ -83,7 +83,7 @@ export default async function MySchedulePage({
   if (recurringIds.length > 0 && weekLessons) {
     const { data: recurringRows } = await supabase
       .from("recurring_schedule")
-      .select("id, group_name, framework_name, manager_name, manager_phone")
+      .select("id, group_name, framework_name, manager_name, manager_phone, address")
       .in("id", recurringIds);
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
     for (const lesson of weekLessons as any[]) {
@@ -91,6 +91,7 @@ export default async function MySchedulePage({
       lesson.framework_name = recurring?.framework_name || recurring?.group_name || null;
       lesson.manager_name = recurring?.manager_name ?? null;
       lesson.manager_phone = recurring?.manager_phone ?? null;
+      lesson.address = recurring?.address ?? null;
     }
   }
 
@@ -258,8 +259,8 @@ export default async function MySchedulePage({
                                 <MapPin size={14} />
                                 <span>
                                   {lesson.location?.city}
-                                  {lesson.location?.street
-                                    ? `, ${lesson.location.street}`
+                                  {lesson.address || lesson.location?.street
+                                    ? `, ${lesson.address || lesson.location?.street}`
                                     : ""}
                                 </span>
                               </div>

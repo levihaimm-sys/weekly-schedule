@@ -36,6 +36,7 @@ export default async function LessonDetailPage({
       start_time,
       status,
       change_notes,
+      recurring_item_id,
       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
       location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
     `
@@ -57,7 +58,20 @@ export default async function LessonDetailPage({
     .eq("lesson_id", lessonId)
     .single();
 
+  // The framework's address lives on the recurring template, not the lesson instance or the
+  // physical location record — attach it here (same as the weekly/today instructor views).
+  let recurringAddress: string | null = null;
+  if (lesson.recurring_item_id) {
+    const { data: recurring } = await supabase
+      .from("recurring_schedule")
+      .select("address")
+      .eq("id", lesson.recurring_item_id)
+      .single();
+    recurringAddress = recurring?.address ?? null;
+  }
+
   const location = lesson.location as any;
+  const address = recurringAddress || location?.street;
   const isSigned = !!signature;
 
   return (
@@ -101,9 +115,9 @@ export default async function LessonDetailPage({
             <MapPin size={18} className="text-orange-500" />
             <div>
               <p>{location?.city}</p>
-              {location?.street && (
+              {address && (
                 <p className="text-sm text-muted-foreground">
-                  {location.street}
+                  {address}
                 </p>
               )}
             </div>
@@ -125,9 +139,9 @@ export default async function LessonDetailPage({
       </div>
 
       {/* Waze Navigation */}
-      {location?.street && location?.city && (
+      {address && location?.city && (
         <a
-          href={getWazeUrl(location.street, location.city)}
+          href={getWazeUrl(address, location.city)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-3.5 text-sm font-medium text-white transition-colors hover:bg-blue-600"

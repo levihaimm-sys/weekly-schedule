@@ -53,6 +53,7 @@ export default async function MonthlySchedulePage({
       lesson_date,
       start_time,
       status,
+      recurring_item_id,
       location:locations!lessons_location_id_fkey(name, city, street)
     `
     )
@@ -62,6 +63,21 @@ export default async function MonthlySchedulePage({
     .neq("status", "cancelled")
     .order("lesson_date")
     .order("start_time");
+
+  // The framework's address lives on the recurring template, not the physical location record —
+  // attach it here (same as the weekly/today instructor views), falling back to location.street.
+  const recurringIds = [...new Set((lessons ?? []).map((l: any) => l.recurring_item_id).filter(Boolean))];
+  if (recurringIds.length > 0 && lessons) {
+    const { data: recurringRows } = await supabase
+      .from("recurring_schedule")
+      .select("id, address")
+      .in("id", recurringIds);
+    const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
+    for (const lesson of lessons as any[]) {
+      const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
+      lesson.address = recurring?.address ?? null;
+    }
+  }
 
   const totalLessons = lessons?.length ?? 0;
 
@@ -144,7 +160,7 @@ export default async function MonthlySchedulePage({
                       {lesson.location?.city ?? "-"}
                     </td>
                     <td className="px-2 py-1.5">
-                      {lesson.location?.street ?? "-"}
+                      {lesson.address || lesson.location?.street || "-"}
                     </td>
                   </tr>
                 );
