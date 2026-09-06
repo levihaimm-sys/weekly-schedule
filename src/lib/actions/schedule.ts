@@ -421,6 +421,41 @@ export async function deleteRecurringScheduleItem(recurringItemId: string) {
 }
 
 /**
+ * Delete multiple recurring schedule items and all their future lessons at once
+ * (multi-select bulk delete on the fixed-schedule screen).
+ */
+export async function bulkDeleteRecurringScheduleItems(recurringItemIds: string[]) {
+  const supabase = createAdminClient();
+  const today = getTodayInIsrael();
+
+  const { error: deleteLessonsError } = await supabase
+    .from("lessons")
+    .delete()
+    .in("recurring_item_id", recurringItemIds)
+    .gte("lesson_date", today);
+
+  if (deleteLessonsError) {
+    return { error: "שגיאה במחיקת שיעורים עתידיים: " + deleteLessonsError.message };
+  }
+
+  const { error: deleteRecurringError } = await supabase
+    .from("recurring_schedule")
+    .delete()
+    .in("id", recurringItemIds);
+
+  if (deleteRecurringError) {
+    return { error: "שגיאה במחיקת לוח קבוע: " + deleteRecurringError.message };
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true };
+}
+
+/**
  * Sync future lessons with the recurring schedule.
  * Resets any future lesson (from next week onward) that drifted from
  * its recurring schedule entry back to the master values.
