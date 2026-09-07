@@ -67,6 +67,16 @@ export function getDayIndex(date: Date): number {
   return date.getDay(); // 0 = Sunday
 }
 
+// need.start_time is when the FIRST of possibly several back-to-back lessons starts (e.g. 3
+// lessons of 40 min starting at 13:00 → 13:00, 13:40, 14:20) — this computes slot N's start.
+export function addMinutesToTimeString(time: string, minutesToAdd: number): string {
+  const [h, m, s] = time.split(":").map(Number);
+  const total = (h * 60 + m + minutesToAdd + 24 * 60) % (24 * 60);
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}:${String(s ?? 0).padStart(2, "0")}`;
+}
+
 /**
  * School holiday dates (no lessons) through the end of the 2026-2027 school year.
  * Auto-replication (ensureFutureWeeks / replicateWeekSchedule / syncFutureWeeksWithRecurring)

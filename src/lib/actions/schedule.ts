@@ -4,11 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { startOfWeek, addDays, format } from "date-fns";
-import { getTodayInIsrael, isHoliday } from "@/lib/utils/date";
+import { getTodayInIsrael, isHoliday, addMinutesToTimeString } from "@/lib/utils/date";
 import { CLIENT_CITIES } from "@/lib/utils/constants";
 import { parseLessonCsv } from "@/lib/utils/lesson-import-csv";
 import { nameMatch, parseFreeTextDate } from "@/lib/utils/staffing";
-import { addMinutesToTimeString } from "@/lib/actions/staffing";
 
 
 /**
