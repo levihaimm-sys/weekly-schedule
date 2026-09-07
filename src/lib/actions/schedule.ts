@@ -1245,6 +1245,8 @@ export async function bulkApplyPermanentChange(
   updates: {
     instructor_id?: string | null;
     start_time?: string;
+    manager_name?: string | null;
+    day_of_week?: number;
   }
 ) {
   const supabase = createAdminClient();
@@ -1254,9 +1256,11 @@ export async function bulkApplyPermanentChange(
     return { error: "לא נבחרו שיעורים מהלוח הקבוע" };
   }
 
-  const cleanUpdates: Record<string, string | null> = {};
+  const cleanUpdates: Record<string, string | number | null> = {};
   if (updates.instructor_id !== undefined) cleanUpdates.instructor_id = updates.instructor_id;
   if (updates.start_time) cleanUpdates.start_time = updates.start_time;
+  if (updates.manager_name !== undefined) cleanUpdates.manager_name = updates.manager_name;
+  if (updates.day_of_week !== undefined) cleanUpdates.day_of_week = updates.day_of_week;
 
   if (Object.keys(cleanUpdates).length === 0) {
     return { error: "אין שינויים לשמור" };
@@ -1272,22 +1276,102 @@ export async function bulkApplyPermanentChange(
   }
 
   const today = getTodayInIsrael();
-  const { error: lessonsError } = await supabase
-    .from("lessons")
-    .update(cleanUpdates)
-    .in("recurring_item_id", uniqueIds)
-    .gte("lesson_date", today);
 
-  if (lessonsError) {
-    return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
+  if (updates.day_of_week !== undefined) {
+    // Day changed: existing future lesson dates fall on the old day of week, so — same as the
+    // single-item path in updateRecurringSchedule() — delete and recreate them on the new day,
+    // per item since each keeps its own instructor/time/location.
+    const { data: items, error: itemsError } = await supabase
+      .from("recurring_schedule")
+      .select("id, location_id, instructor_id, start_time, day_of_week")
+      .in("id", uniqueIds);
+
+    if (itemsError) {
+      return { error: "שגיאה בקריאת הלוח הקבוע: " + itemsError.message };
+    }
+
+    for (const item of items ?? []) {
+      const { data: lastLesson } = await supabase
+        .from("lessons")
+        .select("lesson_date")
+        .eq("recurring_item_id", item.id)
+        .gte("lesson_date", today)
+        .order("lesson_date", { ascending: false })
+        .limit(1);
+
+      const { error: delError } = await supabase
+        .from("lessons")
+        .delete()
+        .eq("recurring_item_id", item.id)
+        .gte("lesson_date", today)
+        .or("is_one_time_change.is.null,is_one_time_change.eq.false");
+
+      if (delError) {
+        return { error: "שגיאה במחיקת שיעורים עתידיים: " + delError.message };
+      }
+
+      if (lastLesson && lastLesson.length > 0) {
+        const horizon = new Date(lastLesson[0].lesson_date);
+        const newLessons: Array<{
+          recurring_item_id: string;
+          location_id: string;
+          instructor_id: string | null;
+          lesson_date: string;
+          start_time: string;
+          status: string;
+        }> = [];
+
+        let weekStart = startOfWeek(new Date(today), { weekStartsOn: 0 });
+        while (weekStart <= horizon) {
+          const lessonDate = addDays(weekStart, item.day_of_week);
+          if (format(lessonDate, "yyyy-MM-dd") >= today) {
+            newLessons.push({
+              recurring_item_id: item.id,
+              location_id: item.location_id,
+              instructor_id:
+                cleanUpdates.instructor_id !== undefined
+                  ? (cleanUpdates.instructor_id as string | null)
+                  : item.instructor_id,
+              lesson_date: format(lessonDate, "yyyy-MM-dd"),
+              start_time: cleanUpdates.start_time ? (cleanUpdates.start_time as string) : item.start_time,
+              status: "scheduled",
+            });
+          }
+          weekStart = addDays(weekStart, 7);
+        }
+
+        if (newLessons.length > 0) {
+          const { error: insertError } = await supabase.from("lessons").insert(newLessons);
+          if (insertError) {
+            return { error: "שגיאה ביצירת שיעורים חדשים: " + insertError.message };
+          }
+        }
+      }
+    }
+  } else {
+    const lessonUpdates: Record<string, string | null> = {};
+    if (cleanUpdates.instructor_id !== undefined) lessonUpdates.instructor_id = cleanUpdates.instructor_id as string | null;
+    if (cleanUpdates.start_time) lessonUpdates.start_time = cleanUpdates.start_time as string;
+
+    if (Object.keys(lessonUpdates).length > 0) {
+      const { error: lessonsError } = await supabase
+        .from("lessons")
+        .update(lessonUpdates)
+        .in("recurring_item_id", uniqueIds)
+        .gte("lesson_date", today);
+
+      if (lessonsError) {
+        return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
+      }
+    }
+
+    await supabase
+      .from("lessons")
+      .update({ instructor_absence_request: false, instructor_request_handled: false })
+      .in("recurring_item_id", uniqueIds)
+      .gte("lesson_date", today)
+      .eq("instructor_absence_request", true);
   }
-
-  await supabase
-    .from("lessons")
-    .update({ instructor_absence_request: false, instructor_request_handled: false })
-    .in("recurring_item_id", uniqueIds)
-    .gte("lesson_date", today)
-    .eq("instructor_absence_request", true);
 
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");

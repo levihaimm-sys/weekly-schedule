@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MousePointerClick, CheckSquare, Square, X } from "lucide-react";
-import { DAYS_SHORT } from "@/lib/utils/constants";
+import { DAYS_SHORT, DAYS_HEBREW } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
@@ -60,10 +60,12 @@ export function ScheduleGrid({
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<"instructor" | "time" | "delete" | null>(null);
+  const [bulkAction, setBulkAction] = useState<"instructor" | "time" | "manager" | "day" | "delete" | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkInstructorId, setBulkInstructorId] = useState("");
   const [bulkTime, setBulkTime] = useState("");
+  const [bulkManagerName, setBulkManagerName] = useState("");
+  const [bulkDayOfWeek, setBulkDayOfWeek] = useState(0);
 
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
@@ -102,7 +104,13 @@ export function ScheduleGrid({
     }
 
     const updates =
-      bulkAction === "instructor" ? { instructor_id: bulkInstructorId || null } : { start_time: `${bulkTime}:00` };
+      bulkAction === "instructor"
+        ? { instructor_id: bulkInstructorId || null }
+        : bulkAction === "time"
+        ? { start_time: `${bulkTime}:00` }
+        : bulkAction === "manager"
+        ? { manager_name: bulkManagerName.trim() || null }
+        : { day_of_week: bulkDayOfWeek };
 
     const result = await bulkApplyPermanentChange(ids, updates);
     setBulkLoading(false);
@@ -220,6 +228,26 @@ export function ScheduleGrid({
                   שנה שעה
                 </button>
                 <button
+                  onClick={() => setBulkAction("manager")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bulkAction === "manager"
+                      ? "border-blue-400 bg-blue-100 text-blue-700"
+                      : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  שנה גננת/רכזת
+                </button>
+                <button
+                  onClick={() => setBulkAction("day")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bulkAction === "day"
+                      ? "border-blue-400 bg-blue-100 text-blue-700"
+                      : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  שנה יום
+                </button>
+                <button
                   onClick={() => setBulkAction("delete")}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     bulkAction === "delete"
@@ -276,6 +304,56 @@ export function ScheduleGrid({
               <button
                 onClick={executeBulkAction}
                 disabled={bulkLoading || !bulkTime}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shrink-0"
+              >
+                {bulkLoading && <Loader2 size={13} className="animate-spin" />}
+                החל
+              </button>
+              <button onClick={() => setBulkAction(null)} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {bulkAction === "manager" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="text"
+                value={bulkManagerName}
+                onChange={(e) => setBulkManagerName(e.target.value)}
+                placeholder="שם גננת/רכזת"
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button
+                onClick={executeBulkAction}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shrink-0"
+              >
+                {bulkLoading && <Loader2 size={13} className="animate-spin" />}
+                החל
+              </button>
+              <button onClick={() => setBulkAction(null)} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {bulkAction === "day" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <select
+                value={bulkDayOfWeek}
+                onChange={(e) => setBulkDayOfWeek(Number(e.target.value))}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                {DAYS_HEBREW.slice(0, 5).map((day, i) => (
+                  <option key={i} value={i}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={executeBulkAction}
+                disabled={bulkLoading}
                 className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shrink-0"
               >
                 {bulkLoading && <Loader2 size={13} className="animate-spin" />}
