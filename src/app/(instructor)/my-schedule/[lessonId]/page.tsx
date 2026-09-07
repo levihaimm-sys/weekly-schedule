@@ -36,6 +36,7 @@ export default async function LessonDetailPage({
       start_time,
       status,
       change_notes,
+      address,
       recurring_item_id,
       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
       location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
@@ -71,7 +72,7 @@ export default async function LessonDetailPage({
   }
 
   const location = lesson.location as any;
-  const address = recurringAddress || location?.street;
+  const address = recurringAddress || (lesson as any).address || location?.street;
   const isSigned = !!signature;
 
   return (

@@ -64,6 +64,10 @@ export default async function MySchedulePage({
       start_time,
       status,
       change_notes,
+      framework_name,
+      manager_name,
+      manager_phone,
+      address,
       instructor_absence_request,
       instructor_request_type,
       instructor_notes,
@@ -77,8 +81,11 @@ export default async function MySchedulePage({
     .order("lesson_date")
     .order("start_time");
 
-  // Group name and manager (גננת/רכזת) contact details live on the recurring_schedule
-  // template, not on each lesson instance — attach them here so the card can show them.
+  // Group name and manager (גננת/רכזת) contact details live on the recurring_schedule template
+  // for lessons spawned from the fixed schedule — attach them here so the card can show them.
+  // One-time lessons (no recurring_item_id, e.g. imported via bulkImportLessons) carry these
+  // same fields directly on the lesson row instead, so fall back to that when there's no
+  // recurring master.
   const recurringIds = [...new Set((weekLessons ?? []).map((l: any) => l.recurring_item_id).filter(Boolean))];
   if (recurringIds.length > 0 && weekLessons) {
     const { data: recurringRows } = await supabase
@@ -88,10 +95,10 @@ export default async function MySchedulePage({
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
     for (const lesson of weekLessons as any[]) {
       const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
-      lesson.framework_name = recurring?.framework_name || recurring?.group_name || null;
-      lesson.manager_name = recurring?.manager_name ?? null;
-      lesson.manager_phone = recurring?.manager_phone ?? null;
-      lesson.address = recurring?.address ?? null;
+      lesson.framework_name = recurring?.framework_name || recurring?.group_name || lesson.framework_name || null;
+      lesson.manager_name = recurring?.manager_name ?? lesson.manager_name ?? null;
+      lesson.manager_phone = recurring?.manager_phone ?? lesson.manager_phone ?? null;
+      lesson.address = recurring?.address ?? lesson.address ?? null;
     }
   }
 

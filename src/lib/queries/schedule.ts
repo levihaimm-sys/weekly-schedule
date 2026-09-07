@@ -73,6 +73,16 @@ export async function getWeekLessons(
       start_time,
       status,
       change_notes,
+      client_name,
+      address,
+      manager_name,
+      manager_phone,
+      contact_name,
+      framework,
+      framework_name,
+      field,
+      lesson_duration,
+      lessons_count,
       instructor_absence_request,
       instructor_request_handled,
       instructor_request_type,
@@ -98,33 +108,37 @@ export async function getWeekLessons(
 
   const { data } = await query;
 
-  // Framework name, address and client all live on the recurring_schedule template, not on
-  // each lesson instance — attach them here so the weekly view can display/edit them without
-  // a per-row join.
+  // Framework name, address and client live on the recurring_schedule template for lessons
+  // spawned from the fixed schedule — attach them here so the weekly view can display/edit them
+  // without a per-row join. One-time lessons (no recurring_item_id, e.g. imported via
+  // bulkImportLessons) carry these same fields directly on the lesson row instead, so fall back
+  // to the lesson's own value whenever there's no recurring master to read from.
   if (data && data.length > 0) {
     const recurringIds = [...new Set(data.map((l: any) => l.recurring_item_id).filter(Boolean))];
+    const recurringById = new Map<string, any>();
     if (recurringIds.length > 0) {
       const { data: recurringRows } = await supabase
         .from("recurring_schedule")
         .select(
-          "id, group_name, address, client_name, contact_name, manager_name, framework, framework_name, field, lesson_duration, lessons_count, notes"
+          "id, group_name, address, client_name, contact_name, manager_name, manager_phone, framework, framework_name, field, lesson_duration, lessons_count, notes"
         )
         .in("id", recurringIds);
-      const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
-      for (const lesson of data as any[]) {
-        const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
-        lesson.group_name = recurring?.group_name ?? null;
-        lesson.address = recurring?.address ?? null;
-        lesson.client_name = recurring?.client_name ?? null;
-        lesson.contact_name = recurring?.contact_name ?? null;
-        lesson.manager_name = recurring?.manager_name ?? null;
-        lesson.framework = recurring?.framework ?? null;
-        lesson.framework_name = recurring?.framework_name ?? null;
-        lesson.field = recurring?.field ?? null;
-        lesson.lesson_duration = recurring?.lesson_duration ?? null;
-        lesson.lessons_count = recurring?.lessons_count ?? null;
-        lesson.notes = recurring?.notes ?? null;
-      }
+      for (const r of recurringRows ?? []) recurringById.set(r.id, r);
+    }
+    for (const lesson of data as any[]) {
+      const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
+      lesson.group_name = recurring?.group_name ?? null;
+      lesson.address = recurring?.address ?? lesson.address ?? null;
+      lesson.client_name = recurring?.client_name ?? lesson.client_name ?? null;
+      lesson.contact_name = recurring?.contact_name ?? lesson.contact_name ?? null;
+      lesson.manager_name = recurring?.manager_name ?? lesson.manager_name ?? null;
+      lesson.manager_phone = recurring?.manager_phone ?? lesson.manager_phone ?? null;
+      lesson.framework = recurring?.framework ?? lesson.framework ?? null;
+      lesson.framework_name = recurring?.framework_name ?? lesson.framework_name ?? null;
+      lesson.field = recurring?.field ?? lesson.field ?? null;
+      lesson.lesson_duration = recurring?.lesson_duration ?? lesson.lesson_duration ?? null;
+      lesson.lessons_count = recurring?.lessons_count ?? lesson.lessons_count ?? null;
+      lesson.notes = recurring?.notes ?? null;
     }
   }
 

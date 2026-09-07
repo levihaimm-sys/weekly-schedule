@@ -53,6 +53,7 @@ export default async function MonthlySchedulePage({
       lesson_date,
       start_time,
       status,
+      address,
       recurring_item_id,
       location:locations!lessons_location_id_fkey(name, city, street)
     `
@@ -66,6 +67,7 @@ export default async function MonthlySchedulePage({
 
   // The framework's address lives on the recurring template, not the physical location record —
   // attach it here (same as the weekly/today instructor views), falling back to location.street.
+  // One-time lessons (no recurring_item_id) carry their own address directly on the lesson row.
   const recurringIds = [...new Set((lessons ?? []).map((l: any) => l.recurring_item_id).filter(Boolean))];
   if (recurringIds.length > 0 && lessons) {
     const { data: recurringRows } = await supabase
@@ -75,7 +77,7 @@ export default async function MonthlySchedulePage({
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
     for (const lesson of lessons as any[]) {
       const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
-      lesson.address = recurring?.address ?? null;
+      lesson.address = recurring?.address ?? lesson.address ?? null;
     }
   }
 

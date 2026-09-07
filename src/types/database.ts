@@ -51,6 +51,18 @@ export interface Lesson {
   change_notes: string | null;
   is_one_time_change: boolean;
   created_at: string;
+  // Same shape as RecurringSchedule's staffing fields, but for one-time lessons that have no
+  // recurring_schedule row of their own (e.g. imported via bulkImportLessons).
+  client_name: string | null;
+  address: string | null;
+  manager_name: string | null;
+  manager_phone: string | null;
+  contact_name: string | null;
+  framework: string | null;
+  framework_name: string | null;
+  field: string | null;
+  lesson_duration: number | null;
+  lessons_count: number | null;
 }
 
 export interface Profile {

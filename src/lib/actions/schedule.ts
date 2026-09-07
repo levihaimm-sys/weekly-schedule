@@ -801,6 +801,15 @@ export async function bulkImportLessons(csvText: string) {
     start_time: string;
     status: string;
     change_notes: string | null;
+    client_name: string | null;
+    address: string | null;
+    manager_name: string | null;
+    contact_name: string | null;
+    framework: string | null;
+    framework_name: string | null;
+    field: string | null;
+    lesson_duration: number;
+    lessons_count: number;
     is_one_time_change: boolean;
     recurring_item_id: null;
   }[] = [];
@@ -810,7 +819,11 @@ export async function bulkImportLessons(csvText: string) {
     const row = csvRows[i];
     const rowLabel = `שורה ${i + 2} (${row.client_name})`;
 
-    const gardenName = row.location_name || row.client_name;
+    // Priority: מתחם (a real sub-location name) > שם המסגרת (the specific garden/class name) >
+    // לקוח (last resort — often a shared institution/municipality name repeated across many
+    // rows, e.g. "עיריית X", so using it first would incorrectly merge distinct gardens into
+    // one location). Mirrors the location resolution in convertAssignmentsToSchedule (staffing.ts).
+    const gardenName = row.location_name || row.framework_name || row.client_name;
     const cityName = normalizeCity(row.city ?? "");
 
     // Find or auto-create location. When the row carries a city, match/create
@@ -858,17 +871,6 @@ export async function bulkImportLessons(csvText: string) {
 
     const startTime = timeVal.length <= 5 ? `${timeVal.padStart(5, "0")}:00` : timeVal;
 
-    const extraNotes = [
-      row.address ? `כתובת: ${row.address}` : null,
-      row.manager_name ? `גננת/רכזת: ${row.manager_name}` : null,
-      row.contact_name ? `איש קשר: ${row.contact_name}` : null,
-      row.framework || row.framework_name
-        ? `מסגרת: ${[row.framework, row.framework_name].filter(Boolean).join(" - ")}`
-        : null,
-      row.field ? `חוג: ${row.field}` : null,
-    ].filter((v): v is string => !!v);
-    const changeNotes = [row.notes, ...extraNotes].filter(Boolean).join(" · ") || null;
-
     const lessonsCount = row.group_count > 1 ? row.group_count : 1;
     if (lessonsCount > 1 && !row.lesson_duration) {
       errors.push(`${rowLabel}: יש ${lessonsCount} שיעורים (קב') אך לא הוגדר משך שיעור`);
@@ -884,7 +886,16 @@ export async function bulkImportLessons(csvText: string) {
         lesson_date: dateVal,
         start_time: slotStartTime,
         status: "scheduled",
-        change_notes: changeNotes,
+        change_notes: row.notes,
+        client_name: row.client_name,
+        address: row.address,
+        manager_name: row.manager_name,
+        contact_name: row.contact_name,
+        framework: row.framework,
+        framework_name: row.framework_name,
+        field: row.field,
+        lesson_duration: row.lesson_duration,
+        lessons_count: row.group_count,
         is_one_time_change: true,
         recurring_item_id: null,
       });
@@ -1002,7 +1013,10 @@ export async function bulkImportRecurringSchedule(csvText: string) {
     }
 
     const city = normalizeCity(row.city ?? "");
-    const candidateNames = [row.location_name, row.client_name].filter(
+    // Priority: מתחם > שם המסגרת > לקוח (last resort — often a shared institution/municipality
+    // name repeated across many rows, e.g. "עיריית X", so using it first would incorrectly merge
+    // distinct gardens into one location). Mirrors convertAssignmentsToSchedule's resolution.
+    const candidateNames = [row.location_name, row.framework_name, row.client_name].filter(
       (n): n is string => !!n && n.trim() !== ""
     );
     let locationId: string | null = null;
