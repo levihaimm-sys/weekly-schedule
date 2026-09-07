@@ -992,11 +992,12 @@ export async function bulkImportRecurringSchedule(csvText: string) {
     if (row.day_of_week === null) reasons.push('לא זוהה יום תקין (יש להשתמש בשם יום, למשל "חמישי")');
     if (!row.start_time) reasons.push("לא הוגדרה שעת התחלה");
 
+    // No instructor is a valid state here too — recurring_schedule allows instructor_id = null
+    // for group classes without one fixed owner (see migration 047); it can be assigned later
+    // per-lesson or by editing the recurring row.
     const instructorName = row.instructor_name?.trim();
     let instructorId: string | null = null;
-    if (!instructorName) {
-      reasons.push("לא הוגדר/ה מדריך/ה — לא ניתן להוסיף ללוח הקבוע בלי מדריך/ה משובץ/ת");
-    } else {
+    if (instructorName) {
       const exact = instructorList.find((inst) => inst.full_name.trim() === instructorName);
       if (exact) {
         instructorId = exact.id;
@@ -1103,7 +1104,7 @@ export async function bulkImportRecurringSchedule(csvText: string) {
       const lessonRows: {
         recurring_item_id: string;
         location_id: string;
-        instructor_id: string;
+        instructor_id: string | null;
         lesson_date: string;
         start_time: string;
         status: string;
@@ -1115,7 +1116,7 @@ export async function bulkImportRecurringSchedule(csvText: string) {
           lessonRows.push({
             recurring_item_id: recurringRow.id,
             location_id: locationId!,
-            instructor_id: instructorId!,
+            instructor_id: instructorId,
             lesson_date: format(lessonDate, "yyyy-MM-dd"),
             start_time: slotStartTime,
             status: "scheduled",
