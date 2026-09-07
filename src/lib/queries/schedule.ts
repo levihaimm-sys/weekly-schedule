@@ -223,7 +223,7 @@ export const getAllInstructors = unstable_cache(
     return data ?? [];
   },
   ["all-instructors"],
-  { revalidate: 120 }
+  { revalidate: 120, tags: ["instructors"] }
 );
 
 /**

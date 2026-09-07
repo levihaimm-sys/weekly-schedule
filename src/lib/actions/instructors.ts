@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { InstructorStatusType, EmploymentType } from "@/lib/utils/constants";
 
 export async function addInstructor(formData: FormData) {
@@ -58,6 +58,7 @@ export async function addInstructor(formData: FormData) {
   }
 
   revalidatePath("/instructors");
+  revalidateTag("instructors");
   return { success: true };
 }
 
@@ -91,6 +92,7 @@ export async function updateInstructor(
 
   revalidatePath("/instructors");
   revalidatePath("/dashboard");
+  revalidateTag("instructors");
   return { success: true };
 }
 
@@ -111,6 +113,7 @@ export async function updateInstructorStatus(
 
   // Only revalidate instructors page - no need to revalidate other paths
   revalidatePath("/instructors");
+  revalidateTag("instructors");
   return { success: true };
 }
 
@@ -262,6 +265,7 @@ export async function toggleInstructorActive(
 
   revalidatePath("/instructors");
   revalidatePath("/dashboard");
+  revalidateTag("instructors");
   return { success: true };
 }
 
@@ -349,6 +353,7 @@ export async function deleteInstructor(instructorId: string) {
   }
 
   revalidatePath("/instructors");
+  revalidateTag("instructors");
   return { success: true };
 }
 
