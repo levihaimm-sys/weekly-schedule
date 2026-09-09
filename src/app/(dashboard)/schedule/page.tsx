@@ -1,4 +1,4 @@
-import { getRecurringSchedule, getAllCities, getAllInstructors } from "@/lib/queries/schedule";
+import { getRecurringSchedule, getAllCities, getAllInstructors, getAllLocations } from "@/lib/queries/schedule";
 import { ScheduleGrid } from "@/components/schedule/schedule-grid";
 import Link from "next/link";
 
@@ -14,12 +14,13 @@ export default async function SchedulePage({
   const selectedCities = params.city ? params.city.split(",") : [];
   const selectedInstructors = params.instructor ? params.instructor.split(",") : [];
 
-  const [schedule, cities, instructors] = await Promise.all([
+  const [schedule, cities, instructors, locations] = await Promise.all([
     getRecurringSchedule({
       dayOfWeek: params.day ? parseInt(params.day) : undefined,
     }),
     getAllCities(),
     getAllInstructors(),
+    getAllLocations(),
   ]);
 
   return (
@@ -42,6 +43,7 @@ export default async function SchedulePage({
         schedule={schedule as any[]}
         cities={cities}
         instructors={instructors}
+        locations={locations}
         currentFilters={{ cities: selectedCities, instructors: selectedInstructors, day: params.day }}
       />
     </div>

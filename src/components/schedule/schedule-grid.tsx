@@ -2,10 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, MousePointerClick, CheckSquare, Square, X } from "lucide-react";
+import { Loader2, MousePointerClick, CheckSquare, Square, X, Plus } from "lucide-react";
 import { DAYS_SHORT, DAYS_HEBREW } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
+import { AddRecurringLessonDialog, RecurringLessonSeed } from "./add-recurring-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { bulkApplyPermanentChange, bulkDeleteRecurringScheduleItems } from "@/lib/actions/schedule";
 
@@ -18,6 +19,7 @@ interface ScheduleItem {
   client_name: string | null;
   contact_name: string | null;
   manager_name: string | null;
+  manager_phone: string | null;
   framework: string | null;
   framework_name: string | null;
   field: string | null;
@@ -38,6 +40,7 @@ interface ScheduleGridProps {
   schedule: ScheduleItem[];
   cities: string[];
   instructors: { id: string; full_name: string }[];
+  locations: { id: string; name: string; city: string; street: string | null }[];
   currentFilters: { cities?: string[]; instructors?: string[]; day?: string };
 }
 
@@ -47,10 +50,13 @@ export function ScheduleGrid({
   schedule,
   cities,
   instructors,
+  locations,
   currentFilters,
 }: ScheduleGridProps) {
   const router = useRouter();
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [duplicateSeed, setDuplicateSeed] = useState<RecurringLessonSeed | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [localCities, setLocalCities] = useState<string[]>(currentFilters.cities ?? []);
   const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters.instructors ?? []);
@@ -197,6 +203,14 @@ export function ScheduleGrid({
         >
           <MousePointerClick size={14} />
           בחירה מרובה
+        </button>
+        <button
+          type="button"
+          onClick={() => setAddDialogOpen(true)}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          <Plus size={14} />
+          הוסף שיעור קבוע
         </button>
       </div>
 
@@ -531,8 +545,42 @@ export function ScheduleGrid({
           mode="recurring"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
+          onDuplicate={() => {
+            setDuplicateSeed({
+              day_of_week: editingItem.day_of_week,
+              start_time: editingItem.start_time,
+              group_name: editingItem.group_name,
+              address: editingItem.address,
+              client_name: editingItem.client_name,
+              contact_name: editingItem.contact_name,
+              manager_name: editingItem.manager_name,
+              manager_phone: editingItem.manager_phone,
+              framework: editingItem.framework,
+              framework_name: editingItem.framework_name,
+              field: editingItem.field,
+              lesson_duration: editingItem.lesson_duration,
+              lessons_count: editingItem.lessons_count,
+              notes: editingItem.notes,
+              instructor: editingItem.instructor,
+              location: editingItem.location,
+            });
+            setEditingItem(null);
+          }}
         />
       )}
+
+      {/* Add / Duplicate Dialog */}
+      <AddRecurringLessonDialog
+        open={addDialogOpen || !!duplicateSeed}
+        onClose={() => {
+          setAddDialogOpen(false);
+          setDuplicateSeed(null);
+        }}
+        instructors={instructors}
+        locations={locations}
+        seed={duplicateSeed}
+        defaultDayOfWeek={selectedDay}
+      />
     </div>
   );
 }

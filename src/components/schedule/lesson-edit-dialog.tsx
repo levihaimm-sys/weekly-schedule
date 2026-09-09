@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { X, Loader2, Trash2, Search, ChevronDown, UserMinus } from "lucide-react";
+import { X, Loader2, Trash2, Copy, Search, ChevronDown, UserMinus } from "lucide-react";
 import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
@@ -43,6 +43,9 @@ interface LessonEditDialogProps {
   // Skips the permanent/temporary chooser in favor of a single one-time-change
   // confirmation — used by screens that shouldn't be able to touch the recurring master.
   hideScopeChoice?: boolean;
+  // Recurring mode only: shows a "duplicate" button that hands the current item back to the
+  // caller (which opens the add/duplicate dialog prefilled with it) instead of editing in place.
+  onDuplicate?: () => void;
 }
 
 type SaveScope = null | "temporary" | "permanent";
@@ -54,6 +57,7 @@ export function LessonEditDialog({
   open,
   onClose,
   hideScopeChoice,
+  onDuplicate,
 }: LessonEditDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -760,6 +764,17 @@ export function LessonEditDialog({
               ביטול
             </button>
           </div>
+
+          {mode === "recurring" && onDuplicate && (
+            <button
+              onClick={onDuplicate}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              <Copy size={14} />
+              שכפל שיעור
+            </button>
+          )}
 
           <button
             onClick={() => setShowDeleteConfirm(true)}

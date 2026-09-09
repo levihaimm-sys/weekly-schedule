@@ -949,6 +949,127 @@ export async function bulkImportLessons(csvText: string) {
   };
 }
 
+/**
+ * Manually create a single recurring_schedule row (fixed/permanent lesson) — used by the
+ * "add fixed lesson" and "duplicate lesson" flows on the /schedule board, as an alternative
+ * to CSV import. Generates concrete lesson instances going forward, same as
+ * bulkImportRecurringSchedule does per row.
+ */
+export async function createRecurringScheduleItem(data: {
+  instructor_id?: string | null;
+  location_id: string;
+  day_of_week: number;
+  start_time: string;
+  group_name?: string | null;
+  client_name?: string | null;
+  address?: string | null;
+  manager_name?: string | null;
+  manager_phone?: string | null;
+  contact_name?: string | null;
+  framework?: string | null;
+  framework_name?: string | null;
+  field?: string | null;
+  lesson_duration?: number | null;
+  lessons_count?: number | null;
+  notes?: string | null;
+}) {
+  const supabase = createAdminClient();
+
+  if (!data.location_id) return { error: "יש לבחור גן / מיקום" };
+  if (data.day_of_week < 0 || data.day_of_week > 6) return { error: "יום לא תקין" };
+  if (!data.start_time) return { error: "יש להזין שעה" };
+
+  const startTime = data.start_time.length === 5 ? `${data.start_time}:00` : data.start_time;
+  const instructorId = data.instructor_id || null;
+
+  // Guard against creating an exact duplicate of an existing fixed lesson.
+  let dupQuery = supabase
+    .from("recurring_schedule")
+    .select("id")
+    .eq("location_id", data.location_id)
+    .eq("day_of_week", data.day_of_week)
+    .eq("start_time", startTime);
+  dupQuery = instructorId ? dupQuery.eq("instructor_id", instructorId) : dupQuery.is("instructor_id", null);
+  const { data: existing } = await dupQuery.limit(1);
+  if (existing && existing.length > 0) {
+    return { error: "כבר קיים שיעור קבוע זהה (אותו מיקום, יום, שעה ומדריך/ה)" };
+  }
+
+  const { data: recurringRow, error: recurringError } = await supabase
+    .from("recurring_schedule")
+    .insert({
+      instructor_id: instructorId,
+      location_id: data.location_id,
+      day_of_week: data.day_of_week,
+      start_time: startTime,
+      group_name: data.group_name?.trim() || null,
+      client_name: data.client_name?.trim() || null,
+      address: data.address?.trim() || null,
+      manager_name: data.manager_name?.trim() || null,
+      manager_phone: data.manager_phone?.trim() || null,
+      contact_name: data.contact_name?.trim() || null,
+      framework: data.framework?.trim() || null,
+      framework_name: data.framework_name?.trim() || null,
+      field: data.field?.trim() || null,
+      lesson_duration: data.lesson_duration ?? null,
+      lessons_count: data.lessons_count ?? null,
+      notes: data.notes?.trim() || null,
+    })
+    .select("id")
+    .single();
+
+  if (recurringError || !recurringRow) {
+    return { error: "שגיאה ביצירת השיעור הקבוע: " + (recurringError?.message ?? "") };
+  }
+
+  // Generate concrete lesson instances from the next occurrence of this weekday, 8 weeks out.
+  const today = new Date();
+  const dayDiff = (data.day_of_week - today.getDay() + 7) % 7;
+  const firstOccurrence = addDays(today, dayDiff);
+  const horizon = addDays(today, 8 * 7);
+
+  const lessonRows: {
+    recurring_item_id: string;
+    location_id: string;
+    instructor_id: string | null;
+    lesson_date: string;
+    start_time: string;
+    status: string;
+  }[] = [];
+  let weekStart = startOfWeek(firstOccurrence, { weekStartsOn: 0 });
+  while (weekStart <= horizon) {
+    const lessonDate = addDays(weekStart, data.day_of_week);
+    const lessonDateStr = format(lessonDate, "yyyy-MM-dd");
+    if (lessonDate >= firstOccurrence && !isHoliday(lessonDateStr)) {
+      lessonRows.push({
+        recurring_item_id: recurringRow.id,
+        location_id: data.location_id,
+        instructor_id: instructorId,
+        lesson_date: lessonDateStr,
+        start_time: startTime,
+        status: "scheduled",
+      });
+    }
+    weekStart = addDays(weekStart, 7);
+  }
+
+  for (let b = 0; b < lessonRows.length; b += 100) {
+    const batch = lessonRows.slice(b, b + 100);
+    await supabase
+      .from("lessons")
+      .upsert(batch, { onConflict: "instructor_id,location_id,lesson_date,start_time", ignoreDuplicates: true });
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
+  revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true, id: recurringRow.id as string };
+}
+
 // Permanent-schedule import — same CSV format, but each row becomes a recurring_schedule
 // master row (like matching a staffing need to an instructor does) plus its concrete weekly
 // lesson instances going forward. Unlike the one-time import, an instructor is required here
