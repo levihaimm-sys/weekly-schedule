@@ -9,6 +9,7 @@ import type { CampRequestWithCandidates } from "@/types/database";
 export function CampRequestModal({ request, onClose }: { request: CampRequestWithCandidates; onClose: () => void }) {
   const router = useRouter();
   const [clientName, setClientName] = useState(request.client_name ?? "");
+  const [coordinatorName, setCoordinatorName] = useState(request.coordinator_name ?? "");
   const [area, setArea] = useState(request.area);
   const [campDate, setCampDate] = useState(request.camp_date);
   const [numGroups, setNumGroups] = useState(String(request.num_groups));
@@ -25,6 +26,7 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
     try {
       const result = await updateCampRequest(request.id, {
         client_name: clientName,
+        coordinator_name: coordinatorName,
         area,
         camp_date: campDate,
         num_groups: Number(numGroups) || 1,
@@ -73,6 +75,9 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="לקוח (לא חובה)">
             <input value={clientName} onChange={(e) => setClientName(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="רכזת (לא חובה)">
+            <input value={coordinatorName} onChange={(e) => setCoordinatorName(e.target.value)} className={inputClass} />
           </Field>
           <Field label="אזור / מיקום">
             <input value={area} onChange={(e) => setArea(e.target.value)} className={inputClass} />

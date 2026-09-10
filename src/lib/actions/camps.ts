@@ -7,6 +7,7 @@ const PATH = "/camps";
 
 interface CampRequestInput {
   client_name?: string | null;
+  coordinator_name?: string | null;
   area: string;
   camp_date: string;
   num_groups: number;
@@ -23,6 +24,7 @@ export async function addCampRequest(data: CampRequestInput) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("camp_requests").insert({
     client_name: data.client_name?.trim() || null,
+    coordinator_name: data.coordinator_name?.trim() || null,
     area,
     camp_date: data.camp_date,
     num_groups: numGroups,
@@ -46,6 +48,7 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
     .from("camp_requests")
     .update({
       client_name: data.client_name?.trim() || null,
+      coordinator_name: data.coordinator_name?.trim() || null,
       area,
       camp_date: data.camp_date,
       num_groups: numGroups,
@@ -74,7 +77,7 @@ export async function duplicateCampRequest(id: string) {
   const supabase = createAdminClient();
   const { data: original, error: fetchError } = await supabase
     .from("camp_requests")
-    .select("client_name, area, camp_date, num_groups, start_time_note, notes")
+    .select("client_name, coordinator_name, area, camp_date, num_groups, start_time_note, notes")
     .eq("id", id)
     .single();
 

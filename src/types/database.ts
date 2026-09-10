@@ -327,6 +327,7 @@ export interface StaffingAssignment {
 export interface CampRequest {
   id: string;
   client_name: string | null;
+  coordinator_name: string | null;
   area: string;
   camp_date: string;
   num_groups: number;

@@ -65,6 +65,7 @@ export function CampsManager({ requests, instructors }: Props) {
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const [clientName, setClientName] = useState("");
+  const [coordinatorName, setCoordinatorName] = useState("");
   const [area, setArea] = useState("");
   const [campDate, setCampDate] = useState("");
   const [numGroups, setNumGroups] = useState("1");
@@ -134,6 +135,7 @@ export function CampsManager({ requests, instructors }: Props) {
         const match =
           r.area.toLowerCase().includes(q) ||
           (r.client_name ?? "").toLowerCase().includes(q) ||
+          (r.coordinator_name ?? "").toLowerCase().includes(q) ||
           (r.notes ?? "").toLowerCase().includes(q);
         if (!match) return false;
       }
@@ -161,6 +163,7 @@ export function CampsManager({ requests, instructors }: Props) {
     setIsPending(true);
     const result = await addCampRequest({
       client_name: clientName,
+      coordinator_name: coordinatorName,
       area,
       camp_date: campDate,
       num_groups: Number(numGroups) || 1,
@@ -174,6 +177,7 @@ export function CampsManager({ requests, instructors }: Props) {
     }
     setAddFormOpen(false);
     setClientName("");
+    setCoordinatorName("");
     setArea("");
     setCampDate("");
     setNumGroups("1");
@@ -222,6 +226,15 @@ export function CampsManager({ requests, instructors }: Props) {
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="מתנ״ס דרום ת״א"
                   className="w-48 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">רכזת (לא חובה)</label>
+                <input
+                  value={coordinatorName}
+                  onChange={(e) => setCoordinatorName(e.target.value)}
+                  placeholder="שם הרכזת"
+                  className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -341,6 +354,7 @@ export function CampsManager({ requests, instructors }: Props) {
           <thead>
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">רכזת</th>
               <th className="px-3 py-2.5 whitespace-nowrap">
                 <button
                   onClick={() => handleSortClick("area")}
@@ -369,7 +383,7 @@ export function CampsManager({ requests, instructors }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                <td colSpan={9} className="py-10 text-center text-muted-foreground">
                   אין בקשות קייטנה תואמות
                 </td>
               </tr>
@@ -386,6 +400,9 @@ export function CampsManager({ requests, instructors }: Props) {
                       >
                         {r.client_name ?? "—"}
                       </button>
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {r.coordinator_name ?? "—"}
                     </td>
                     <td className="px-3 py-2.5 align-top whitespace-nowrap">{r.area}</td>
                     <td dir="ltr" className="px-3 py-2.5 align-top whitespace-nowrap">

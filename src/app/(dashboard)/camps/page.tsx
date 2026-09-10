@@ -8,7 +8,7 @@ export default async function CampsPage() {
   const [{ data: requests }, { data: candidates }, { data: instructors }] = await Promise.all([
     supabase
       .from("camp_requests")
-      .select("id, client_name, area, camp_date, num_groups, start_time_note, notes, created_at")
+      .select("id, client_name, coordinator_name, area, camp_date, num_groups, start_time_note, notes, created_at")
       .order("camp_date"),
     supabase
       .from("camp_request_candidates")
