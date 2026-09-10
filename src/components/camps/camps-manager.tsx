@@ -21,25 +21,21 @@ import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { CampRequestWithCandidates, Instructor } from "@/types/database";
 
-type CampStatus = "open" | "partially_filled" | "filled";
+type CampStatus = "open" | "filled";
 
 const CAMP_STATUS_LABEL: Record<CampStatus, string> = {
   open: "לא שובץ",
-  partially_filled: "שובץ חלקית",
   filled: "שובץ במלואו",
 };
 
 const STATUS_COLORS: Record<CampStatus, string> = {
   open: "bg-gray-50 text-gray-600 border-gray-200",
-  partially_filled: "bg-amber-50 text-amber-700 border-amber-200",
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
 function campStatus(r: CampRequestWithCandidates): CampStatus {
   const confirmedCount = r.candidates.filter((c) => c.is_confirmed).length;
-  if (confirmedCount === 0) return "open";
-  if (confirmedCount >= r.num_groups) return "filled";
-  return "partially_filled";
+  return confirmedCount === 0 ? "open" : "filled";
 }
 
 function formatDate(dateStr: string) {
