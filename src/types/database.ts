@@ -319,3 +319,31 @@ export interface StaffingAssignment {
   created_at: string;
   converted_at: string | null;
 }
+
+// =============================================
+// CAMPS INTAKE (קייטנות)
+// =============================================
+
+export interface CampRequest {
+  id: string;
+  client_name: string | null;
+  area: string;
+  camp_date: string;
+  num_groups: number;
+  start_time_note: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CampGroupAssignment {
+  id: string;
+  camp_request_id: string;
+  group_number: number;
+  instructor_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CampRequestWithGroups extends CampRequest {
+  groups: CampGroupAssignment[];
+}

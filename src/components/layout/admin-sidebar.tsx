@@ -21,6 +21,7 @@ import {
   UserSearch,
   GitMerge,
   Table,
+  Tent,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { href: "/recruitment", label: "גיוס", icon: UserSearch },
   { href: "/clients", label: "לקוחות", icon: Building2 },
   { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
+  { href: "/camps", label: "קייטנות", icon: Tent },
   { href: "/lesson-plans", label: "ציוד", icon: Package },
   { href: "/lesson-plans/manage", label: "ניהול מערכי שיעור", icon: BookOpen },
   { href: "/confirmations", label: "מעקב אישורים", icon: ClipboardCheck },
