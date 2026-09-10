@@ -3,26 +3,32 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, CheckCircle2, RotateCcw, X, Plus, Loader2 } from "lucide-react";
-import { addGroupCandidate, confirmGroupCandidate, unconfirmGroupCandidate, removeGroupCandidate } from "@/lib/actions/camps";
-import type { CampGroupWithCandidates, Instructor } from "@/types/database";
+import {
+  addRequestCandidate,
+  confirmRequestCandidate,
+  unconfirmRequestCandidate,
+  removeRequestCandidate,
+} from "@/lib/actions/camps";
+import type { CampRequestWithCandidates, Instructor } from "@/types/database";
 
-// Add any number of candidate instructors to a group and confirm exactly one — same
-// candidates-then-confirm-one pattern as the next-year staffing module's matching table.
-export function GroupCandidates({ group, instructors }: { group: CampGroupWithCandidates; instructors: Instructor[] }) {
+// Add any number of candidate instructors to a camp day and confirm as many as needed —
+// staffing here is per workday, not per group/lesson, so confirming isn't exclusive to one
+// candidate the way the staffing module's per-need confirmation is.
+export function RequestCandidates({ request, instructors }: { request: CampRequestWithCandidates; instructors: Instructor[] }) {
   const router = useRouter();
   const [selectedInstructorId, setSelectedInstructorId] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const instructorById = new Map(instructors.map((i) => [i.id, i]));
-  const candidateInstructorIds = new Set(group.candidates.map((c) => c.instructor_id));
+  const candidateInstructorIds = new Set(request.candidates.map((c) => c.instructor_id));
   const availableInstructors = instructors.filter((i) => i.is_active && !candidateInstructorIds.has(i.id));
 
   async function handleAdd() {
     if (!selectedInstructorId) return;
     setError(null);
     setPendingId("new");
-    const result = await addGroupCandidate(group.id, selectedInstructorId);
+    const result = await addRequestCandidate(request.id, selectedInstructorId);
     setPendingId(null);
     if (result.error) {
       setError(result.error);
@@ -34,21 +40,21 @@ export function GroupCandidates({ group, instructors }: { group: CampGroupWithCa
 
   async function handleConfirm(candidateId: string) {
     setPendingId(candidateId);
-    await confirmGroupCandidate(candidateId);
+    await confirmRequestCandidate(candidateId);
     setPendingId(null);
     router.refresh();
   }
 
   async function handleUnconfirm(candidateId: string) {
     setPendingId(candidateId);
-    await unconfirmGroupCandidate(candidateId);
+    await unconfirmRequestCandidate(candidateId);
     setPendingId(null);
     router.refresh();
   }
 
   async function handleRemove(candidateId: string) {
     setPendingId(candidateId);
-    await removeGroupCandidate(candidateId);
+    await removeRequestCandidate(candidateId);
     setPendingId(null);
     router.refresh();
   }
@@ -56,7 +62,7 @@ export function GroupCandidates({ group, instructors }: { group: CampGroupWithCa
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
-        {group.candidates.map((c) => (
+        {request.candidates.map((c) => (
           <span
             key={c.id}
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs whitespace-nowrap ${
@@ -72,7 +78,7 @@ export function GroupCandidates({ group, instructors }: { group: CampGroupWithCa
                 </button>
               </>
             ) : (
-              <button onClick={() => handleConfirm(c.id)} title="אשר מדריך/ה לקבוצה" className="hover:text-green-700">
+              <button onClick={() => handleConfirm(c.id)} title="אשר מדריך/ה ליום" className="hover:text-green-700">
                 {pendingId === c.id ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
               </button>
             )}

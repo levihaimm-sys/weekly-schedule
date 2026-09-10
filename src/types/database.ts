@@ -335,27 +335,17 @@ export interface CampRequest {
   created_at: string;
 }
 
-export interface CampGroup {
+// Candidates are per camp-day (camp_requests), not per group — camps are staffed by
+// workday, not per individual lesson/group.
+export interface CampRequestCandidate {
   id: string;
   camp_request_id: string;
-  group_number: number;
-  notes: string | null;
-  created_at: string;
-}
-
-export interface CampGroupCandidate {
-  id: string;
-  group_id: string;
   instructor_id: string;
   is_confirmed: boolean;
   notes: string | null;
   created_at: string;
 }
 
-export interface CampGroupWithCandidates extends CampGroup {
-  candidates: CampGroupCandidate[];
-}
-
-export interface CampRequestWithGroups extends CampRequest {
-  groups: CampGroupWithCandidates[];
+export interface CampRequestWithCandidates extends CampRequest {
+  candidates: CampRequestCandidate[];
 }

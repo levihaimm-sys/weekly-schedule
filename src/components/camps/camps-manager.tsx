@@ -16,10 +16,10 @@ import {
 } from "lucide-react";
 import { addCampRequest, deleteCampRequest, duplicateCampRequest } from "@/lib/actions/camps";
 import { CampRequestModal } from "./camp-request-modal";
-import { GroupCandidates } from "./camp-group-candidates";
+import { RequestCandidates } from "./camp-request-candidates";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import type { CampRequestWithGroups, Instructor } from "@/types/database";
+import type { CampRequestWithCandidates, Instructor } from "@/types/database";
 
 type CampStatus = "open" | "partially_filled" | "filled";
 
@@ -35,10 +35,10 @@ const STATUS_COLORS: Record<CampStatus, string> = {
   filled: "bg-green-50 text-green-700 border-green-200",
 };
 
-function campStatus(r: CampRequestWithGroups): CampStatus {
-  const assigned = r.groups.filter((g) => g.candidates.some((c) => c.is_confirmed)).length;
-  if (assigned === 0) return "open";
-  if (assigned >= r.num_groups) return "filled";
+function campStatus(r: CampRequestWithCandidates): CampStatus {
+  const confirmedCount = r.candidates.filter((c) => c.is_confirmed).length;
+  if (confirmedCount === 0) return "open";
+  if (confirmedCount >= r.num_groups) return "filled";
   return "partially_filled";
 }
 
@@ -50,7 +50,7 @@ function formatDate(dateStr: string) {
 }
 
 interface Props {
-  requests: CampRequestWithGroups[];
+  requests: CampRequestWithCandidates[];
   instructors: Instructor[];
 }
 
@@ -61,7 +61,7 @@ export function CampsManager({ requests, instructors }: Props) {
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingRequest, setEditingRequest] = useState<CampRequestWithGroups | null>(null);
+  const [editingRequest, setEditingRequest] = useState<CampRequestWithCandidates | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const [clientName, setClientName] = useState("");
@@ -144,7 +144,7 @@ export function CampsManager({ requests, instructors }: Props) {
   const sorted = useMemo(() => {
     if (sortKeys.length === 0) return filtered;
     const copy = [...filtered];
-    const compare = (a: CampRequestWithGroups, b: CampRequestWithGroups, column: SortColumn) =>
+    const compare = (a: CampRequestWithCandidates, b: CampRequestWithCandidates, column: SortColumn) =>
       column === "area" ? a.area.localeCompare(b.area, "he") : a.camp_date.localeCompare(b.camp_date);
     copy.sort((a, b) => {
       for (const { key, dir } of sortKeys) {
@@ -243,7 +243,7 @@ export function CampsManager({ requests, instructors }: Props) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">כמות קבוצות</label>
+                <label className="text-xs text-muted-foreground">כמות קבוצות (= מדריכים נדרשים)</label>
                 <input
                   type="number"
                   min={1}
@@ -401,17 +401,7 @@ export function CampsManager({ requests, instructors }: Props) {
                       </span>
                     </td>
                     <td className="px-3 py-2 align-top">
-                      <div className="space-y-1.5">
-                        {r.groups
-                          .slice()
-                          .sort((a, b) => a.group_number - b.group_number)
-                          .map((g) => (
-                            <div key={g.id} className="flex flex-wrap items-center gap-2">
-                              <span className="w-14 shrink-0 text-xs text-muted-foreground">קבוצה {g.group_number}</span>
-                              <GroupCandidates group={g} instructors={instructors} />
-                            </div>
-                          ))}
-                      </div>
+                      <RequestCandidates request={r} instructors={instructors} />
                     </td>
                     <td className="px-3 py-2.5 align-top whitespace-nowrap">
                       <div className="flex items-center gap-1">

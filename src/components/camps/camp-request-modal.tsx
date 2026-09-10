@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Check, Loader2, Trash2 } from "lucide-react";
 import { updateCampRequest, deleteCampRequest } from "@/lib/actions/camps";
-import type { CampRequestWithGroups } from "@/types/database";
+import type { CampRequestWithCandidates } from "@/types/database";
 
-export function CampRequestModal({ request, onClose }: { request: CampRequestWithGroups; onClose: () => void }) {
+export function CampRequestModal({ request, onClose }: { request: CampRequestWithCandidates; onClose: () => void }) {
   const router = useRouter();
   const [clientName, setClientName] = useState(request.client_name ?? "");
   const [area, setArea] = useState(request.area);
@@ -18,11 +18,6 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
   const [isPending, setIsPending] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const reducingGroups = Number(numGroups) < request.num_groups;
-  const removedAssignedCount = reducingGroups
-    ? request.groups.filter((g) => g.group_number > Number(numGroups) && g.candidates.length > 0).length
-    : 0;
 
   async function handleSave() {
     setError(null);
@@ -85,7 +80,7 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
           <Field label="תאריך">
             <input type="date" value={campDate} onChange={(e) => setCampDate(e.target.value)} className={inputClass} />
           </Field>
-          <Field label="כמות קבוצות">
+          <Field label="כמות קבוצות (= מדריכים נדרשים)">
             <input
               type="number"
               min={1}
@@ -106,11 +101,6 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
           </div>
         </div>
 
-        {removedAssignedCount > 0 && (
-          <p className="mt-2 text-sm text-amber-700">
-            שים לב: הקטנת כמות הקבוצות תמחק {removedAssignedCount} קבוצות עם מועמדים/ות משובצים/ות
-          </p>
-        )}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
         <div className="mt-4 flex items-center justify-between">
