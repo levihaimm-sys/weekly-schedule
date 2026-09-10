@@ -1,16 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Check, Trash2, ChevronDown, Pencil, Copy, Clock, Users } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  Check,
+  Trash2,
+  Pencil,
+  Copy,
+  X,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
+} from "lucide-react";
 import { addCampRequest, deleteCampRequest, duplicateCampRequest } from "@/lib/actions/camps";
 import { CampRequestModal } from "./camp-request-modal";
 import { GroupCandidates } from "./camp-group-candidates";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { CampRequestWithGroups, Instructor } from "@/types/database";
 
-interface Props {
-  requests: CampRequestWithGroups[];
-  instructors: Instructor[];
+type CampStatus = "open" | "partially_filled" | "filled";
+
+const CAMP_STATUS_LABEL: Record<CampStatus, string> = {
+  open: "לא שובץ",
+  partially_filled: "שובץ חלקית",
+  filled: "שובץ במלואו",
+};
+
+const STATUS_COLORS: Record<CampStatus, string> = {
+  open: "bg-gray-50 text-gray-600 border-gray-200",
+  partially_filled: "bg-amber-50 text-amber-700 border-amber-200",
+  filled: "bg-green-50 text-green-700 border-green-200",
+};
+
+function campStatus(r: CampRequestWithGroups): CampStatus {
+  const assigned = r.groups.filter((g) => g.candidates.some((c) => c.is_confirmed)).length;
+  if (assigned === 0) return "open";
+  if (assigned >= r.num_groups) return "filled";
+  return "partially_filled";
 }
 
 function formatDate(dateStr: string) {
@@ -20,12 +49,18 @@ function formatDate(dateStr: string) {
   return `${d}.${m}.${y}`;
 }
 
+interface Props {
+  requests: CampRequestWithGroups[];
+  instructors: Instructor[];
+}
+
+type SortColumn = "date" | "area";
+
 export function CampsManager({ requests, instructors }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingRequest, setEditingRequest] = useState<CampRequestWithGroups | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
@@ -35,6 +70,91 @@ export function CampsManager({ requests, instructors }: Props) {
   const [numGroups, setNumGroups] = useState("1");
   const [startTimeNote, setStartTimeNote] = useState("");
   const [notes, setNotes] = useState("");
+
+  const [search, setSearch] = usePersistedState("camps-search", "");
+  const [areaFilter, setAreaFilter] = usePersistedState<string[]>("camps-area-filter", []);
+  const [clientFilter, setClientFilter] = usePersistedState<string[]>("camps-client-filter", []);
+  const [statusFilter, setStatusFilter] = usePersistedState<string[]>("camps-status-filter", []);
+  // Composite sort: the array's order IS the priority (first = primary), same convention as
+  // the staffing matching table — clicking a column makes it primary while keeping any other
+  // active column as a secondary tiebreaker.
+  const [sortKeys, setSortKeys] = usePersistedState<{ key: SortColumn; dir: "asc" | "desc" }[]>("camps-sortkeys", [
+    { key: "date", dir: "asc" },
+  ]);
+
+  function handleSortClick(column: SortColumn) {
+    setSortKeys((prev) => {
+      const isPrimary = prev[0]?.key === column;
+      if (isPrimary) {
+        if (prev[0].dir === "asc") return [{ key: column, dir: "desc" }, ...prev.slice(1)];
+        return prev.slice(1);
+      }
+      const rest = prev.filter((k) => k.key !== column);
+      return [{ key: column, dir: "asc" }, ...rest];
+    });
+  }
+
+  function sortIndicator(column: SortColumn) {
+    const idx = sortKeys.findIndex((k) => k.key === column);
+    if (idx === -1) return <ArrowUpDown size={12} />;
+    const dir = sortKeys[idx].dir;
+    const icon = dir === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} />;
+    if (sortKeys.length < 2) return icon;
+    return (
+      <span className="flex items-center">
+        {icon}
+        <sup className="text-[9px]">{idx + 1}</sup>
+      </span>
+    );
+  }
+
+  const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
+  const areaOptions = Array.from(new Set(requests.map((r) => r.area))).sort(sortHe);
+  const clientOptions = (Array.from(new Set(requests.map((r) => r.client_name).filter(Boolean))) as string[]).sort(
+    sortHe
+  );
+
+  const hasActiveFilters =
+    search.trim() !== "" || areaFilter.length > 0 || clientFilter.length > 0 || statusFilter.length > 0;
+
+  function clearFilters() {
+    setSearch("");
+    setAreaFilter([]);
+    setClientFilter([]);
+    setStatusFilter([]);
+  }
+
+  const filtered = useMemo(() => {
+    return requests.filter((r) => {
+      if (areaFilter.length > 0 && !areaFilter.includes(r.area)) return false;
+      if (clientFilter.length > 0 && !clientFilter.includes(r.client_name ?? "")) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(campStatus(r))) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const match =
+          r.area.toLowerCase().includes(q) ||
+          (r.client_name ?? "").toLowerCase().includes(q) ||
+          (r.notes ?? "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [requests, areaFilter, clientFilter, statusFilter, search]);
+
+  const sorted = useMemo(() => {
+    if (sortKeys.length === 0) return filtered;
+    const copy = [...filtered];
+    const compare = (a: CampRequestWithGroups, b: CampRequestWithGroups, column: SortColumn) =>
+      column === "area" ? a.area.localeCompare(b.area, "he") : a.camp_date.localeCompare(b.camp_date);
+    copy.sort((a, b) => {
+      for (const { key, dir } of sortKeys) {
+        const cmp = compare(a, b, key);
+        if (cmp !== 0) return dir === "asc" ? cmp : -cmp;
+      }
+      return 0;
+    });
+    return copy;
+  }, [filtered, sortKeys]);
 
   async function handleAdd() {
     setError(null);
@@ -74,14 +194,12 @@ export function CampsManager({ requests, instructors }: Props) {
     router.refresh();
   }
 
-  const sorted = [...requests].sort((a, b) => a.camp_date.localeCompare(b.camp_date));
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {requests.length} בקשות קייטנה · לקליטת בקשות משיבוץ ושיוך מדריכים בלבד — השיעורים
-          המלאים (כתובות, שעות) יוזנו בהמשך ללוח הקבוע
+          לקליטת בקשות משיבוץ ושיוך מדריכים בלבד — השיעורים המלאים (כתובות, שעות) יוזנו בהמשך ללוח
+          הקבוע
         </p>
         <button
           onClick={() => setAddFormOpen(!addFormOpen)}
@@ -177,99 +295,156 @@ export function CampsManager({ requests, instructors }: Props) {
         </div>
       )}
 
-      <div className="space-y-2">
-        {sorted.map((r) => {
-          const assignedCount = r.groups.filter((g) => g.candidates.some((c) => c.is_confirmed)).length;
-          const isExpanded = expandedId === r.id;
-          const badgeColor =
-            assignedCount === 0
-              ? "bg-gray-50 text-gray-600 border-gray-200"
-              : assignedCount === r.num_groups
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-amber-50 text-amber-700 border-amber-200";
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש אזור / לקוח / הערות"
+          className={`w-52 rounded-lg border px-3 py-2 text-sm transition-colors ${
+            search.trim() ? "border-secondary bg-secondary/10 font-medium" : "border-border bg-background"
+          }`}
+        />
+        <MultiSelectFilter
+          options={areaOptions.map((a) => ({ value: a, label: a }))}
+          selected={areaFilter}
+          onChange={setAreaFilter}
+          placeholder="כל האזורים"
+        />
+        <MultiSelectFilter
+          options={clientOptions.map((c) => ({ value: c, label: c }))}
+          selected={clientFilter}
+          onChange={setClientFilter}
+          placeholder="כל הלקוחות"
+        />
+        <MultiSelectFilter
+          options={(Object.keys(CAMP_STATUS_LABEL) as CampStatus[]).map((s) => ({ value: s, label: CAMP_STATUS_LABEL[s] }))}
+          selected={statusFilter}
+          onChange={setStatusFilter}
+          placeholder="כל הסטטוסים"
+        />
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
+        <span className="text-sm text-muted-foreground">
+          {sorted.length} בקשות ({sorted.reduce((sum, r) => sum + r.num_groups, 0)} קבוצות)
+        </span>
+      </div>
 
-          return (
-            <div key={r.id} className="rounded-xl border border-border bg-background">
-              <div
-                onClick={() => setExpandedId(isExpanded ? null : r.id)}
-                className="flex cursor-pointer items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/40"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{r.area}</p>
-                    <span dir="ltr" className="text-sm text-muted-foreground">
+      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+              <th className="px-3 py-2.5 whitespace-nowrap">לקוח</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">
+                <button
+                  onClick={() => handleSortClick("area")}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                >
+                  אזור
+                  {sortIndicator("area")}
+                </button>
+              </th>
+              <th className="px-3 py-2.5 whitespace-nowrap">
+                <button
+                  onClick={() => handleSortClick("date")}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                >
+                  תאריך
+                  {sortIndicator("date")}
+                </button>
+              </th>
+              <th className="px-3 py-2.5 whitespace-nowrap">שעת התחלה</th>
+              <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
+              <th className="px-3 py-2.5 min-w-[280px]">מדריכים/ות</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">פעולות</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                  אין בקשות קייטנה תואמות
+                </td>
+              </tr>
+            ) : (
+              sorted.map((r) => {
+                const status = campStatus(r);
+                return (
+                  <tr key={r.id}>
+                    <td className="px-3 py-2.5 align-top font-medium whitespace-nowrap">
+                      <button
+                        onClick={() => setEditingRequest(r)}
+                        className="hover:underline"
+                        title={r.notes ? `ערוך בקשה · ${r.notes}` : "ערוך בקשה"}
+                      >
+                        {r.client_name ?? "—"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5 align-top whitespace-nowrap">{r.area}</td>
+                    <td dir="ltr" className="px-3 py-2.5 align-top whitespace-nowrap">
                       {formatDate(r.camp_date)}
-                    </span>
-                    <span className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${badgeColor}`}>
-                      <Users size={12} />
-                      {assignedCount}/{r.num_groups} שובצו
-                    </span>
-                  </div>
-                  <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                    {r.client_name && <span>{r.client_name}</span>}
-                    {r.client_name && r.start_time_note && <span>·</span>}
-                    {r.start_time_note && (
-                      <span className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {r.start_time_note}
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
+                      {r.start_time_note ?? "—"}
+                    </td>
+                    <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{r.num_groups}</td>
+                    <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status]}`}>
+                        {CAMP_STATUS_LABEL[status]}
                       </span>
-                    )}
-                  </p>
-                  {r.notes && <p className="mt-0.5 text-xs text-muted-foreground">{r.notes}</p>}
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDuplicate(r.id);
-                    }}
-                    disabled={duplicatingId === r.id}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                    title="שכפל בקשה"
-                  >
-                    {duplicatingId === r.id ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingRequest(r);
-                    }}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="ערוך פרטים"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(r.id);
-                    }}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-red-600"
-                    title="מחק"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                  <ChevronDown size={16} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="space-y-2 border-t border-border p-3">
-                  {r.groups
-                    .slice()
-                    .sort((a, b) => a.group_number - b.group_number)
-                    .map((g) => (
-                      <div key={g.id} className="flex flex-wrap items-center gap-2">
-                        <span className="w-16 shrink-0 text-sm text-muted-foreground">קבוצה {g.group_number}</span>
-                        <GroupCandidates group={g} instructors={instructors} />
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <div className="space-y-1.5">
+                        {r.groups
+                          .slice()
+                          .sort((a, b) => a.group_number - b.group_number)
+                          .map((g) => (
+                            <div key={g.id} className="flex flex-wrap items-center gap-2">
+                              <span className="w-14 shrink-0 text-xs text-muted-foreground">קבוצה {g.group_number}</span>
+                              <GroupCandidates group={g} instructors={instructors} />
+                            </div>
+                          ))}
                       </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {sorted.length === 0 && <p className="text-sm text-muted-foreground">אין בקשות קייטנה עדיין</p>}
+                    </td>
+                    <td className="px-3 py-2.5 align-top whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDuplicate(r.id)}
+                          disabled={duplicatingId === r.id}
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          title="שכפל בקשה"
+                        >
+                          {duplicatingId === r.id ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+                        </button>
+                        <button
+                          onClick={() => setEditingRequest(r)}
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title="ערוך פרטים"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-red-600"
+                          title="מחק"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
       {editingRequest && <CampRequestModal request={editingRequest} onClose={() => setEditingRequest(null)} />}
