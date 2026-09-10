@@ -259,18 +259,10 @@ export async function getInstructorMonthlySummary(
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-  const { data: recurringRows } = await supabase
-    .from("recurring_schedule")
-    .select("id, client_name")
-    .not("client_name", "is", null);
-  const clientByRecurringId = new Map(
-    (recurringRows ?? []).map((r) => [r.id, r.client_name])
-  );
-
   const { data: rawLessons, error } = await supabase
     .from("lessons")
     .select(
-      `id, status, recurring_item_id,
+      `id, status,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(city),
        signatures(signer_role)`
@@ -285,8 +277,7 @@ export async function getInstructorMonthlySummary(
 
   for (const lesson of rawLessons ?? []) {
     const instructorName = (lesson.instructor as any)?.full_name ?? "לא ידוע";
-    const city = (lesson.location as any)?.city ?? "";
-    if (!city || !clientByRecurringId.get((lesson as any).recurring_item_id)) continue;
+    const city = (lesson.location as any)?.city ?? "—";
 
     if (!instructorMap.has(instructorName))
       instructorMap.set(instructorName, new Map());
