@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Check, Trash2, ChevronDown, Pencil, Clock, Users } from "lucide-react";
-import { addCampRequest, assignGroupInstructor, deleteCampRequest } from "@/lib/actions/camps";
+import { Plus, Loader2, Check, Trash2, ChevronDown, Pencil, Copy, Clock, Users } from "lucide-react";
+import { addCampRequest, deleteCampRequest, duplicateCampRequest } from "@/lib/actions/camps";
 import { CampRequestModal } from "./camp-request-modal";
+import { GroupCandidates } from "./camp-group-candidates";
 import type { CampRequestWithGroups, Instructor } from "@/types/database";
 
 interface Props {
@@ -26,6 +27,7 @@ export function CampsManager({ requests, instructors }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingRequest, setEditingRequest] = useState<CampRequestWithGroups | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const [clientName, setClientName] = useState("");
   const [area, setArea] = useState("");
@@ -33,9 +35,6 @@ export function CampsManager({ requests, instructors }: Props) {
   const [numGroups, setNumGroups] = useState("1");
   const [startTimeNote, setStartTimeNote] = useState("");
   const [notes, setNotes] = useState("");
-
-  const activeInstructors = instructors.filter((i) => i.is_active);
-  const instructorById = new Map(instructors.map((i) => [i.id, i]));
 
   async function handleAdd() {
     setError(null);
@@ -68,8 +67,10 @@ export function CampsManager({ requests, instructors }: Props) {
     router.refresh();
   }
 
-  async function handleAssign(groupId: string, instructorId: string) {
-    await assignGroupInstructor(groupId, instructorId || null);
+  async function handleDuplicate(id: string) {
+    setDuplicatingId(id);
+    await duplicateCampRequest(id);
+    setDuplicatingId(null);
     router.refresh();
   }
 
@@ -178,7 +179,7 @@ export function CampsManager({ requests, instructors }: Props) {
 
       <div className="space-y-2">
         {sorted.map((r) => {
-          const assignedCount = r.groups.filter((g) => g.instructor_id).length;
+          const assignedCount = r.groups.filter((g) => g.candidates.some((c) => c.is_confirmed)).length;
           const isExpanded = expandedId === r.id;
           const badgeColor =
             assignedCount === 0
@@ -220,6 +221,17 @@ export function CampsManager({ requests, instructors }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      handleDuplicate(r.id);
+                    }}
+                    disabled={duplicatingId === r.id}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                    title="שכפל בקשה"
+                  >
+                    {duplicatingId === r.id ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setEditingRequest(r);
                     }}
                     className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -242,30 +254,14 @@ export function CampsManager({ requests, instructors }: Props) {
               </div>
 
               {isExpanded && (
-                <div className="space-y-1.5 border-t border-border p-3">
+                <div className="space-y-2 border-t border-border p-3">
                   {r.groups
                     .slice()
                     .sort((a, b) => a.group_number - b.group_number)
                     .map((g) => (
-                      <div key={g.id} className="flex items-center gap-2">
+                      <div key={g.id} className="flex flex-wrap items-center gap-2">
                         <span className="w-16 shrink-0 text-sm text-muted-foreground">קבוצה {g.group_number}</span>
-                        <select
-                          value={g.instructor_id ?? ""}
-                          onChange={(e) => handleAssign(g.id, e.target.value)}
-                          className={`w-56 rounded-lg border px-3 py-1.5 text-sm ${
-                            g.instructor_id ? "border-border bg-background" : "border-dashed border-border bg-muted/30"
-                          }`}
-                        >
-                          <option value="">— לא שובץ מדריך —</option>
-                          {activeInstructors.map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.full_name}
-                            </option>
-                          ))}
-                          {g.instructor_id && !activeInstructors.some((i) => i.id === g.instructor_id) && (
-                            <option value={g.instructor_id}>{instructorById.get(g.instructor_id)?.full_name ?? "?"}</option>
-                          )}
-                        </select>
+                        <GroupCandidates group={g} instructors={instructors} />
                       </div>
                     ))}
                 </div>

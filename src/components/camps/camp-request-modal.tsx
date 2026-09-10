@@ -21,7 +21,7 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
 
   const reducingGroups = Number(numGroups) < request.num_groups;
   const removedAssignedCount = reducingGroups
-    ? request.groups.filter((g) => g.group_number > Number(numGroups) && g.instructor_id).length
+    ? request.groups.filter((g) => g.group_number > Number(numGroups) && g.candidates.length > 0).length
     : 0;
 
   async function handleSave() {
@@ -108,7 +108,7 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
 
         {removedAssignedCount > 0 && (
           <p className="mt-2 text-sm text-amber-700">
-            שים לב: הקטנת כמות הקבוצות תמחק {removedAssignedCount} קבוצות עם מדריך משובץ
+            שים לב: הקטנת כמות הקבוצות תמחק {removedAssignedCount} קבוצות עם מועמדים/ות משובצים/ות
           </p>
         )}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

@@ -335,15 +335,27 @@ export interface CampRequest {
   created_at: string;
 }
 
-export interface CampGroupAssignment {
+export interface CampGroup {
   id: string;
   camp_request_id: string;
   group_number: number;
-  instructor_id: string | null;
   notes: string | null;
   created_at: string;
 }
 
+export interface CampGroupCandidate {
+  id: string;
+  group_id: string;
+  instructor_id: string;
+  is_confirmed: boolean;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CampGroupWithCandidates extends CampGroup {
+  candidates: CampGroupCandidate[];
+}
+
 export interface CampRequestWithGroups extends CampRequest {
-  groups: CampGroupAssignment[];
+  groups: CampGroupWithCandidates[];
 }

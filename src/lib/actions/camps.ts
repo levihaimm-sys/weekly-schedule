@@ -40,7 +40,7 @@ export async function addCampRequest(data: CampRequestInput) {
     camp_request_id: request.id,
     group_number: i + 1,
   }));
-  const { error: groupsError } = await supabase.from("camp_group_assignments").insert(groupRows);
+  const { error: groupsError } = await supabase.from("camp_groups").insert(groupRows);
   if (groupsError) return { error: "שגיאה ביצירת קבוצות: " + groupsError.message };
 
   revalidatePath(PATH);
@@ -69,10 +69,10 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
   if (error) return { error: "שגיאה בעדכון: " + error.message };
 
   // Reconcile group rows to the new group count: drop groups numbered above the new
-  // count, add rows for any missing numbers up to it. Lower-numbered groups (and any
-  // instructor already assigned to them) are left untouched.
+  // count (their candidates cascade-delete with them), add rows for any missing numbers
+  // up to it. Lower-numbered groups (and their candidates) are left untouched.
   const { data: existingGroups } = await supabase
-    .from("camp_group_assignments")
+    .from("camp_groups")
     .select("id, group_number")
     .eq("camp_request_id", id);
 
@@ -80,7 +80,7 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
 
   const toDeleteIds = (existingGroups ?? []).filter((g) => g.group_number > numGroups).map((g) => g.id);
   if (toDeleteIds.length) {
-    await supabase.from("camp_group_assignments").delete().in("id", toDeleteIds);
+    await supabase.from("camp_groups").delete().in("id", toDeleteIds);
   }
 
   const toInsert = [];
@@ -88,7 +88,7 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
     if (!existingNumbers.has(n)) toInsert.push({ camp_request_id: id, group_number: n });
   }
   if (toInsert.length) {
-    await supabase.from("camp_group_assignments").insert(toInsert);
+    await supabase.from("camp_groups").insert(toInsert);
   }
 
   revalidatePath(PATH);
@@ -103,24 +103,86 @@ export async function deleteCampRequest(id: string) {
   return { success: true };
 }
 
-export async function assignGroupInstructor(groupId: string, instructorId: string | null) {
+// Copies a request's own fields (area, date, client, group count, notes) into a new request
+// with fresh, empty (no-candidate) groups — for the common case of the same client sending
+// another, very similar camp request. The admin edits whatever differs (date/area/etc.) on
+// the copy afterwards.
+export async function duplicateCampRequest(id: string) {
   const supabase = createAdminClient();
-  const { error } = await supabase
-    .from("camp_group_assignments")
-    .update({ instructor_id: instructorId })
-    .eq("id", groupId);
-  if (error) return { error: "שגיאה בשיבוץ: " + error.message };
+  const { data: original, error: fetchError } = await supabase
+    .from("camp_requests")
+    .select("client_name, area, camp_date, num_groups, start_time_note, notes")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !original) return { error: "בקשה לא נמצאה" };
+
+  return addCampRequest(original);
+}
+
+// ----- Group candidates (mirrors the staffing module's add-candidates/confirm-one pattern) -----
+
+export async function addGroupCandidate(groupId: string, instructorId: string) {
+  if (!instructorId) return { error: "יש לבחור מדריך/ה" };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("camp_group_candidates").insert({
+    group_id: groupId,
+    instructor_id: instructorId,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { error: "המדריך/ה כבר מועמד/ת לקבוצה הזו" };
+    return { error: "שגיאה בהוספה: " + error.message };
+  }
   revalidatePath(PATH);
   return { success: true };
 }
 
-export async function updateGroupNotes(groupId: string, notes: string) {
+// Confirming a candidate is exclusive within its group — a group needs exactly one
+// instructor, so confirming one un-confirms any other candidate already confirmed there.
+export async function confirmGroupCandidate(candidateId: string) {
+  const supabase = createAdminClient();
+
+  const { data: candidate, error: fetchError } = await supabase
+    .from("camp_group_candidates")
+    .select("id, group_id")
+    .eq("id", candidateId)
+    .single();
+
+  if (fetchError || !candidate) return { error: "מועמד/ת לא נמצא/ה" };
+
+  await supabase
+    .from("camp_group_candidates")
+    .update({ is_confirmed: false })
+    .eq("group_id", candidate.group_id)
+    .neq("id", candidateId);
+
+  const { error } = await supabase
+    .from("camp_group_candidates")
+    .update({ is_confirmed: true })
+    .eq("id", candidateId);
+
+  if (error) return { error: "שגיאה באישור: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function unconfirmGroupCandidate(candidateId: string) {
   const supabase = createAdminClient();
   const { error } = await supabase
-    .from("camp_group_assignments")
-    .update({ notes: notes.trim() || null })
-    .eq("id", groupId);
-  if (error) return { error: "שגיאה בעדכון: " + error.message };
+    .from("camp_group_candidates")
+    .update({ is_confirmed: false })
+    .eq("id", candidateId);
+  if (error) return { error: "שגיאה בביטול אישור: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function removeGroupCandidate(candidateId: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("camp_group_candidates").delete().eq("id", candidateId);
+  if (error) return { error: "שגיאה בהסרה: " + error.message };
   revalidatePath(PATH);
   return { success: true };
 }
