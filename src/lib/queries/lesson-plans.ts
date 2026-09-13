@@ -546,10 +546,19 @@ export async function getAssignmentsOverview() {
   const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const currentWeekStart = formatDate(sunday);
 
-  // Generate weeks: 8 back + current + 8 ahead (covers ~2 months each direction)
-  const rangeStart = new Date(sunday);
-  rangeStart.setDate(rangeStart.getDate() - 8 * 7);
-  const weeksCount = 17; // 8 back + 1 current + 8 ahead
+  // Generate weeks: 8 back + current + 8 ahead (covers ~2 months each direction),
+  // but never before the current school year's first Sunday - a new year's table
+  // shouldn't scroll back into last year's rows.
+  const schoolYearStartCalendarYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const sept1 = new Date(schoolYearStartCalendarYear, 8, 1);
+  const schoolYearStartSunday = new Date(sept1);
+  schoolYearStartSunday.setDate(sept1.getDate() + ((7 - sept1.getDay()) % 7));
+
+  const eightWeeksBack = new Date(sunday);
+  eightWeeksBack.setDate(eightWeeksBack.getDate() - 8 * 7);
+
+  const rangeStart = eightWeeksBack > schoolYearStartSunday ? eightWeeksBack : schoolYearStartSunday;
+  const weeksCount = Math.round((sunday.getTime() - rangeStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 9; // back to rangeStart + current + 8 ahead
   const weeks: string[] = [];
   for (let i = 0; i < weeksCount; i++) {
     const d = new Date(rangeStart);
@@ -577,24 +586,18 @@ export async function getAssignmentsOverview() {
     return { assignments: [], instructorCities: {} as Record<string, string>, currentWeekStart };
   }
 
-  // Get instructor-to-city mapping from recurring_schedule
-  const { data: scheduleData } = await supabase
-    .from("recurring_schedule")
-    .select(
-      `
-      instructor_id,
-      location:locations(city)
-    `
-    );
+  // Get instructor-to-route mapping (manually-set route label, e.g. "ראש העין") -
+  // this is intentionally not the actual recurring class location, since a route
+  // can group several instructors and doesn't need to track real scheduling changes.
+  const { data: routeData } = await supabase
+    .from("instructors")
+    .select("id, route");
 
   const instructorCities: Record<string, string> = {};
-  if (scheduleData) {
-    for (const item of scheduleData as any[]) {
-      if (item.instructor_id && item.location?.city) {
-        // Use first city found for each instructor
-        if (!instructorCities[item.instructor_id]) {
-          instructorCities[item.instructor_id] = item.location.city;
-        }
+  if (routeData) {
+    for (const inst of routeData) {
+      if (inst.route) {
+        instructorCities[inst.id] = inst.route;
       }
     }
   }
