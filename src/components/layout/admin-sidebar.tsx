@@ -99,6 +99,7 @@ export function AdminSidebar() {
                 ? pathname === "/schedule"
                 : item.href === "/lesson-plans"
                   ? pathname === "/lesson-plans" ||
+                    pathname === "/lesson-plans/inventory" ||
                     pathname === "/lesson-plans/assignments" ||
                     pathname === "/lesson-plans/confirmations-review" ||
                     pathname === "/lesson-plans/equipment-report" ||

@@ -649,6 +649,107 @@ export async function getYearlyEquipmentDistribution() {
 }
 
 /**
+ * Get the full equipment inventory (total stock per item) together with how much of each
+ * item is currently out with instructors, based on the current week's row on the weekly
+ * assignments page (whatever lesson plan is listed for each instructor this week).
+ */
+export async function getEquipmentInventoryOverview(): Promise<{
+  weekStartDate: string;
+  rows: Array<{
+    equipment_id: string;
+    equipment_name: string;
+    total_stock: number | null;
+    with_instructors: number;
+    holders: Array<{ instructor_name: string; lesson_plan_name: string; quantity: number }>;
+  }>;
+}> {
+  const supabase = await createClient();
+
+  const { data: equipmentList, error: equipmentError } = await supabase
+    .from("equipment")
+    .select("id, name, total_stock")
+    .order("name");
+
+  // Get Sunday of current week (Israel timezone) - same logic as getAssignmentsOverview
+  const now = getNowInIsrael();
+  const dayOfWeek = now.getDay();
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - dayOfWeek);
+  const weekStartDate = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, "0")}-${String(sunday.getDate()).padStart(2, "0")}`;
+
+  if (equipmentError || !equipmentList) {
+    console.error("Error fetching equipment inventory:", equipmentError);
+    return { weekStartDate, rows: [] };
+  }
+
+  const { data: assignments } = await supabase
+    .from("weekly_lesson_assignments")
+    .select(
+      `
+      lesson_plan_id,
+      instructor:instructors(full_name),
+      lesson_plan:lesson_plans(id, name)
+    `
+    )
+    .eq("week_start_date", weekStartDate)
+    .not("lesson_plan_id", "is", null);
+
+  const lessonPlanIds = [
+    ...new Set((assignments ?? []).map((a: any) => a.lesson_plan_id as string)),
+  ];
+
+  const totalsByEquipment = new Map<string, number>();
+  const holdersByEquipment = new Map<
+    string,
+    Array<{ instructor_name: string; lesson_plan_name: string; quantity: number }>
+  >();
+
+  if (lessonPlanIds.length > 0) {
+    const { data: equipmentRows } = await supabase
+      .from("lesson_plan_equipment")
+      .select("lesson_plan_id, equipment_id, quantity, instructor_quantity")
+      .in("lesson_plan_id", lessonPlanIds);
+
+    const equipmentByPlan = new Map<string, Array<{ equipment_id: string; quantity: number }>>();
+    for (const row of (equipmentRows ?? []) as any[]) {
+      const list = equipmentByPlan.get(row.lesson_plan_id) ?? [];
+      list.push({
+        equipment_id: row.equipment_id,
+        quantity: row.instructor_quantity ?? row.quantity,
+      });
+      equipmentByPlan.set(row.lesson_plan_id, list);
+    }
+
+    for (const assignment of (assignments ?? []) as any[]) {
+      const items = equipmentByPlan.get(assignment.lesson_plan_id) ?? [];
+      for (const item of items) {
+        totalsByEquipment.set(
+          item.equipment_id,
+          (totalsByEquipment.get(item.equipment_id) ?? 0) + item.quantity
+        );
+        const list = holdersByEquipment.get(item.equipment_id) ?? [];
+        list.push({
+          instructor_name: assignment.instructor?.full_name ?? "",
+          lesson_plan_name: assignment.lesson_plan?.name ?? "",
+          quantity: item.quantity,
+        });
+        holdersByEquipment.set(item.equipment_id, list);
+      }
+    }
+  }
+
+  const rows = equipmentList.map((eq) => ({
+    equipment_id: eq.id,
+    equipment_name: eq.name,
+    total_stock: eq.total_stock,
+    with_instructors: totalsByEquipment.get(eq.id) ?? 0,
+    holders: holdersByEquipment.get(eq.id) ?? [],
+  }));
+
+  return { weekStartDate, rows };
+}
+
+/**
  * Get all equipment items
  */
 export async function getAllEquipment(): Promise<Equipment[]> {

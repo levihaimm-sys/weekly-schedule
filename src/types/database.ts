@@ -127,6 +127,7 @@ export interface LessonPlan {
 export interface Equipment {
   id: string;
   name: string;
+  total_stock: number | null;
   created_at: string;
 }
 

@@ -366,6 +366,29 @@ export async function addExtraEquipment(
 }
 
 /**
+ * Update the total physical stock of an equipment item. Pass null for unlimited ("המון").
+ */
+export async function updateEquipmentTotalStock(
+  equipmentId: string,
+  totalStock: number | null
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("equipment")
+    .update({ total_stock: totalStock })
+    .eq("id", equipmentId);
+
+  if (error) {
+    console.error("Error updating equipment total stock:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/lesson-plans/inventory");
+  return { success: true };
+}
+
+/**
  * Set the quantity of one equipment item that instructors are actually told they're
  * receiving for a lesson plan (e.g. handing out 40 sticks when the plan calls for 35, to
  * cover breakage/loss). Pass null to fall back to the plan's own required quantity.

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { BookOpen, Package, Calendar, Scale } from "lucide-react";
+import { BookOpen, Package, Calendar, Scale, Boxes } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,23 @@ export default async function LessonPlansPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Link
+          href="/lesson-plans/inventory"
+          className="bg-white border border-gray-200 rounded-lg p-6 hover:border-indigo-300 hover:shadow-md transition-all"
+        >
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-indigo-50 rounded-lg">
+              <Boxes className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold mb-2">מלאי ציוד</h3>
+              <p className="text-sm text-gray-600">
+                המלאי הכולל של כל פריט, וכמה ממנו נמצא כרגע אצל מדריכות
+              </p>
+            </div>
+          </div>
+        </Link>
+
         <Link
           href="/lesson-plans/assignments"
           className="bg-white border border-gray-200 rounded-lg p-6 hover:border-blue-300 hover:shadow-md transition-all"
