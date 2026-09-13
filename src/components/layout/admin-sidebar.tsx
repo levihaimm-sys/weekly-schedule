@@ -26,21 +26,52 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "דשבורד", icon: ClipboardList },
-  { href: "/schedule/weekly", label: "לוח שבועי - אריחים", icon: CalendarClock },
-  { href: "/schedule/weekly-table", label: "לוח שבועי - טבלה", icon: Table },
-  { href: "/schedule", label: "לוח קבוע", icon: CalendarDays },
-  { href: "/instructors", label: "מדריכים", icon: Users },
-  { href: "/recruitment", label: "גיוס", icon: UserSearch },
-  { href: "/clients", label: "לקוחות", icon: Building2 },
-  { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
-  { href: "/camps", label: "קייטנות", icon: Tent },
-  { href: "/lesson-plans", label: "ציוד", icon: Package },
-  { href: "/lesson-plans/manage", label: "ניהול מערכי שיעור", icon: BookOpen },
-  { href: "/confirmations", label: "מעקב אישורים", icon: ClipboardCheck },
-  { href: "/reports", label: "דוחות", icon: FileText },
-  { href: "/schedule/weekly-overview", label: "תצוגת פלאפון שבועית", icon: LayoutGrid },
+type NavItem = { href: string; label: string; icon: typeof ClipboardList };
+type NavSection = { title: string | null; items: NavItem[] };
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: null,
+    items: [{ href: "/dashboard", label: "דשבורד", icon: ClipboardList }],
+  },
+  {
+    title: "לוח זמנים",
+    items: [
+      { href: "/schedule/weekly", label: "לוח שבועי - אריחים", icon: CalendarClock },
+      { href: "/schedule/weekly-table", label: "לוח שבועי - טבלה", icon: Table },
+      { href: "/schedule", label: "לוח קבוע", icon: CalendarDays },
+      { href: "/schedule/weekly-overview", label: "תצוגת פלאפון שבועית", icon: LayoutGrid },
+    ],
+  },
+  {
+    title: "אנשים",
+    items: [
+      { href: "/instructors", label: "מדריכים", icon: Users },
+      { href: "/recruitment", label: "גיוס", icon: UserSearch },
+      { href: "/clients", label: "לקוחות", icon: Building2 },
+    ],
+  },
+  {
+    title: "תוכניות ופעילויות",
+    items: [
+      { href: "/camps", label: "קייטנות", icon: Tent },
+      { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
+    ],
+  },
+  {
+    title: "תוכן ותפעול",
+    items: [
+      { href: "/lesson-plans", label: "ציוד", icon: Package },
+      { href: "/lesson-plans/assignments", label: "הקצאות שבועיות", icon: BookOpen },
+    ],
+  },
+  {
+    title: "מעקב ודיווח",
+    items: [
+      { href: "/confirmations", label: "מעקב אישורים", icon: ClipboardCheck },
+      { href: "/reports", label: "דוחות", icon: FileText },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
@@ -92,46 +123,54 @@ export function AdminSidebar() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/schedule"
-                ? pathname === "/schedule"
-                : item.href === "/lesson-plans"
-                  ? pathname === "/lesson-plans" ||
-                    pathname === "/lesson-plans/inventory" ||
-                    pathname === "/lesson-plans/assignments" ||
-                    pathname === "/lesson-plans/confirmations-review" ||
-                    pathname === "/lesson-plans/equipment-report" ||
-                    pathname === "/equipment-distribution"
-                  : item.href === "/lesson-plans/manage"
-                    ? pathname.startsWith("/lesson-plans/manage")
-                    : item.href === "/schedule/weekly-overview"
-                      ? pathname.startsWith("/schedule/weekly-overview")
-                      : item.href === "/schedule/weekly-table"
-                        ? pathname.startsWith("/schedule/weekly-table")
-                        : item.href === "/schedule/weekly"
-                          ? pathname.startsWith("/schedule/weekly") &&
-                            !pathname.startsWith("/schedule/weekly-overview") &&
-                            !pathname.startsWith("/schedule/weekly-table")
-                          : pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-secondary text-[#1C1917] font-semibold"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <item.icon size={20} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-4 overflow-y-auto p-4">
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.title ?? "root"} className="space-y-1">
+              {section.title && (
+                <div className="px-3 pb-1 text-xs font-semibold text-muted-foreground">
+                  {section.title}
+                </div>
+              )}
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === "/schedule"
+                    ? pathname === "/schedule"
+                    : item.href === "/lesson-plans"
+                      ? pathname === "/lesson-plans" ||
+                        pathname === "/lesson-plans/inventory" ||
+                        pathname === "/lesson-plans/confirmations-review" ||
+                        pathname === "/lesson-plans/equipment-report" ||
+                        pathname === "/equipment-distribution"
+                      : item.href === "/lesson-plans/assignments"
+                        ? pathname.startsWith("/lesson-plans/assignments")
+                        : item.href === "/schedule/weekly-overview"
+                          ? pathname.startsWith("/schedule/weekly-overview")
+                          : item.href === "/schedule/weekly-table"
+                            ? pathname.startsWith("/schedule/weekly-table")
+                            : item.href === "/schedule/weekly"
+                              ? pathname.startsWith("/schedule/weekly") &&
+                                !pathname.startsWith("/schedule/weekly-overview") &&
+                                !pathname.startsWith("/schedule/weekly-table")
+                              : pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-secondary text-[#1C1917] font-semibold"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon size={20} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="border-t border-border p-4">
