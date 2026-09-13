@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Plus, Trash2 } from "lucide-react";
 import {
+  createEquipment,
   deleteEquipment,
   updateEquipmentName,
   updateEquipmentTotalStock,
@@ -76,8 +77,10 @@ export function EquipmentInventoryManager({ rows }: { rows: InventoryRow[] }) {
   }, [rows, sortKey, sortDir]);
 
   return (
-    <div className="rounded-xl border bg-card overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="space-y-3">
+      <AddEquipmentForm />
+      <div className="rounded-xl border bg-card overflow-x-auto">
+        <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-xs text-muted-foreground">
             {COLUMNS.map((col) => (
@@ -102,13 +105,81 @@ export function EquipmentInventoryManager({ rows }: { rows: InventoryRow[] }) {
             <th className="p-3 w-10" />
           </tr>
         </thead>
-        <tbody className="divide-y">
-          {sortedRows.map((row) => (
-            <InventoryRowItem key={row.equipment_id} row={row} available={row.available} />
-          ))}
-        </tbody>
-      </table>
+          <tbody className="divide-y">
+            {sortedRows.map((row) => (
+              <InventoryRowItem key={row.equipment_id} row={row} available={row.available} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
+  );
+}
+
+function AddEquipmentForm() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [stockValue, setStockValue] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const stockTrimmed = stockValue.trim();
+    const parsed = stockTrimmed === "" ? null : Number(stockTrimmed);
+    if (parsed !== null && (Number.isNaN(parsed) || parsed < 0)) return;
+
+    startTransition(async () => {
+      const result = await createEquipment(trimmed, parsed);
+      if (result.success) {
+        setName("");
+        setStockValue("");
+        router.refresh();
+      } else {
+        alert("שגיאה בהוספת ציוד: " + result.error);
+      }
+    });
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3"
+    >
+      <div className="flex-1 min-w-[12rem]">
+        <label className="text-xs text-muted-foreground">שם ציוד חדש</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="לדוגמה: חישוקים גדולים"
+          disabled={isPending}
+          className="mt-1 w-full px-2 py-1.5 text-sm border rounded-md border-border bg-background focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:opacity-50"
+        />
+      </div>
+      <div className="w-28">
+        <label className="text-xs text-muted-foreground">מלאי כולל</label>
+        <input
+          type="number"
+          min={0}
+          value={stockValue}
+          onChange={(e) => setStockValue(e.target.value)}
+          placeholder="המון"
+          disabled={isPending}
+          className="mt-1 w-full px-2 py-1.5 text-sm border rounded-md border-border bg-background focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:opacity-50"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={isPending || !name.trim()}
+        className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+      >
+        <Plus size={16} />
+        הוסף ציוד
+      </button>
+    </form>
   );
 }
 

@@ -389,6 +389,35 @@ export async function updateEquipmentTotalStock(
 }
 
 /**
+ * Create a new equipment item. Pass null for totalStock to mark it unlimited ("המון").
+ */
+export async function createEquipment(name: string, totalStock: number | null) {
+  const supabase = await createClient();
+
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { success: false, error: "יש להזין שם ציוד" };
+  }
+
+  const { data, error } = await supabase
+    .from("equipment")
+    .insert({ name: trimmed, total_stock: totalStock })
+    .select("id, name, total_stock")
+    .single();
+
+  if (error) {
+    console.error("Error creating equipment:", error);
+    const message = error.code === "23505" ? "כבר קיים ציוד עם השם הזה" : error.message;
+    return { success: false, error: message };
+  }
+
+  revalidatePath("/lesson-plans/inventory");
+  revalidatePath("/lesson-plans/equipment-matching");
+  revalidatePath("/lesson-plans/manage");
+  return { success: true, data };
+}
+
+/**
  * Rename an equipment item. The name is used everywhere the item is referenced
  * (lesson plans, confirmations), so this just updates the one shared row.
  */
