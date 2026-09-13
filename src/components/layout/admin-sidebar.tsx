@@ -123,11 +123,11 @@ export function AdminSidebar() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-4 overflow-y-auto p-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {NAV_SECTIONS.map((section) => (
             <div key={section.title ?? "root"} className="space-y-1">
               {section.title && (
-                <div className="border-b border-black bg-primary px-3 py-1.5 text-base font-bold text-black">
+                <div className="border-b border-black bg-primary/30 px-3 py-1 text-base font-bold text-black">
                   {section.title}
                 </div>
               )}
@@ -158,10 +158,10 @@ export function AdminSidebar() {
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-secondary text-[#1C1917] font-semibold"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "bg-secondary/30 text-[#1C1917] font-semibold"
+                        : "rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
                     <item.icon size={20} />
