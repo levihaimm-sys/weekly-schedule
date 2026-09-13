@@ -127,7 +127,7 @@ export function AdminSidebar() {
           {NAV_SECTIONS.map((section) => (
             <div key={section.title ?? "root"} className="space-y-1">
               {section.title && (
-                <div className="px-3 pb-1 text-base font-bold text-primary">
+                <div className="border-b border-black bg-primary px-3 py-1.5 text-base font-bold text-black">
                   {section.title}
                 </div>
               )}
