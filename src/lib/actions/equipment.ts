@@ -389,6 +389,56 @@ export async function updateEquipmentTotalStock(
 }
 
 /**
+ * Rename an equipment item. The name is used everywhere the item is referenced
+ * (lesson plans, confirmations), so this just updates the one shared row.
+ */
+export async function updateEquipmentName(equipmentId: string, name: string) {
+  const supabase = await createClient();
+
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { success: false, error: "שם ציוד לא יכול להיות ריק" };
+  }
+
+  const { error } = await supabase
+    .from("equipment")
+    .update({ name: trimmed })
+    .eq("id", equipmentId);
+
+  if (error) {
+    console.error("Error updating equipment name:", error);
+    const message = error.code === "23505" ? "כבר קיים ציוד עם השם הזה" : error.message;
+    return { success: false, error: message };
+  }
+
+  revalidatePath("/lesson-plans/inventory");
+  revalidatePath("/lesson-plans/equipment-matching");
+  revalidatePath("/lesson-plans/manage");
+  return { success: true };
+}
+
+/**
+ * Delete an equipment item entirely. This cascades to remove it from any lesson plans
+ * and equipment confirmations it's attached to (FK ON DELETE CASCADE) - callers should
+ * confirm with the user before calling this.
+ */
+export async function deleteEquipment(equipmentId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("equipment").delete().eq("id", equipmentId);
+
+  if (error) {
+    console.error("Error deleting equipment:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/lesson-plans/inventory");
+  revalidatePath("/lesson-plans/equipment-matching");
+  revalidatePath("/lesson-plans/manage");
+  return { success: true };
+}
+
+/**
  * Set the quantity of one equipment item that instructors are actually told they're
  * receiving for a lesson plan (e.g. handing out 40 sticks when the plan calls for 35, to
  * cover breakage/loss). Pass null to fall back to the plan's own required quantity.
