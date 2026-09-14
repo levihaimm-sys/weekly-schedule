@@ -9,6 +9,7 @@ import { dayLabel } from "@/lib/utils/staffing";
 import { formatTime, getDayIndex } from "@/lib/utils/date";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { LessonEditDialog } from "./lesson-edit-dialog";
+import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { bulkUpdateLessons, bulkDeleteLessons, bulkApplyPermanentChange } from "@/lib/actions/schedule";
 
@@ -42,6 +43,7 @@ interface WeeklyLessonRow {
 interface Props {
   lessons: WeeklyLessonRow[];
   instructors: { id: string; full_name: string }[];
+  locations: { id: string; name: string; city: string; street?: string | null }[];
 }
 
 const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
@@ -90,9 +92,10 @@ const NO_INSTRUCTOR = "__no_instructor__";
 
 type BulkAction = "instructor" | "time" | "status" | "date" | "notes" | "delete" | null;
 
-export function WeeklyScheduleTable({ lessons, instructors }: Props) {
+export function WeeklyScheduleTable({ lessons, instructors, locations }: Props) {
   const router = useRouter();
   const [editingItem, setEditingItem] = useState<WeeklyLessonRow | null>(null);
+  const [duplicateSeed, setDuplicateSeed] = useState<WeeklyLessonSeed | null>(null);
 
   const [dayFilter, setDayFilter] = usePersistedState<string[]>("weekly-table-day", []);
   const [frameworkFilter, setFrameworkFilter] = usePersistedState<string[]>("weekly-table-framework", []);
@@ -578,6 +581,29 @@ export function WeeklyScheduleTable({ lessons, instructors }: Props) {
           mode="lesson"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
+          onDuplicate={() => {
+            setDuplicateSeed({
+              instructor: editingItem.instructor,
+              location: editingItem.location,
+              address: editingItem.address,
+              client_name: editingItem.client_name,
+              contact_name: editingItem.contact_name,
+              lesson_date: editingItem.lesson_date,
+              start_time: editingItem.start_time,
+              status: editingItem.status,
+            });
+            setEditingItem(null);
+          }}
+        />
+      )}
+
+      {duplicateSeed && (
+        <AddLessonDialog
+          date={duplicateSeed.lesson_date}
+          seed={duplicateSeed}
+          instructors={instructors}
+          locations={locations}
+          onClose={() => setDuplicateSeed(null)}
         />
       )}
     </div>

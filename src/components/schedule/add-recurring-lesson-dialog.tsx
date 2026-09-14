@@ -48,7 +48,8 @@ export function AddRecurringLessonDialog({
   const [error, setError] = useState<string | null>(null);
 
   const [instructorId, setInstructorId] = useState(seed?.instructor?.id ?? "");
-  const [locationId, setLocationId] = useState(seed?.location?.id ?? "");
+  const [locationName, setLocationName] = useState(seed?.location?.name ?? "");
+  const [locationCity, setLocationCity] = useState(seed?.location?.city ?? "");
   const [dayOfWeek, setDayOfWeek] = useState(seed?.day_of_week ?? defaultDayOfWeek ?? 0);
   const [startTime, setStartTime] = useState(seed?.start_time?.slice(0, 5) ?? "09:00");
   const [groupName, setGroupName] = useState(seed?.group_name ?? "");
@@ -68,13 +69,23 @@ export function AddRecurringLessonDialog({
   );
   const [notes, setNotes] = useState(seed?.notes ?? "");
 
+  const locationNameOptions = useMemo(
+    () => Array.from(new Set(locations.map((l) => l.name))).sort((a, b) => a.localeCompare(b, "he")),
+    [locations]
+  );
+  const cityOptions = useMemo(
+    () => Array.from(new Set(locations.map((l) => l.city))).sort((a, b) => a.localeCompare(b, "he")),
+    [locations]
+  );
+
   // Reset the form whenever a new seed / open state comes in, so reopening for a different
   // lesson (or a fresh manual add) doesn't carry over the previous form's values.
   useEffect(() => {
     if (!open) return;
     setError(null);
     setInstructorId(seed?.instructor?.id ?? "");
-    setLocationId(seed?.location?.id ?? "");
+    setLocationName(seed?.location?.name ?? "");
+    setLocationCity(seed?.location?.city ?? "");
     setDayOfWeek(seed?.day_of_week ?? defaultDayOfWeek ?? 0);
     setStartTime(seed?.start_time?.slice(0, 5) ?? "09:00");
     setGroupName(seed?.group_name ?? "");
@@ -95,8 +106,10 @@ export function AddRecurringLessonDialog({
   if (!open) return null;
 
   async function handleSubmit() {
-    if (!locationId) {
-      setError("יש לבחור גן / מיקום");
+    const trimmedName = locationName.trim();
+    const trimmedCity = locationCity.trim();
+    if (!trimmedName || !trimmedCity) {
+      setError("יש להזין שם גן/מסגרת ועיר");
       return;
     }
     if (!startTime) {
@@ -106,6 +119,25 @@ export function AddRecurringLessonDialog({
     setLoading(true);
     setError(null);
     try {
+      // Match an existing location by name+city so we don't create duplicates for a garden
+      // that's already in the system — but never block on it: a genuinely new name/city just
+      // creates a new location record on the fly, since new institutions come in constantly.
+      const existingMatch = locations.find(
+        (l) =>
+          l.name.trim().toLowerCase() === trimmedName.toLowerCase() &&
+          l.city.trim().toLowerCase() === trimmedCity.toLowerCase()
+      );
+      let locationId = existingMatch?.id;
+      if (!locationId) {
+        const locResult = await createLocation({ name: trimmedName, city: trimmedCity });
+        if (locResult.error || !locResult.id) {
+          setError(locResult.error ?? "שגיאה ביצירת המיקום");
+          setLoading(false);
+          return;
+        }
+        locationId = locResult.id;
+      }
+
       const result = await createRecurringScheduleItem({
         instructor_id: instructorId || null,
         location_id: locationId,
@@ -159,7 +191,45 @@ export function AddRecurringLessonDialog({
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
-          <LocationSearchSelect locations={locations} value={locationId} onChange={setLocationId} />
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              שם הגן / מסגרת <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              list="recurring-location-name-options"
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              placeholder="שם הגן, בית הספר או המסגרת — גם אם חדש"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            />
+            <datalist id="recurring-location-name-options">
+              {locationNameOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            <p className="mt-1 text-xs text-muted-foreground">
+              אפשר לבחור מהרשימה או פשוט להקליד שם חדש — מסגרת חדשה תיווצר אוטומטית.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              עיר <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              list="recurring-location-city-options"
+              value={locationCity}
+              onChange={(e) => setLocationCity(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            />
+            <datalist id="recurring-location-city-options">
+              {cityOptions.map((city) => (
+                <option key={city} value={city} />
+              ))}
+            </datalist>
+          </div>
 
           <InstructorSearchSelect instructors={instructors} value={instructorId} onChange={setInstructorId} />
 
@@ -425,158 +495,3 @@ function InstructorSearchSelect({
   );
 }
 
-function LocationSearchSelect({
-  locations,
-  value,
-  onChange,
-}: {
-  locations: { id: string; name: string; city: string; street?: string | null }[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [newCity, setNewCity] = useState("");
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-        setCreating(false);
-        setCreateError(null);
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      setTimeout(() => searchInputRef.current?.focus(), 0);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [open]);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return locations;
-    const term = search.trim().toLowerCase();
-    return locations.filter(
-      (l) =>
-        l.name.toLowerCase().includes(term) ||
-        l.city.toLowerCase().includes(term) ||
-        (l.street ?? "").toLowerCase().includes(term)
-    );
-  }, [locations, search]);
-
-  const selected = locations.find((l) => l.id === value);
-  const selectedLabel = selected ? `${selected.name} — ${selected.city}` : "בחר גן / מיקום";
-
-  async function handleCreate() {
-    if (!search.trim() || !newCity.trim()) return;
-    setCreateLoading(true);
-    setCreateError(null);
-    const result = await createLocation({ name: search.trim(), city: newCity.trim() });
-    setCreateLoading(false);
-    if (result.error) {
-      setCreateError(result.error);
-      return;
-    }
-    onChange(result.id!);
-    setOpen(false);
-    setSearch("");
-    setCreating(false);
-    setNewCity("");
-  }
-
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-medium">
-        גן / מיקום <span className="text-destructive">*</span>
-      </label>
-      <div ref={ref} className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-        >
-          <span className={value ? "" : "text-muted-foreground"}>{selectedLabel}</span>
-          <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-        {open && (
-          <div className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-background shadow-lg">
-            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-              <Search size={14} className="text-muted-foreground shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setCreating(false); setCreateError(null); }}
-                placeholder="חיפוש לפי שם גן, עיר..."
-                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <div className="max-h-56 overflow-y-auto">
-              {filtered.map((loc) => (
-                <button
-                  key={loc.id}
-                  type="button"
-                  onClick={() => { onChange(loc.id); setOpen(false); setSearch(""); }}
-                  className={`w-full px-3 py-2 text-sm text-right hover:bg-muted ${value === loc.id ? "bg-muted font-medium" : ""}`}
-                >
-                  <span className="font-medium">{loc.name}</span>
-                  <span className="text-muted-foreground"> — {loc.city}</span>
-                </button>
-              ))}
-              {search.trim() && !creating && (
-                <button
-                  type="button"
-                  onClick={() => setCreating(true)}
-                  className="w-full px-3 py-2 text-sm text-right text-primary hover:bg-muted border-t border-border"
-                >
-                  + הוסף גן חדש &quot;{search.trim()}&quot;
-                </button>
-              )}
-              {filtered.length === 0 && !search.trim() && (
-                <div className="px-3 py-3 text-sm text-muted-foreground text-center">לא נמצאו מיקומים</div>
-              )}
-            </div>
-            {creating && search.trim() && (
-              <div className="border-t border-border p-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">גן חדש: {search.trim()}</p>
-                <input
-                  type="text"
-                  value={newCity}
-                  onChange={(e) => setNewCity(e.target.value)}
-                  placeholder="עיר..."
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-                  autoFocus
-                />
-                {createError && <p className="text-xs text-destructive">{createError}</p>}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCreate}
-                    disabled={createLoading || !newCity.trim()}
-                    className="flex-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-                  >
-                    {createLoading ? "..." : "הוסף"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setCreating(false); setCreateError(null); }}
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
-                  >
-                    ביטול
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

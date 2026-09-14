@@ -71,6 +71,7 @@ export function CampsManager({ requests, instructors }: Props) {
   const [search, setSearch] = usePersistedState("camps-search", "");
   const [areaFilter, setAreaFilter] = usePersistedState<string[]>("camps-area-filter", []);
   const [clientFilter, setClientFilter] = usePersistedState<string[]>("camps-client-filter", []);
+  const [instructorFilter, setInstructorFilter] = usePersistedState<string[]>("camps-instructor-filter", []);
   const [statusFilter, setStatusFilter] = usePersistedState<string[]>("camps-status-filter", []);
   // Composite sort: the array's order IS the priority (first = primary), same convention as
   // the staffing matching table — clicking a column makes it primary while keeping any other
@@ -110,14 +111,23 @@ export function CampsManager({ requests, instructors }: Props) {
   const clientOptions = (Array.from(new Set(requests.map((r) => r.client_name).filter(Boolean))) as string[]).sort(
     sortHe
   );
+  const instructorById = new Map(instructors.map((i) => [i.id, i]));
+  const instructorOptions = Array.from(new Set(requests.flatMap((r) => r.candidates.map((c) => c.instructor_id))))
+    .map((id) => ({ value: id, label: instructorById.get(id)?.full_name ?? "?" }))
+    .sort((a, b) => sortHe(a.label, b.label));
 
   const hasActiveFilters =
-    search.trim() !== "" || areaFilter.length > 0 || clientFilter.length > 0 || statusFilter.length > 0;
+    search.trim() !== "" ||
+    areaFilter.length > 0 ||
+    clientFilter.length > 0 ||
+    instructorFilter.length > 0 ||
+    statusFilter.length > 0;
 
   function clearFilters() {
     setSearch("");
     setAreaFilter([]);
     setClientFilter([]);
+    setInstructorFilter([]);
     setStatusFilter([]);
   }
 
@@ -125,6 +135,8 @@ export function CampsManager({ requests, instructors }: Props) {
     return requests.filter((r) => {
       if (areaFilter.length > 0 && !areaFilter.includes(r.area)) return false;
       if (clientFilter.length > 0 && !clientFilter.includes(r.client_name ?? "")) return false;
+      if (instructorFilter.length > 0 && !r.candidates.some((c) => instructorFilter.includes(c.instructor_id)))
+        return false;
       if (statusFilter.length > 0 && !statusFilter.includes(campStatus(r))) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -137,7 +149,7 @@ export function CampsManager({ requests, instructors }: Props) {
       }
       return true;
     });
-  }, [requests, areaFilter, clientFilter, statusFilter, search]);
+  }, [requests, areaFilter, clientFilter, instructorFilter, statusFilter, search]);
 
   const sorted = useMemo(() => {
     if (sortKeys.length === 0) return filtered;
@@ -324,6 +336,12 @@ export function CampsManager({ requests, instructors }: Props) {
           selected={clientFilter}
           onChange={setClientFilter}
           placeholder="כל הלקוחות"
+        />
+        <MultiSelectFilter
+          options={instructorOptions}
+          selected={instructorFilter}
+          onChange={setInstructorFilter}
+          placeholder="כל המדריכים"
         />
         <MultiSelectFilter
           options={(Object.keys(CAMP_STATUS_LABEL) as CampStatus[]).map((s) => ({ value: s, label: CAMP_STATUS_LABEL[s] }))}

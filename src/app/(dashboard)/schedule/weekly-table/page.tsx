@@ -1,4 +1,4 @@
-import { getWeekLessons, getAllInstructors } from "@/lib/queries/schedule";
+import { getWeekLessons, getAllInstructors, getAllLocations } from "@/lib/queries/schedule";
 import { ensureFutureWeeks } from "@/lib/actions/schedule";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
@@ -23,9 +23,10 @@ export default async function WeeklyScheduleTablePage({
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
-  const [lessons, instructors] = await Promise.all([
+  const [lessons, instructors, locations] = await Promise.all([
     getWeekLessons(weekStartStr, weekEndStr),
     getAllInstructors(),
+    getAllLocations(),
   ]);
 
   return (
@@ -50,7 +51,7 @@ export default async function WeeklyScheduleTablePage({
         </div>
         <WeekNavigator weekStartStr={weekStartStr} weekEndStr={weekEndStr} basePath="/schedule/weekly-table" />
       </div>
-      <WeeklyScheduleTable lessons={lessons as any[]} instructors={instructors} />
+      <WeeklyScheduleTable lessons={lessons as any[]} instructors={instructors} locations={locations} />
     </div>
   );
 }

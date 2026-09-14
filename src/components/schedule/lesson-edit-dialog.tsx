@@ -43,8 +43,8 @@ interface LessonEditDialogProps {
   // Skips the permanent/temporary chooser in favor of a single one-time-change
   // confirmation — used by screens that shouldn't be able to touch the recurring master.
   hideScopeChoice?: boolean;
-  // Recurring mode only: shows a "duplicate" button that hands the current item back to the
-  // caller (which opens the add/duplicate dialog prefilled with it) instead of editing in place.
+  // Shows a "duplicate" button that hands the current item back to the caller (which opens an
+  // add/duplicate dialog prefilled with it) instead of editing in place.
   onDuplicate?: () => void;
 }
 
@@ -765,7 +765,7 @@ export function LessonEditDialog({
             </button>
           </div>
 
-          {mode === "recurring" && onDuplicate && (
+          {onDuplicate && (
             <button
               onClick={onDuplicate}
               disabled={loading}

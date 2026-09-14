@@ -6,9 +6,10 @@ import { format } from "date-fns";
 import { DAYS_SHORT, LESSON_STATUS, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
+import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
-import { createManualLesson, bulkUpdateLessons, bulkDeleteLessons, createLocation } from "@/lib/actions/schedule";
+import { bulkUpdateLessons, bulkDeleteLessons, createLocation } from "@/lib/actions/schedule";
 
 interface WeeklyLesson {
   id: string;
@@ -78,6 +79,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [editingLesson, setEditingLesson] = useState<WeeklyLesson | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [addingToDate, setAddingToDate] = useState<string | null>(null);
+  const [duplicateSeed, setDuplicateSeed] = useState<WeeklyLessonSeed | null>(null);
   const [localCities, setLocalCities] = useState<string[]>(currentFilters?.cities ?? []);
   const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters?.instructors ?? []);
   const [localClients, setLocalClients] = useState<string[]>([]);
@@ -617,16 +619,33 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           mode="lesson"
           open={!!editingLesson}
           onClose={() => setEditingLesson(null)}
+          onDuplicate={() => {
+            setDuplicateSeed({
+              instructor: editingLesson.instructor,
+              location: editingLesson.location,
+              address: editingLesson.address,
+              client_name: editingLesson.client_name,
+              contact_name: editingLesson.contact_name,
+              lesson_date: editingLesson.lesson_date,
+              start_time: editingLesson.start_time,
+              status: editingLesson.status,
+            });
+            setEditingLesson(null);
+          }}
         />
       )}
 
-      {/* Add Lesson Dialog */}
-      {addingToDate && (
+      {/* Add / Duplicate Lesson Dialog */}
+      {(addingToDate || duplicateSeed) && (
         <AddLessonDialog
-          date={addingToDate}
+          date={addingToDate ?? duplicateSeed!.lesson_date}
+          seed={duplicateSeed}
           instructors={instructors}
           locations={locations}
-          onClose={() => setAddingToDate(null)}
+          onClose={() => {
+            setAddingToDate(null);
+            setDuplicateSeed(null);
+          }}
         />
       )}
     </>
@@ -715,166 +734,10 @@ function MobileLessonCard({
   );
 }
 
-// ─── Add Lesson Dialog ────────────────────────────────────────────────────────
-
-function AddLessonDialog({
-  date,
-  instructors,
-  locations,
-  onClose,
-}: {
-  date: string;
-  instructors: { id: string; full_name: string }[];
-  locations: { id: string; name: string; city: string; street?: string | null }[];
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [instructorId, setInstructorId] = useState("");
-  const [locationId, setLocationId] = useState("");
-  const [lessonDate, setLessonDate] = useState(date);
-  const [startTime, setStartTime] = useState("09:00");
-  const [status, setStatus] = useState("scheduled");
-  const [changeNotes, setChangeNotes] = useState("");
-
-  async function handleSubmit() {
-    if (!locationId) {
-      setError("יש לבחור גן / מיקום");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await createManualLesson({
-        instructor_id: instructorId || null,
-        location_id: locationId,
-        lesson_date: lessonDate,
-        start_time: startTime,
-        status,
-        change_notes: changeNotes || undefined,
-      });
-      if (result.error) {
-        setError(result.error);
-        setLoading(false);
-        return;
-      }
-      router.refresh();
-      onClose();
-    } catch {
-      setError("שגיאה ביצירת השיעור");
-    }
-    setLoading(false);
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="mx-4 w-full max-w-md rounded-xl bg-background p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold">הוספת שיעור</h3>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-muted">
-            <X size={20} />
-          </button>
-        </div>
-
-        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-
-        <div className="mt-4 space-y-4">
-          {/* Instructor */}
-          <InstructorSearchSelect
-            instructors={instructors}
-            value={instructorId}
-            onChange={setInstructorId}
-          />
-
-          {/* Location */}
-          <LocationSearchSelect
-            locations={locations}
-            value={locationId}
-            onChange={setLocationId}
-          />
-
-          {/* Date */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">תאריך פעילות</label>
-            <input
-              type="date"
-              value={lessonDate}
-              onChange={(e) => setLessonDate(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            />
-          </div>
-
-          {/* Time */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">שעת התחלה</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            />
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">סטטוס</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            >
-              <option value="scheduled">מתוכנן</option>
-              <option value="completed">הושלם</option>
-              <option value="cancelled">בוטל</option>
-              <option value="substitute">מחליף</option>
-            </select>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">הערות</label>
-            <input
-              type="text"
-              value={changeNotes}
-              onChange={(e) => setChangeNotes(e.target.value)}
-              placeholder="הערה לשיעור (אופציונלי)..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {loading && <Loader2 size={14} className="animate-spin" />}
-            הוסף שיעור
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            ביטול
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Shared search-select components ─────────────────────────────────────────
+// Exported for reuse by add-lesson-dialog.tsx (the add/duplicate lesson dialog).
 
-function InstructorSearchSelect({
+export function InstructorSearchSelect({
   instructors,
   value,
   onChange,
@@ -967,7 +830,7 @@ function InstructorSearchSelect({
   );
 }
 
-function LocationSearchSelect({
+export function LocationSearchSelect({
   locations,
   value,
   onChange,

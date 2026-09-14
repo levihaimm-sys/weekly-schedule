@@ -689,6 +689,9 @@ export async function createManualLesson(data: {
   start_time: string;
   status?: string;
   change_notes?: string;
+  address?: string;
+  client_name?: string;
+  contact_name?: string;
 }) {
   const supabase = await createClient();
 
@@ -699,6 +702,9 @@ export async function createManualLesson(data: {
     start_time: data.start_time.length === 5 ? `${data.start_time}:00` : data.start_time,
     status: data.status ?? "scheduled",
     change_notes: data.change_notes || null,
+    address: data.address || null,
+    client_name: data.client_name || null,
+    contact_name: data.contact_name || null,
     is_one_time_change: true,
     recurring_item_id: null,
   });
