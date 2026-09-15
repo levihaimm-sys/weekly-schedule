@@ -334,6 +334,7 @@ export interface CampRequest {
   num_groups: number;
   start_time_note: string | null;
   notes: string | null;
+  moved_to_schedule: boolean;
   created_at: string;
 }
 

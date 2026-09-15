@@ -14,7 +14,12 @@ import {
   ChevronDown,
   ArrowUpDown,
 } from "lucide-react";
-import { addCampRequest, deleteCampRequest, duplicateCampRequest } from "@/lib/actions/camps";
+import {
+  addCampRequest,
+  deleteCampRequest,
+  duplicateCampRequest,
+  setCampRequestMovedToSchedule,
+} from "@/lib/actions/camps";
 import { CampRequestModal } from "./camp-request-modal";
 import { RequestCandidates } from "./camp-request-candidates";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
@@ -31,6 +36,13 @@ const CAMP_STATUS_LABEL: Record<CampStatus, string> = {
 const STATUS_COLORS: Record<CampStatus, string> = {
   open: "bg-gray-50 text-gray-600 border-gray-200",
   filled: "bg-green-50 text-green-700 border-green-200",
+};
+
+type MovedStatus = "moved" | "pending";
+
+const MOVED_LABEL: Record<MovedStatus, string> = {
+  moved: "הועבר ללוח",
+  pending: "טרם הועבר",
 };
 
 function campStatus(r: CampRequestWithCandidates): CampStatus {
@@ -73,6 +85,7 @@ export function CampsManager({ requests, instructors }: Props) {
   const [clientFilter, setClientFilter] = usePersistedState<string[]>("camps-client-filter", []);
   const [instructorFilter, setInstructorFilter] = usePersistedState<string[]>("camps-instructor-filter", []);
   const [statusFilter, setStatusFilter] = usePersistedState<string[]>("camps-status-filter", []);
+  const [movedFilter, setMovedFilter] = usePersistedState<string[]>("camps-moved-filter", []);
   // Composite sort: the array's order IS the priority (first = primary), same convention as
   // the staffing matching table — clicking a column makes it primary while keeping any other
   // active column as a secondary tiebreaker.
@@ -121,7 +134,8 @@ export function CampsManager({ requests, instructors }: Props) {
     areaFilter.length > 0 ||
     clientFilter.length > 0 ||
     instructorFilter.length > 0 ||
-    statusFilter.length > 0;
+    statusFilter.length > 0 ||
+    movedFilter.length > 0;
 
   function clearFilters() {
     setSearch("");
@@ -129,6 +143,7 @@ export function CampsManager({ requests, instructors }: Props) {
     setClientFilter([]);
     setInstructorFilter([]);
     setStatusFilter([]);
+    setMovedFilter([]);
   }
 
   const filtered = useMemo(() => {
@@ -138,6 +153,7 @@ export function CampsManager({ requests, instructors }: Props) {
       if (instructorFilter.length > 0 && !r.candidates.some((c) => instructorFilter.includes(c.instructor_id)))
         return false;
       if (statusFilter.length > 0 && !statusFilter.includes(campStatus(r))) return false;
+      if (movedFilter.length > 0 && !movedFilter.includes(r.moved_to_schedule ? "moved" : "pending")) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const match =
@@ -149,7 +165,7 @@ export function CampsManager({ requests, instructors }: Props) {
       }
       return true;
     });
-  }, [requests, areaFilter, clientFilter, instructorFilter, statusFilter, search]);
+  }, [requests, areaFilter, clientFilter, instructorFilter, statusFilter, movedFilter, search]);
 
   const sorted = useMemo(() => {
     if (sortKeys.length === 0) return filtered;
@@ -196,6 +212,11 @@ export function CampsManager({ requests, instructors }: Props) {
 
   async function handleDelete(id: string) {
     await deleteCampRequest(id);
+    router.refresh();
+  }
+
+  async function handleToggleMoved(r: CampRequestWithCandidates) {
+    await setCampRequestMovedToSchedule(r.id, !r.moved_to_schedule);
     router.refresh();
   }
 
@@ -349,6 +370,12 @@ export function CampsManager({ requests, instructors }: Props) {
           onChange={setStatusFilter}
           placeholder="כל הסטטוסים"
         />
+        <MultiSelectFilter
+          options={(Object.keys(MOVED_LABEL) as MovedStatus[]).map((s) => ({ value: s, label: MOVED_LABEL[s] }))}
+          selected={movedFilter}
+          onChange={setMovedFilter}
+          placeholder="הועבר ללוח?"
+        />
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
@@ -390,6 +417,7 @@ export function CampsManager({ requests, instructors }: Props) {
               <th className="px-3 py-2.5 whitespace-nowrap">שעת התחלה</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
               <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
+              <th className="px-3 py-2.5 whitespace-nowrap text-center">הועבר ללוח</th>
               <th className="px-3 py-2.5 min-w-[280px]">מדריכים/ות</th>
               <th className="px-3 py-2.5 whitespace-nowrap">פעולות</th>
             </tr>
@@ -397,7 +425,7 @@ export function CampsManager({ requests, instructors }: Props) {
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                <td colSpan={10} className="py-10 text-center text-muted-foreground">
                   אין בקשות קייטנה תואמות
                 </td>
               </tr>
@@ -430,6 +458,15 @@ export function CampsManager({ requests, instructors }: Props) {
                       <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status]}`}>
                         {CAMP_STATUS_LABEL[status]}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 align-top text-center">
+                      <input
+                        type="checkbox"
+                        checked={r.moved_to_schedule}
+                        onChange={() => handleToggleMoved(r)}
+                        title={r.moved_to_schedule ? "הועבר ללוח השיבוץ" : "סמן שהועבר ללוח השיבוץ"}
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                      />
                     </td>
                     <td className="px-3 py-2 align-top">
                       <RequestCandidates request={r} instructors={instructors} />

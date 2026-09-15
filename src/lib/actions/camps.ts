@@ -62,6 +62,14 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
   return { success: true };
 }
 
+export async function setCampRequestMovedToSchedule(id: string, moved: boolean) {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("camp_requests").update({ moved_to_schedule: moved }).eq("id", id);
+  if (error) return { error: "שגיאה בעדכון: " + error.message };
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 export async function deleteCampRequest(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("camp_requests").delete().eq("id", id);
