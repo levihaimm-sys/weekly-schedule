@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
 import { updateWeeklyAssignment, createWeeklyAssignment, distributeEquipmentToInstructor } from "@/lib/actions/equipment";
@@ -50,7 +50,7 @@ interface AssignmentsOverviewTableProps {
 }
 
 export function AssignmentsOverviewTable({
-  assignments,
+  assignments: initialAssignments,
   instructorCities,
   currentWeekStart,
   lessonPlansByCategory,
@@ -59,6 +59,14 @@ export function AssignmentsOverviewTable({
 }: AssignmentsOverviewTableProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  // Local copy so a single cell edit updates instantly instead of waiting on a full
+  // server round-trip (router.refresh() re-fetches the whole multi-week table and feels
+  // like a page reload). Only re-synced from the server when the prop itself changes
+  // (e.g. after an import), not after our own optimistic edits.
+  const [assignments, setAssignments] = useState(initialAssignments);
+  useEffect(() => {
+    setAssignments(initialAssignments);
+  }, [initialAssignments]);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -156,11 +164,29 @@ export function AssignmentsOverviewTable({
     }
   }
 
+  function findLessonPlan(id: string | null) {
+    if (!id) return null;
+    for (const plans of Object.values(lessonPlansByCategory)) {
+      const found = plans.find((p) => p.id === id);
+      if (found) {
+        return {
+          id: found.id,
+          name: found.name,
+          category: found.category,
+          pdf_path: found.pdf_path,
+          week_number: found.week_number,
+        };
+      }
+    }
+    return null;
+  }
+
   async function handleSave(isPermanent: boolean) {
     if (!editingCell || selectedLessonPlanId === "") return;
     setSaving(true);
 
     const lessonPlanId = selectedLessonPlanId === "__none__" ? null : selectedLessonPlanId;
+    const lessonPlan = findLessonPlan(lessonPlanId);
 
     try {
       if (editingCell.assignmentId) {
@@ -169,6 +195,14 @@ export function AssignmentsOverviewTable({
           alert("שגיאה בשמירה: " + result.error);
           return;
         }
+        const assignmentId = editingCell.assignmentId;
+        setAssignments((prev) =>
+          prev.map((a) =>
+            a.id === assignmentId
+              ? { ...a, lesson_plan_id: lessonPlanId, lesson_plan: lessonPlan, is_permanent_change: isPermanent }
+              : a
+          )
+        );
       } else {
         const result = await createWeeklyAssignment(
           editingCell.instructorId,
@@ -176,15 +210,25 @@ export function AssignmentsOverviewTable({
           editingCell.week,
           isPermanent
         );
-        if (!result.success) {
+        if (!result.success || !result.data) {
           alert("שגיאה בשמירה: " + result.error);
           return;
         }
+        setAssignments((prev) => [
+          ...prev,
+          {
+            id: result.data.id,
+            instructor_id: editingCell.instructorId,
+            lesson_plan_id: lessonPlanId,
+            week_start_date: editingCell.week,
+            is_permanent_change: isPermanent,
+            equipment_distributed: false,
+            instructor: { id: editingCell.instructorId, full_name: editingCell.instructorName },
+            lesson_plan: lessonPlan,
+          },
+        ]);
       }
       setEditingCell(null);
-      startTransition(() => {
-        router.refresh();
-      });
     } catch (err) {
       console.error("Error saving assignment:", err);
       alert("שגיאה בשמירה");
@@ -300,6 +344,7 @@ export function AssignmentsOverviewTable({
     setDistributing(true);
     try {
       let assignmentId = editingCell.assignmentId;
+      const isNew = !assignmentId;
       if (!assignmentId) {
         const createResult = await createWeeklyAssignment(
           editingCell.instructorId,
@@ -324,8 +369,31 @@ export function AssignmentsOverviewTable({
         alert("שגיאה באישור חלוקת ציוד: " + result.error);
         return;
       }
+      const lessonPlan = findLessonPlan(selectedLessonPlanId);
+      if (isNew) {
+        setAssignments((prev) => [
+          ...prev,
+          {
+            id: assignmentId!,
+            instructor_id: editingCell.instructorId,
+            lesson_plan_id: selectedLessonPlanId,
+            week_start_date: editingCell.week,
+            is_permanent_change: false,
+            equipment_distributed: true,
+            instructor: { id: editingCell.instructorId, full_name: editingCell.instructorName },
+            lesson_plan: lessonPlan,
+          },
+        ]);
+      } else {
+        setAssignments((prev) =>
+          prev.map((a) =>
+            a.id === assignmentId
+              ? { ...a, lesson_plan_id: selectedLessonPlanId, lesson_plan: lessonPlan, equipment_distributed: true }
+              : a
+          )
+        );
+      }
       setEditingCell(null);
-      startTransition(() => router.refresh());
     } finally {
       setDistributing(false);
     }
