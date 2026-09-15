@@ -692,6 +692,13 @@ export async function createManualLesson(data: {
   address?: string;
   client_name?: string;
   contact_name?: string;
+  manager_name?: string | null;
+  manager_phone?: string | null;
+  framework?: string | null;
+  framework_name?: string | null;
+  field?: string | null;
+  lesson_duration?: number | null;
+  lessons_count?: number | null;
 }) {
   const supabase = await createClient();
 
@@ -705,6 +712,13 @@ export async function createManualLesson(data: {
     address: data.address || null,
     client_name: data.client_name || null,
     contact_name: data.contact_name || null,
+    manager_name: data.manager_name || null,
+    manager_phone: data.manager_phone || null,
+    framework: data.framework || null,
+    framework_name: data.framework_name || null,
+    field: data.field || null,
+    lesson_duration: data.lesson_duration ?? null,
+    lessons_count: data.lessons_count ?? null,
     is_one_time_change: true,
     recurring_item_id: null,
   });
@@ -1239,12 +1253,13 @@ export async function bulkImportRecurringSchedule(csvText: string) {
       let weekStart = startOfWeek(firstOccurrence, { weekStartsOn: 0 });
       while (weekStart <= horizon) {
         const lessonDate = addDays(weekStart, dow);
-        if (lessonDate >= firstOccurrence) {
+        const lessonDateStr = format(lessonDate, "yyyy-MM-dd");
+        if (lessonDate >= firstOccurrence && !isHoliday(lessonDateStr)) {
           lessonRows.push({
             recurring_item_id: recurringRow.id,
             location_id: locationId!,
             instructor_id: instructorId,
-            lesson_date: format(lessonDate, "yyyy-MM-dd"),
+            lesson_date: lessonDateStr,
             start_time: slotStartTime,
             status: "scheduled",
           });

@@ -32,6 +32,7 @@ interface WeeklyLessonRow {
   client_name?: string | null;
   contact_name?: string | null;
   manager_name?: string | null;
+  manager_phone?: string | null;
   framework?: string | null;
   framework_name?: string | null;
   field?: string | null;
@@ -588,6 +589,13 @@ export function WeeklyScheduleTable({ lessons, instructors, locations }: Props) 
               address: editingItem.address,
               client_name: editingItem.client_name,
               contact_name: editingItem.contact_name,
+              manager_name: editingItem.manager_name,
+              manager_phone: editingItem.manager_phone,
+              framework: editingItem.framework,
+              framework_name: editingItem.framework_name,
+              field: editingItem.field,
+              lesson_duration: editingItem.lesson_duration,
+              lessons_count: editingItem.lessons_count,
               lesson_date: editingItem.lesson_date,
               start_time: editingItem.start_time,
               status: editingItem.status,

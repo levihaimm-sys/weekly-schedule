@@ -18,6 +18,13 @@ interface WeeklyLesson {
   address?: string | null;
   client_name?: string | null;
   contact_name?: string | null;
+  manager_name?: string | null;
+  manager_phone?: string | null;
+  framework?: string | null;
+  framework_name?: string | null;
+  field?: string | null;
+  lesson_duration?: number | null;
+  lessons_count?: number | null;
   lesson_date: string;
   start_time: string;
   status: string;
@@ -626,6 +633,13 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
               address: editingLesson.address,
               client_name: editingLesson.client_name,
               contact_name: editingLesson.contact_name,
+              manager_name: editingLesson.manager_name,
+              manager_phone: editingLesson.manager_phone,
+              framework: editingLesson.framework,
+              framework_name: editingLesson.framework_name,
+              field: editingLesson.field,
+              lesson_duration: editingLesson.lesson_duration,
+              lessons_count: editingLesson.lessons_count,
               lesson_date: editingLesson.lesson_date,
               start_time: editingLesson.start_time,
               status: editingLesson.status,

@@ -14,6 +14,13 @@ export interface WeeklyLessonSeed {
   address?: string | null;
   client_name?: string | null;
   contact_name?: string | null;
+  manager_name?: string | null;
+  manager_phone?: string | null;
+  framework?: string | null;
+  framework_name?: string | null;
+  field?: string | null;
+  lesson_duration?: number | null;
+  lessons_count?: number | null;
   lesson_date: string;
   start_time: string;
   status: string;
@@ -45,6 +52,17 @@ export function AddLessonDialog({
   const [address, setAddress] = useState(seed?.address ?? "");
   const [clientName, setClientName] = useState(seed?.client_name ?? "");
   const [contactName, setContactName] = useState(seed?.contact_name ?? "");
+  const [managerName, setManagerName] = useState(seed?.manager_name ?? "");
+  const [managerPhone, setManagerPhone] = useState(seed?.manager_phone ?? "");
+  const [framework, setFramework] = useState(seed?.framework ?? "");
+  const [frameworkName, setFrameworkName] = useState(seed?.framework_name ?? "");
+  const [field, setField] = useState(seed?.field ?? "");
+  const [lessonDuration, setLessonDuration] = useState(
+    seed?.lesson_duration != null ? String(seed.lesson_duration) : ""
+  );
+  const [lessonsCount, setLessonsCount] = useState(
+    seed?.lessons_count != null ? String(seed.lessons_count) : ""
+  );
 
   async function handleSubmit() {
     if (!locationId) {
@@ -64,6 +82,13 @@ export function AddLessonDialog({
         address: address || undefined,
         client_name: clientName || undefined,
         contact_name: contactName || undefined,
+        manager_name: managerName.trim() || null,
+        manager_phone: managerPhone.trim() || null,
+        framework: framework.trim() || null,
+        framework_name: frameworkName.trim() || null,
+        field: field.trim() || null,
+        lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+        lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
       });
       if (result.error) {
         setError(result.error);
@@ -167,6 +192,82 @@ export function AddLessonDialog({
               placeholder="איש קשר (אופציונלי)"
               className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
             />
+          </div>
+
+          {/* Manager / coordinator */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">גננת/רכזת</label>
+            <input
+              type="text"
+              value={managerName}
+              onChange={(e) => setManagerName(e.target.value)}
+              placeholder="גננת/רכזת (אופציונלי)"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">טלפון גננת/רכזת</label>
+            <input
+              type="tel"
+              value={managerPhone}
+              onChange={(e) => setManagerPhone(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-right"
+            />
+          </div>
+
+          {/* Field */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">תחום</label>
+            <input
+              type="text"
+              value={field}
+              onChange={(e) => setField(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          {/* Framework */}
+          <div>
+            <label className="mb-1 block text-sm font-medium">מסגרת</label>
+            <input
+              type="text"
+              value={framework}
+              onChange={(e) => setFramework(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">שם מסגרת</label>
+            <input
+              type="text"
+              value={frameworkName}
+              onChange={(e) => setFrameworkName(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium">משך שיעור (דק&apos;)</label>
+              <input
+                type="number"
+                value={lessonDuration}
+                onChange={(e) => setLessonDuration(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium">מס&apos; שיעורים</label>
+              <input
+                type="number"
+                value={lessonsCount}
+                onChange={(e) => setLessonsCount(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              />
+            </div>
           </div>
 
           {/* Status */}
