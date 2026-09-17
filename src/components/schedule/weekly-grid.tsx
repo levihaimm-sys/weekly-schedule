@@ -26,6 +26,7 @@ interface WeeklyLesson {
   field?: string | null;
   lesson_duration?: number | null;
   lessons_count?: number | null;
+  notes?: string | null;
   lesson_date: string;
   start_time: string;
   status: string;
@@ -624,6 +625,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
         <LessonEditDialog
           item={editingLesson}
           instructors={instructors}
+          locations={locations}
           mode="lesson"
           open={!!editingLesson}
           onClose={() => setEditingLesson(null)}

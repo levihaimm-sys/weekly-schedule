@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { X, Loader2, Trash2, Copy, Search, ChevronDown, UserMinus } from "lucide-react";
-import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest } from "@/lib/actions/schedule";
+import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest, createLocation } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 
@@ -37,6 +37,8 @@ interface LessonData {
 interface LessonEditDialogProps {
   item: LessonData;
   instructors: { id: string; full_name: string }[];
+  // Only needed for mode="recurring", to offer a city/gan-name picker for the lesson's location.
+  locations?: { id: string; name: string; city: string; street?: string | null }[];
   mode: "lesson" | "recurring";
   open: boolean;
   onClose: () => void;
@@ -53,6 +55,7 @@ type SaveScope = null | "temporary" | "permanent";
 export function LessonEditDialog({
   item,
   instructors,
+  locations = [],
   mode,
   open,
   onClose,
@@ -93,8 +96,45 @@ export function LessonEditDialog({
     item.lessons_count != null ? String(item.lessons_count) : ""
   );
   const [notes, setNotes] = useState(item.notes ?? "");
+  const [locationName, setLocationName] = useState(item.location?.name ?? "");
+  const [locationCity, setLocationCity] = useState(item.location?.city ?? "");
+
+  const locationNameOptions = useMemo(
+    () => Array.from(new Set(locations.map((l) => l.name))).sort((a, b) => a.localeCompare(b, "he")),
+    [locations]
+  );
+  const cityOptions = useMemo(
+    () => Array.from(new Set(locations.map((l) => l.city))).sort((a, b) => a.localeCompare(b, "he")),
+    [locations]
+  );
+
+  // Whether this lesson instance is linked to a recurring template, so its master fields
+  // (address, coordinator, framework, etc.) can be edited directly from the lesson view too.
+  const hasRecurringLink = mode === "lesson" && !!item.recurring_item_id;
 
   if (!open) return null;
+
+  // Resolves the gan/location by name+city (matching an existing one, or creating a new record
+  // on the fly) — shared by the recurring-mode save and the lesson-mode master-field save.
+  async function resolveLocationId(): Promise<{ id?: string; error?: string }> {
+    const trimmedLocationName = locationName.trim();
+    const trimmedLocationCity = locationCity.trim();
+    if (!trimmedLocationName || !trimmedLocationCity) {
+      return { error: "יש להזין שם גן/מסגרת ועיר" };
+    }
+    const existingMatch = locations.find(
+      (l) =>
+        l.name.trim().toLowerCase() === trimmedLocationName.toLowerCase() &&
+        l.city.trim().toLowerCase() === trimmedLocationCity.toLowerCase()
+    );
+    if (existingMatch) return { id: existingMatch.id };
+
+    const locResult = await createLocation({ name: trimmedLocationName, city: trimmedLocationCity });
+    if (locResult.error || !locResult.id) {
+      return { error: locResult.error ?? "שגיאה ביצירת המיקום" };
+    }
+    return { id: locResult.id };
+  }
 
   async function handleDelete() {
     setLoading(true);
@@ -120,13 +160,43 @@ export function LessonEditDialog({
   }
 
   async function handleSave(scope?: "temporary" | "permanent") {
-    // The framework name lives on the recurring template, not the lesson instance, so renaming
-    // it is always a permanent change — independent of whichever scope is picked below for the
-    // instructor/time fields.
-    const groupNameChanged =
-      mode === "lesson" && !!item.recurring_item_id && groupName.trim() !== (item.group_name ?? "").trim();
-    const addressChanged =
-      mode === "lesson" && !!item.recurring_item_id && address.trim() !== (item.address ?? "").trim();
+    // These all live on the recurring template, not the lesson instance, so editing them from
+    // the lesson view is always a permanent change — independent of whichever scope is picked
+    // below for the instructor/time fields.
+    const groupNameChanged = hasRecurringLink && groupName.trim() !== (item.group_name ?? "").trim();
+    const addressChanged = hasRecurringLink && address.trim() !== (item.address ?? "").trim();
+    const clientNameChanged = hasRecurringLink && clientName.trim() !== (item.client_name ?? "").trim();
+    const contactNameChanged = hasRecurringLink && contactName.trim() !== (item.contact_name ?? "").trim();
+    const managerNameChanged = hasRecurringLink && managerName.trim() !== (item.manager_name ?? "").trim();
+    const managerPhoneChanged = hasRecurringLink && managerPhone.trim() !== (item.manager_phone ?? "").trim();
+    const fieldChanged = hasRecurringLink && field.trim() !== (item.field ?? "").trim();
+    const frameworkChanged = hasRecurringLink && framework.trim() !== (item.framework ?? "").trim();
+    const frameworkNameChanged = hasRecurringLink && frameworkName.trim() !== (item.framework_name ?? "").trim();
+    const lessonDurationChanged =
+      hasRecurringLink &&
+      lessonDuration.trim() !== (item.lesson_duration != null ? String(item.lesson_duration) : "");
+    const lessonsCountChanged =
+      hasRecurringLink &&
+      lessonsCount.trim() !== (item.lessons_count != null ? String(item.lessons_count) : "");
+    const notesChanged = hasRecurringLink && notes.trim() !== (item.notes ?? "").trim();
+    const locationChanged =
+      hasRecurringLink &&
+      (locationName.trim() !== (item.location?.name ?? "").trim() ||
+        locationCity.trim() !== (item.location?.city ?? "").trim());
+    const masterFieldsChanged =
+      groupNameChanged ||
+      addressChanged ||
+      clientNameChanged ||
+      contactNameChanged ||
+      managerNameChanged ||
+      managerPhoneChanged ||
+      fieldChanged ||
+      frameworkChanged ||
+      frameworkNameChanged ||
+      lessonDurationChanged ||
+      lessonsCountChanged ||
+      notesChanged ||
+      locationChanged;
     const otherFieldsChanged =
       instructorId !== (item.instructor?.id ?? "") ||
       startTime !== (item.start_time?.slice(0, 5) ?? "") ||
@@ -146,11 +216,32 @@ export function LessonEditDialog({
     setError(null);
 
     try {
-      if (groupNameChanged || addressChanged) {
-        const masterUpdates: { group_name?: string | null; address?: string | null } = {};
-        if (groupNameChanged) masterUpdates.group_name = groupName.trim() || null;
-        if (addressChanged) masterUpdates.address = address.trim() || null;
-        const masterResult = await updateRecurringSchedule(item.recurring_item_id!, masterUpdates);
+      if (mode === "lesson" && masterFieldsChanged) {
+        let locationId: string | undefined;
+        if (locationChanged) {
+          const resolved = await resolveLocationId();
+          if (resolved.error) {
+            setError(resolved.error);
+            setLoading(false);
+            return;
+          }
+          locationId = resolved.id;
+        }
+        const masterResult = await updateRecurringSchedule(item.recurring_item_id!, {
+          location_id: locationId,
+          group_name: groupName.trim() || null,
+          address: address.trim() || null,
+          client_name: clientName.trim() || null,
+          contact_name: contactName.trim() || null,
+          manager_name: managerName.trim() || null,
+          manager_phone: managerPhone.trim() || null,
+          field: field.trim() || null,
+          framework: framework.trim() || null,
+          framework_name: frameworkName.trim() || null,
+          lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+          lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
+          notes: notes.trim() || null,
+        });
         if (masterResult.error) {
           setError(masterResult.error);
           setLoading(false);
@@ -159,8 +250,25 @@ export function LessonEditDialog({
       }
 
       if (mode === "recurring") {
+        // Resolve the gan/location by name+city (matching an existing one, or creating a new
+        // record on the fly) — mirrors the same match-or-create flow used when adding a lesson.
+        let locationId: string | undefined;
+        const recurringLocationChanged =
+          locationName.trim() !== (item.location?.name ?? "").trim() ||
+          locationCity.trim() !== (item.location?.city ?? "").trim();
+        if (recurringLocationChanged) {
+          const resolved = await resolveLocationId();
+          if (resolved.error) {
+            setError(resolved.error);
+            setLoading(false);
+            return;
+          }
+          locationId = resolved.id;
+        }
+
         // Direct master schedule update
         const result = await updateRecurringSchedule(item.id, {
+          location_id: locationId,
           instructor_id: instructorId || null,
           start_time: startTime ? `${startTime}:00` : undefined,
           day_of_week: dayOfWeek !== item.day_of_week ? dayOfWeek : undefined,
@@ -438,44 +546,43 @@ export function LessonEditDialog({
           </button>
         </div>
 
-        {/* Location info (read-only — the physical location record itself isn't edited here) */}
-        <div className="mt-3 rounded-lg bg-muted p-3">
-          <p className="font-medium">{item.location?.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
-            {item.location?.city}
-          </p>
-          {mode === "lesson" && (
-            <>
-              {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
-              {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
-              {item.manager_name && (
-                <p className="text-sm text-muted-foreground">
-                  גננת/רכזת: {item.manager_name}
-                  {item.manager_phone ? ` · ${item.manager_phone}` : ""}
-                </p>
-              )}
-              {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
-              {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
-              {(item.lesson_duration || item.lessons_count) && (
-                <p className="text-sm text-muted-foreground">
-                  {item.lesson_duration ? `${item.lesson_duration} דק'` : ""}
-                  {item.lesson_duration && item.lessons_count ? " · " : ""}
-                  {item.lessons_count ? `${item.lessons_count} שיעורים` : ""}
-                </p>
-              )}
-              {item.notes && <p className="text-sm text-muted-foreground">הערות: {item.notes}</p>}
-            </>
-          )}
-        </div>
+        {/* Location info summary — shown read-only only when this lesson has no recurring
+            template to edit against (a one-off lesson); otherwise the fields below are editable */}
+        {mode === "lesson" && !hasRecurringLink && (
+          <div className="mt-3 rounded-lg bg-muted p-3">
+            <p className="font-medium">{item.location?.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
+              {item.location?.city}
+            </p>
+            {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
+            {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
+            {item.manager_name && (
+              <p className="text-sm text-muted-foreground">
+                גננת/רכזת: {item.manager_name}
+                {item.manager_phone ? ` · ${item.manager_phone}` : ""}
+              </p>
+            )}
+            {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
+            {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
+            {(item.lesson_duration || item.lessons_count) && (
+              <p className="text-sm text-muted-foreground">
+                {item.lesson_duration ? `${item.lesson_duration} דק'` : ""}
+                {item.lesson_duration && item.lessons_count ? " · " : ""}
+                {item.lessons_count ? `${item.lessons_count} שיעורים` : ""}
+              </p>
+            )}
+            {item.notes && <p className="text-sm text-muted-foreground">הערות: {item.notes}</p>}
+          </div>
+        )}
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
-          {/* Framework name / address — editable directly in recurring mode, or in lesson mode
-              when this instance is linked to a recurring template (these always update the
-              template, so they apply from here on regardless of instructor/time scope) */}
-          {(mode === "recurring" || (mode === "lesson" && item.recurring_item_id && item.group_name !== undefined)) && (
+          {/* Framework name — editable directly in recurring mode, or in lesson mode when this
+              instance is linked to a recurring template (this always updates the template, so
+              it applies from here on regardless of instructor/time scope) */}
+          {(mode === "recurring" || (hasRecurringLink && item.group_name !== undefined)) && (
             <div>
               <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
               <input
@@ -488,22 +595,44 @@ export function LessonEditDialog({
             </div>
           )}
 
-          {mode === "lesson" && item.recurring_item_id && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">כתובת המסגרת</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-              />
-            </div>
-          )}
-
-          {/* Full field set — only for the fixed (recurring) schedule, where these live on the
-              recurring_schedule row itself rather than a per-instance lesson */}
-          {mode === "recurring" && (
+          {/* Full field set — for the fixed (recurring) schedule, and for a lesson instance
+              linked to one, since these fields live on the recurring_schedule row rather than
+              the per-instance lesson; editing them from here updates the template directly */}
+          {(mode === "recurring" || hasRecurringLink) && (
             <>
+              <div>
+                <label className="mb-1 block text-sm font-medium">שם הגן / מסגרת</label>
+                <input
+                  type="text"
+                  list="recurring-edit-location-name-options"
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+                <datalist id="recurring-edit-location-name-options">
+                  {locationNameOptions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">עיר</label>
+                <input
+                  type="text"
+                  list="recurring-edit-location-city-options"
+                  value={locationCity}
+                  onChange={(e) => setLocationCity(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+                <datalist id="recurring-edit-location-city-options">
+                  {cityOptions.map((city) => (
+                    <option key={city} value={city} />
+                  ))}
+                </datalist>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  אפשר לבחור עיר מהרשימה או להקליד עיר חדשה — מיקום חדש ייווצר אוטומטית אם השילוב לא קיים.
+                </p>
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">כתובת</label>
                 <input

@@ -579,6 +579,7 @@ export function WeeklyScheduleTable({ lessons, instructors, locations }: Props) 
         <LessonEditDialog
           item={editingItem}
           instructors={instructors}
+          locations={locations}
           mode="lesson"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
