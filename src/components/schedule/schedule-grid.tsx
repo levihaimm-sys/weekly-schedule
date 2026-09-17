@@ -9,6 +9,7 @@ import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddRecurringLessonDialog, RecurringLessonSeed } from "./add-recurring-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { bulkApplyPermanentChange, bulkDeleteRecurringScheduleItems } from "@/lib/actions/schedule";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 interface ScheduleItem {
   id: string;
@@ -58,9 +59,9 @@ export function ScheduleGrid({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [duplicateSeed, setDuplicateSeed] = useState<RecurringLessonSeed | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [localCities, setLocalCities] = useState<string[]>(currentFilters.cities ?? []);
-  const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters.instructors ?? []);
-  const [localClients, setLocalClients] = useState<string[]>([]);
+  const [localCities, setLocalCities] = usePersistedState<string[]>("fixed-schedule-cities", currentFilters.cities ?? []);
+  const [localInstructors, setLocalInstructors] = usePersistedState<string[]>("fixed-schedule-instructors", currentFilters.instructors ?? []);
+  const [localClients, setLocalClients] = usePersistedState<string[]>("fixed-schedule-clients", []);
 
   // Multi-select state — every write here is inherently permanent (this screen edits
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
@@ -542,6 +543,7 @@ export function ScheduleGrid({
         <LessonEditDialog
           item={editingItem}
           instructors={instructors}
+          locations={locations}
           mode="recurring"
           open={!!editingItem}
           onClose={() => setEditingItem(null)}

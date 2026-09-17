@@ -10,6 +10,7 @@ import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
 import { bulkUpdateLessons, bulkDeleteLessons, createLocation } from "@/lib/actions/schedule";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 
 interface WeeklyLesson {
   id: string;
@@ -87,10 +88,10 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [selectedDay, setSelectedDay] = useState(0);
   const [addingToDate, setAddingToDate] = useState<string | null>(null);
   const [duplicateSeed, setDuplicateSeed] = useState<WeeklyLessonSeed | null>(null);
-  const [localCities, setLocalCities] = useState<string[]>(currentFilters?.cities ?? []);
-  const [localInstructors, setLocalInstructors] = useState<string[]>(currentFilters?.instructors ?? []);
-  const [localClients, setLocalClients] = useState<string[]>([]);
-  const [localChangesOnly, setLocalChangesOnly] = useState(currentFilters?.changesOnly ?? false);
+  const [localCities, setLocalCities] = usePersistedState<string[]>("weekly-tiles-cities", currentFilters?.cities ?? []);
+  const [localInstructors, setLocalInstructors] = usePersistedState<string[]>("weekly-tiles-instructors", currentFilters?.instructors ?? []);
+  const [localClients, setLocalClients] = usePersistedState<string[]>("weekly-tiles-clients", []);
+  const [localChangesOnly, setLocalChangesOnly] = usePersistedState<boolean>("weekly-tiles-changes-only", currentFilters?.changesOnly ?? false);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
