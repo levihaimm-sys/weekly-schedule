@@ -160,27 +160,31 @@ export function LessonEditDialog({
   }
 
   async function handleSave(scope?: "temporary" | "permanent") {
-    // These all live on the recurring template, not the lesson instance, so editing them from
-    // the lesson view is always a permanent change — independent of whichever scope is picked
-    // below for the instructor/time fields.
+    // Extended fields (address, coordinator, framework, etc.) are editable for any lesson-mode
+    // item, not just ones linked to a recurring template — they live on the recurring_schedule
+    // row when linked, or directly on the lesson row for a one-off lesson. Either way, saving
+    // them is independent of whichever scope is picked below for the instructor/time fields.
+    // group_name and notes only exist as columns on recurring_schedule, so they only apply when
+    // there's a recurring template to write to.
+    const isLessonMode = mode === "lesson";
     const groupNameChanged = hasRecurringLink && groupName.trim() !== (item.group_name ?? "").trim();
-    const addressChanged = hasRecurringLink && address.trim() !== (item.address ?? "").trim();
-    const clientNameChanged = hasRecurringLink && clientName.trim() !== (item.client_name ?? "").trim();
-    const contactNameChanged = hasRecurringLink && contactName.trim() !== (item.contact_name ?? "").trim();
-    const managerNameChanged = hasRecurringLink && managerName.trim() !== (item.manager_name ?? "").trim();
-    const managerPhoneChanged = hasRecurringLink && managerPhone.trim() !== (item.manager_phone ?? "").trim();
-    const fieldChanged = hasRecurringLink && field.trim() !== (item.field ?? "").trim();
-    const frameworkChanged = hasRecurringLink && framework.trim() !== (item.framework ?? "").trim();
-    const frameworkNameChanged = hasRecurringLink && frameworkName.trim() !== (item.framework_name ?? "").trim();
+    const addressChanged = isLessonMode && address.trim() !== (item.address ?? "").trim();
+    const clientNameChanged = isLessonMode && clientName.trim() !== (item.client_name ?? "").trim();
+    const contactNameChanged = isLessonMode && contactName.trim() !== (item.contact_name ?? "").trim();
+    const managerNameChanged = isLessonMode && managerName.trim() !== (item.manager_name ?? "").trim();
+    const managerPhoneChanged = isLessonMode && managerPhone.trim() !== (item.manager_phone ?? "").trim();
+    const fieldChanged = isLessonMode && field.trim() !== (item.field ?? "").trim();
+    const frameworkChanged = isLessonMode && framework.trim() !== (item.framework ?? "").trim();
+    const frameworkNameChanged = isLessonMode && frameworkName.trim() !== (item.framework_name ?? "").trim();
     const lessonDurationChanged =
-      hasRecurringLink &&
+      isLessonMode &&
       lessonDuration.trim() !== (item.lesson_duration != null ? String(item.lesson_duration) : "");
     const lessonsCountChanged =
-      hasRecurringLink &&
+      isLessonMode &&
       lessonsCount.trim() !== (item.lessons_count != null ? String(item.lessons_count) : "");
     const notesChanged = hasRecurringLink && notes.trim() !== (item.notes ?? "").trim();
     const locationChanged =
-      hasRecurringLink &&
+      isLessonMode &&
       (locationName.trim() !== (item.location?.name ?? "").trim() ||
         locationCity.trim() !== (item.location?.city ?? "").trim());
     const masterFieldsChanged =
@@ -227,25 +231,50 @@ export function LessonEditDialog({
           }
           locationId = resolved.id;
         }
-        const masterResult = await updateRecurringSchedule(item.recurring_item_id!, {
-          location_id: locationId,
-          group_name: groupName.trim() || null,
-          address: address.trim() || null,
-          client_name: clientName.trim() || null,
-          contact_name: contactName.trim() || null,
-          manager_name: managerName.trim() || null,
-          manager_phone: managerPhone.trim() || null,
-          field: field.trim() || null,
-          framework: framework.trim() || null,
-          framework_name: frameworkName.trim() || null,
-          lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
-          lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
-          notes: notes.trim() || null,
-        });
-        if (masterResult.error) {
-          setError(masterResult.error);
-          setLoading(false);
-          return;
+
+        if (hasRecurringLink) {
+          // Linked to a recurring template — these fields live on that row, so update it directly.
+          const masterResult = await updateRecurringSchedule(item.recurring_item_id!, {
+            location_id: locationId,
+            group_name: groupName.trim() || null,
+            address: address.trim() || null,
+            client_name: clientName.trim() || null,
+            contact_name: contactName.trim() || null,
+            manager_name: managerName.trim() || null,
+            manager_phone: managerPhone.trim() || null,
+            field: field.trim() || null,
+            framework: framework.trim() || null,
+            framework_name: frameworkName.trim() || null,
+            lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+            lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
+            notes: notes.trim() || null,
+          });
+          if (masterResult.error) {
+            setError(masterResult.error);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // One-off lesson with no recurring template — these fields live directly on the
+          // lesson row (group_name/notes don't, so they're excluded here).
+          const lessonResult = await updateLesson(item.id, {
+            location_id: locationId,
+            address: address.trim() || null,
+            client_name: clientName.trim() || null,
+            contact_name: contactName.trim() || null,
+            manager_name: managerName.trim() || null,
+            manager_phone: managerPhone.trim() || null,
+            field: field.trim() || null,
+            framework: framework.trim() || null,
+            framework_name: frameworkName.trim() || null,
+            lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+            lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
+          });
+          if (lessonResult.error) {
+            setError(lessonResult.error);
+            setLoading(false);
+            return;
+          }
         }
       }
 
@@ -546,36 +575,6 @@ export function LessonEditDialog({
           </button>
         </div>
 
-        {/* Location info summary — shown read-only only when this lesson has no recurring
-            template to edit against (a one-off lesson); otherwise the fields below are editable */}
-        {mode === "lesson" && !hasRecurringLink && (
-          <div className="mt-3 rounded-lg bg-muted p-3">
-            <p className="font-medium">{item.location?.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
-              {item.location?.city}
-            </p>
-            {item.client_name && <p className="mt-1 text-sm text-muted-foreground">לקוח: {item.client_name}</p>}
-            {item.contact_name && <p className="text-sm text-muted-foreground">איש קשר: {item.contact_name}</p>}
-            {item.manager_name && (
-              <p className="text-sm text-muted-foreground">
-                גננת/רכזת: {item.manager_name}
-                {item.manager_phone ? ` · ${item.manager_phone}` : ""}
-              </p>
-            )}
-            {item.field && <p className="text-sm text-muted-foreground">תחום: {item.field}</p>}
-            {item.framework && <p className="text-sm text-muted-foreground">מסגרת: {item.framework}</p>}
-            {(item.lesson_duration || item.lessons_count) && (
-              <p className="text-sm text-muted-foreground">
-                {item.lesson_duration ? `${item.lesson_duration} דק'` : ""}
-                {item.lesson_duration && item.lessons_count ? " · " : ""}
-                {item.lessons_count ? `${item.lessons_count} שיעורים` : ""}
-              </p>
-            )}
-            {item.notes && <p className="text-sm text-muted-foreground">הערות: {item.notes}</p>}
-          </div>
-        )}
-
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
@@ -595,10 +594,10 @@ export function LessonEditDialog({
             </div>
           )}
 
-          {/* Full field set — for the fixed (recurring) schedule, and for a lesson instance
-              linked to one, since these fields live on the recurring_schedule row rather than
-              the per-instance lesson; editing them from here updates the template directly */}
-          {(mode === "recurring" || hasRecurringLink) && (
+          {/* Full field set — for the fixed (recurring) schedule and for any lesson instance.
+              When linked to a recurring template, saving these updates that row directly;
+              otherwise they update the one-off lesson row itself. */}
+          {(mode === "recurring" || mode === "lesson") && (
             <>
               <div>
                 <label className="mb-1 block text-sm font-medium">שם הגן / מסגרת</label>
@@ -726,15 +725,18 @@ export function LessonEditDialog({
                   />
                 </div>
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">הערות</label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-                />
-              </div>
+              {/* notes only exists as a column on recurring_schedule, not on a one-off lesson */}
+              {(mode === "recurring" || hasRecurringLink) && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium">הערות</label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
+              )}
             </>
           )}
 

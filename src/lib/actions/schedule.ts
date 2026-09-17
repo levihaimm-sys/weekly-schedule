@@ -120,6 +120,17 @@ export async function updateLesson(
     change_notes?: string;
     start_time?: string;
     lesson_date?: string;
+    location_id?: string;
+    client_name?: string | null;
+    address?: string | null;
+    manager_name?: string | null;
+    manager_phone?: string | null;
+    contact_name?: string | null;
+    framework?: string | null;
+    framework_name?: string | null;
+    field?: string | null;
+    lesson_duration?: number | null;
+    lessons_count?: number | null;
   }
 ) {
   const supabase = await createClient();
@@ -132,6 +143,7 @@ export async function updateLesson(
     .single();
 
   const finalUpdates: Record<string, any> = { ...updates };
+  if (finalUpdates.location_id === undefined) delete finalUpdates.location_id;
   // Mark as one-time change so the sync mechanism won't reset this lesson
   finalUpdates.is_one_time_change = true;
   if (lesson?.instructor_absence_request && !lesson.instructor_request_handled) {
@@ -149,6 +161,7 @@ export async function updateLesson(
 
   revalidatePath("/dashboard");
   revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
   revalidatePath("/my-schedule");
 
   return { success: true };
