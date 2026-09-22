@@ -25,6 +25,8 @@ async function requireOwner() {
 
 export async function updatePayRate(
   instructorId: string,
+  clientName: string,
+  city: string,
   data: { rate_per_lesson: number; travel_rate_per_day: number }
 ) {
   const { supabase, error: authError } = await requireOwner();
@@ -33,11 +35,13 @@ export async function updatePayRate(
   const { error } = await supabase.from("instructor_pay_rates").upsert(
     {
       instructor_id: instructorId,
+      client_name: clientName,
+      city,
       rate_per_lesson: data.rate_per_lesson,
       travel_rate_per_day: data.travel_rate_per_day,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "instructor_id" }
+    { onConflict: "instructor_id,client_name,city" }
   );
 
   if (error) return { error: "שגיאה בשמירה: " + error.message };
@@ -79,6 +83,48 @@ export async function deletePayException(lessonId: string) {
     .from("instructor_pay_exceptions")
     .delete()
     .eq("lesson_id", lessonId);
+
+  if (error) return { error: "שגיאה במחיקה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function addPayBonus(
+  instructorId: string,
+  year: number,
+  month: number,
+  label: string,
+  amount: number
+) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const trimmedLabel = label.trim();
+  if (!trimmedLabel) return { error: "יש להזין תיאור לתוספת" };
+
+  const { error } = await supabase.from("instructor_pay_bonuses").insert({
+    instructor_id: instructorId,
+    year,
+    month,
+    label: trimmedLabel,
+    amount,
+  });
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function deletePayBonus(bonusId: string) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const { error } = await supabase
+    .from("instructor_pay_bonuses")
+    .delete()
+    .eq("id", bonusId);
 
   if (error) return { error: "שגיאה במחיקה: " + error.message };
 

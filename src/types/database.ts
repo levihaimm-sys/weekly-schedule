@@ -328,6 +328,8 @@ export interface StaffingAssignment {
 export interface InstructorPayRate {
   id: string;
   instructor_id: string;
+  client_name: string;
+  city: string;
   rate_per_lesson: number;
   travel_rate_per_day: number;
   updated_at: string;
@@ -339,6 +341,16 @@ export interface InstructorPayException {
   instructor_id: string;
   amount: number;
   notes: string | null;
+  created_at: string;
+}
+
+export interface InstructorPayBonus {
+  id: string;
+  instructor_id: string;
+  year: number;
+  month: number;
+  label: string;
+  amount: number;
   created_at: string;
 }
 

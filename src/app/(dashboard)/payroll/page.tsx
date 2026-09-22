@@ -3,10 +3,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { PayrollView } from "@/components/payroll/payroll-view";
+import { resolveLessonClient } from "@/lib/utils/client-name";
 import Link from "next/link";
 import { ChevronRight, ChevronLeft, Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+// Legacy fallback for old/orphan lessons that have no client_name on the lesson
+// itself and no recurring_schedule link to pull one from. Same map used in מעקב אישורים.
+const CITY_TO_CLIENT: Record<string, string> = {
+  "פת": "טומשין",
+  "גבעתיים": "טומשין",
+  "ראש העין": "טומשין",
+  "באר יעקב": "טומשין",
+  "גבעתיים כצנלסון": "טומשין כצנלסון",
+  "הוד השרון": "עיריית הוד השרון",
+  "נחל שורק": "אופק",
+  "נס ציונה": "ינוקא",
+};
 
 const MONTHS_HEBREW = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -46,34 +60,60 @@ export default async function PayrollPage({
 
   const admin = createAdminClient();
 
-  // Same source as מעקב אישורים: all lessons in the selected month.
+  // Same source as מעקב אישורים: all lessons in the selected month, with the same
+  // client/city resolution logic (lesson's own client_name, then its recurring_schedule
+  // row's client_name, then the legacy city map).
   const { data: lessons } = await admin
     .from("lessons")
     .select(
-      `id, lesson_date, start_time, status, instructor_id,
-       instructor:instructors!lessons_instructor_id_fkey(id, full_name)`
+      `id, lesson_date, start_time, status, instructor_id, recurring_item_id, client_name,
+       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
+       location:locations!lessons_location_id_fkey(city)`
     )
     .gte("lesson_date", monthStart)
     .lte("lesson_date", monthEnd)
     .order("lesson_date")
     .order("start_time");
 
-  const flatLessons = (lessons ?? [])
-    .filter((l) => l.instructor_id)
-    .map((l) => ({
+  const allLessons = (lessons ?? []).filter((l) => l.instructor_id);
+
+  const recurringIds = [
+    ...new Set(allLessons.map((l) => l.recurring_item_id).filter(Boolean)),
+  ] as string[];
+  const recurringClientMap = new Map<string, string>();
+  if (recurringIds.length > 0) {
+    const { data: recurringRows } = await admin
+      .from("recurring_schedule")
+      .select("id, client_name")
+      .in("id", recurringIds);
+    for (const row of recurringRows ?? []) {
+      if (row.client_name) recurringClientMap.set(row.id, row.client_name);
+    }
+  }
+
+  const flatLessons = allLessons.map((l) => {
+    const city = (l.location as any)?.city ?? "";
+    const clientName =
+      resolveLessonClient(l.client_name, l.recurring_item_id, recurringClientMap) ??
+      CITY_TO_CLIENT[city] ??
+      "אחר";
+    return {
       id: l.id,
       lesson_date: l.lesson_date,
       start_time: l.start_time,
       status: l.status,
       instructor_id: l.instructor_id as string,
       instructor_name: (l.instructor as any)?.full_name ?? "לא ידוע",
-    }));
+      client_name: clientName,
+      city,
+    };
+  });
 
   const instructorIds = [...new Set(flatLessons.map((l) => l.instructor_id))];
 
   const { data: rates } = await admin
     .from("instructor_pay_rates")
-    .select("instructor_id, rate_per_lesson, travel_rate_per_day")
+    .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day")
     .in("instructor_id", instructorIds.length > 0 ? instructorIds : ["__none__"]);
 
   const lessonIds = flatLessons.map((l) => l.id);
@@ -81,6 +121,13 @@ export default async function PayrollPage({
     .from("instructor_pay_exceptions")
     .select("lesson_id, instructor_id, amount, notes")
     .in("lesson_id", lessonIds.length > 0 ? lessonIds : ["__none__"]);
+
+  const { data: bonuses } = await admin
+    .from("instructor_pay_bonuses")
+    .select("id, instructor_id, year, month, label, amount")
+    .eq("year", selectedMonth.getFullYear())
+    .eq("month", selectedMonth.getMonth() + 1)
+    .in("instructor_id", instructorIds.length > 0 ? instructorIds : ["__none__"]);
 
   return (
     <div className="space-y-6">
@@ -128,6 +175,9 @@ export default async function PayrollPage({
         lessons={flatLessons}
         rates={rates ?? []}
         exceptions={exceptions ?? []}
+        bonuses={bonuses ?? []}
+        year={selectedMonth.getFullYear()}
+        month={selectedMonth.getMonth() + 1}
       />
     </div>
   );
