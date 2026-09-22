@@ -30,40 +30,61 @@ export async function POST(request: NextRequest) {
       .eq("client_name", clientName as string);
 
     const recurringIds = (recurringRows ?? []).map((r) => r.id);
-    if (!recurringIds.length)
-      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
-
-    const cities = [
-      ...new Set(
-        (recurringRows ?? [])
-          .map((r) => (r.location as any)?.city)
-          .filter(Boolean)
-      ),
-    ].sort((a, b) => a.localeCompare(b, "he"));
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    const { data: rawLessons } = await supabase
-      .from("lessons")
-      .select(
-        `id, lesson_date, start_time, status,
+    const lessonSelect = `id, lesson_date, start_time, status,
          instructor:instructors!lessons_instructor_id_fkey(full_name),
-         location:locations!lessons_location_id_fkey(name, city)`
-      )
-      .in("recurring_item_id", recurringIds)
-      .gte("lesson_date", startDate)
-      .lte("lesson_date", endDate)
-      .order("lesson_date")
-      .order("start_time");
+         location:locations!lessons_location_id_fkey(name, city)`;
 
-    const lessons = rawLessons ?? [];
+    // A client's lessons are either generated from one of its recurring_schedule
+    // rows, or one-off lessons that carry the client name directly (no recurring
+    // link at all) — both need to be included.
+    const [recurringLessonsRes, oneOffLessonsRes] = await Promise.all([
+      recurringIds.length > 0
+        ? supabase
+            .from("lessons")
+            .select(lessonSelect)
+            .in("recurring_item_id", recurringIds)
+            .gte("lesson_date", startDate)
+            .lte("lesson_date", endDate)
+        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from("lessons")
+        .select(lessonSelect)
+        .eq("client_name", clientName as string)
+        .gte("lesson_date", startDate)
+        .lte("lesson_date", endDate),
+    ]);
+
+    const byId = new Map<string, any>();
+    for (const l of [...(recurringLessonsRes.data ?? []), ...(oneOffLessonsRes.data ?? [])]) {
+      byId.set(l.id, l);
+    }
+    const lessons = [...byId.values()].sort((a: any, b: any) =>
+      a.lesson_date === b.lesson_date
+        ? a.start_time.localeCompare(b.start_time)
+        : a.lesson_date.localeCompare(b.lesson_date)
+    );
+
     if (!lessons.length)
       return NextResponse.json(
-        { error: "אין שיעורים לתקופה זו" },
+        { error: recurringIds.length ? "אין שיעורים לתקופה זו" : "לקוח לא נמצא" },
         { status: 404 }
       );
+
+    // Cities come from the actual lessons found (recurring rows alone can miss
+    // cities that only appear via one-off lessons).
+    const cities = [
+      ...new Set(
+        [
+          ...(recurringRows ?? []).map((r) => (r.location as any)?.city),
+          ...lessons.map((l: any) => l.location?.city),
+        ].filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b, "he"));
 
     const lessonIds = lessons.map((l: any) => l.id);
     const { data: signatures } = await supabase

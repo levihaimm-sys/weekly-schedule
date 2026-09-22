@@ -1,12 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ConfirmationsView } from "@/components/dashboard/confirmations-view";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
+import { resolveLessonClient } from "@/lib/utils/client-name";
 
 import Link from "next/link";
 import { ChevronRight, ChevronLeft, Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+// Legacy fallback for old/orphan lessons that have no client_name on the lesson
+// itself and no recurring_schedule link to pull one from.
 const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
   "גבעתיים": "טומשין",
@@ -44,7 +47,7 @@ export default async function ConfirmationsPage({
   const { data: lessons } = await supabase
     .from("lessons")
     .select(
-      `id, lesson_date, start_time, status, instructor_id,
+      `id, lesson_date, start_time, status, instructor_id, recurring_item_id, client_name,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(name, city)`
     )
@@ -71,9 +74,31 @@ export default async function ConfirmationsPage({
     }
   }
 
-  // Flatten lessons, add client name via city mapping
+  // Client name per recurring_schedule row (the source of truth for lessons
+  // generated from the weekly/fixed schedule, same as the reports page uses).
+  const recurringIds = [
+    ...new Set(allLessons.map((l) => l.recurring_item_id).filter(Boolean)),
+  ] as string[];
+  const recurringClientMap = new Map<string, string>();
+  if (recurringIds.length > 0) {
+    const { data: recurringRows } = await supabase
+      .from("recurring_schedule")
+      .select("id, client_name")
+      .in("id", recurringIds);
+    for (const row of recurringRows ?? []) {
+      if (row.client_name) recurringClientMap.set(row.id, row.client_name);
+    }
+  }
+
+  // Flatten lessons, resolving the real client name: the lesson's own
+  // client_name (one-off lessons), then the linked recurring_schedule row's
+  // client_name (weekly/fixed schedule lessons), then the legacy city map.
   const flatLessons = allLessons.map((l) => {
     const city = (l.location as any)?.city ?? "";
+    const clientName =
+      resolveLessonClient(l.client_name, l.recurring_item_id, recurringClientMap) ??
+      CITY_TO_CLIENT[city] ??
+      "אחר";
     return {
       id: l.id,
       lesson_date: l.lesson_date,
@@ -83,7 +108,7 @@ export default async function ConfirmationsPage({
       instructor_name: (l.instructor as any)?.full_name ?? "לא ידוע",
       location_name: (l.location as any)?.name ?? "",
       location_city: city,
-      client_name: (CITY_TO_CLIENT as Record<string, string>)[city] ?? "אחר",
+      client_name: clientName,
     };
   });
 
@@ -105,9 +130,12 @@ export default async function ConfirmationsPage({
 
   // Reverse map: client -> cities (for linking to weekly schedule)
   const clientToCities: Record<string, string[]> = {};
-  for (const [city, client] of Object.entries(CITY_TO_CLIENT)) {
-    if (!clientToCities[client]) clientToCities[client] = [];
-    clientToCities[client].push(city);
+  for (const l of flatLessons) {
+    if (!l.location_city) continue;
+    if (!clientToCities[l.client_name]) clientToCities[l.client_name] = [];
+    if (!clientToCities[l.client_name].includes(l.location_city)) {
+      clientToCities[l.client_name].push(l.location_city);
+    }
   }
 
   return (

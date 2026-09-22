@@ -1,22 +1,24 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveLessonClient } from "@/lib/utils/client-name";
 
 /**
  * The real client for a lesson is whichever recurring_schedule template it was
- * generated from (recurring_item_id -> client_name) — not the city its location
+ * generated from (recurring_item_id -> client_name), or its own client_name for
+ * one-off lessons that have no recurring_schedule row — not the city its location
  * happens to be in. Several clients now run lessons in the same city (e.g. אפטר
  * סקול and קיטו מרום both in תל אביב), so city can no longer stand in for client.
  */
 export async function getDistinctClientNames(): Promise<string[]> {
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("recurring_schedule")
-    .select("client_name")
-    .not("client_name", "is", null);
+  const [{ data: recurringRows }, { data: lessonRows }] = await Promise.all([
+    supabase.from("recurring_schedule").select("client_name").not("client_name", "is", null),
+    supabase.from("lessons").select("client_name").not("client_name", "is", null),
+  ]);
 
   const names = new Set(
-    (data ?? [])
+    [...(recurringRows ?? []), ...(lessonRows ?? [])]
       .map((r) => r.client_name?.trim())
       .filter((n): n is string => !!n)
   );
@@ -61,22 +63,45 @@ export async function getClientReportData(
     .eq("client_name", client);
 
   const recurringIds = (recurringRows ?? []).map((r) => r.id);
-  if (recurringIds.length === 0) return { error: "לקוח לא נמצא" };
 
-  const { data: rawLessons, error } = await supabase
-    .from("lessons")
-    .select(
-      `id, lesson_date, start_time, status,
+  const lessonSelect = `id, lesson_date, start_time, status,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
-       location:locations!lessons_location_id_fkey(name, city)`
-    )
-    .in("recurring_item_id", recurringIds)
-    .gte("lesson_date", startDate)
-    .lte("lesson_date", endDate)
-    .order("lesson_date")
-    .order("start_time");
+       location:locations!lessons_location_id_fkey(name, city)`;
 
-  if (error) return { error: "שגיאה בטעינת נתונים: " + error.message };
+  // A client's lessons are either generated from one of its recurring_schedule
+  // rows, or one-off lessons that carry the client name directly (no recurring
+  // link at all) — both need to be included.
+  const [recurringLessonsRes, oneOffLessonsRes] = await Promise.all([
+    recurringIds.length > 0
+      ? supabase
+          .from("lessons")
+          .select(lessonSelect)
+          .in("recurring_item_id", recurringIds)
+          .gte("lesson_date", startDate)
+          .lte("lesson_date", endDate)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("lessons")
+      .select(lessonSelect)
+      .eq("client_name", client)
+      .gte("lesson_date", startDate)
+      .lte("lesson_date", endDate),
+  ]);
+
+  if (recurringLessonsRes.error) return { error: "שגיאה בטעינת נתונים: " + recurringLessonsRes.error.message };
+  if (oneOffLessonsRes.error) return { error: "שגיאה בטעינת נתונים: " + oneOffLessonsRes.error.message };
+
+  const byId = new Map<string, any>();
+  for (const l of [...(recurringLessonsRes.data ?? []), ...(oneOffLessonsRes.data ?? [])]) {
+    byId.set((l as any).id, l);
+  }
+  const rawLessons = [...byId.values()].sort((a: any, b: any) =>
+    a.lesson_date === b.lesson_date
+      ? a.start_time.localeCompare(b.start_time)
+      : a.lesson_date.localeCompare(b.lesson_date)
+  );
+
+  if (rawLessons.length === 0) return { error: "לקוח לא נמצא" };
 
   // Fetch signatures separately — same pattern as instructor report
   const lessonIds = (rawLessons ?? []).map((l: any) => l.id);
@@ -165,7 +190,7 @@ export async function getMonthlyClientSummary(
   const { data: rawLessons, error } = await supabase
     .from("lessons")
     .select(
-      `id, status, recurring_item_id,
+      `id, status, recurring_item_id, client_name,
        location:locations!lessons_location_id_fkey(city),
        signatures(signer_role)`
     )
@@ -179,7 +204,11 @@ export async function getMonthlyClientSummary(
 
   for (const lesson of rawLessons ?? []) {
     const city = (lesson.location as any)?.city ?? "";
-    const client = clientByRecurringId.get((lesson as any).recurring_item_id);
+    const client = resolveLessonClient(
+      (lesson as any).client_name,
+      (lesson as any).recurring_item_id,
+      clientByRecurringId as Map<string, string>
+    );
     if (!client) continue;
 
     if (!clientMap.has(client)) clientMap.set(client, new Map());
