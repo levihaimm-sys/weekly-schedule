@@ -8,7 +8,11 @@ import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddRecurringLessonDialog, RecurringLessonSeed } from "./add-recurring-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
-import { bulkApplyPermanentChange, bulkDeleteRecurringScheduleItems } from "@/lib/actions/schedule";
+import {
+  bulkApplyPermanentChange,
+  bulkDeleteRecurringScheduleItems,
+  duplicateRecurringItemsToWeek,
+} from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 
 interface ScheduleItem {
@@ -67,17 +71,20 @@ export function ScheduleGrid({
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<"instructor" | "time" | "manager" | "day" | "delete" | null>(null);
+  const [bulkAction, setBulkAction] = useState<"instructor" | "time" | "manager" | "day" | "duplicate-week" | "delete" | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkInstructorId, setBulkInstructorId] = useState("");
   const [bulkTime, setBulkTime] = useState("");
   const [bulkManagerName, setBulkManagerName] = useState("");
   const [bulkDayOfWeek, setBulkDayOfWeek] = useState(0);
+  const [bulkTargetWeekDate, setBulkTargetWeekDate] = useState("");
+  const [duplicateResult, setDuplicateResult] = useState<string | null>(null);
 
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelectedIds(new Set());
     setBulkAction(null);
+    setDuplicateResult(null);
   }
 
   function toggleItem(id: string) {
@@ -92,6 +99,7 @@ export function ScheduleGrid({
   function clearSelection() {
     setSelectedIds(new Set());
     setBulkAction(null);
+    setDuplicateResult(null);
   }
 
   async function executeBulkAction() {
@@ -105,6 +113,22 @@ export function ScheduleGrid({
       if (!result.error) {
         clearSelection();
         setSelectMode(false);
+        router.refresh();
+      }
+      return;
+    }
+
+    if (bulkAction === "duplicate-week") {
+      if (!bulkTargetWeekDate) return;
+      const result = await duplicateRecurringItemsToWeek(ids, bulkTargetWeekDate);
+      setBulkLoading(false);
+      if (!result.error) {
+        setDuplicateResult(
+          result.skipped
+            ? `נוצרו ${result.inserted} שיעורים (${result.skipped} דולגו כי כבר קיימים)`
+            : `נוצרו ${result.inserted} שיעורים בשבוע שנבחר`
+        );
+        setSelectedIds(new Set());
         router.refresh();
       }
       return;
@@ -263,6 +287,16 @@ export function ScheduleGrid({
                   שנה יום
                 </button>
                 <button
+                  onClick={() => setBulkAction("duplicate-week")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    bulkAction === "duplicate-week"
+                      ? "border-blue-400 bg-blue-100 text-blue-700"
+                      : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  שכפל לשבוע
+                </button>
+                <button
                   onClick={() => setBulkAction("delete")}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     bulkAction === "delete"
@@ -377,6 +411,44 @@ export function ScheduleGrid({
               <button onClick={() => setBulkAction(null)} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
                 <X size={14} />
               </button>
+            </div>
+          )}
+
+          {bulkAction === "duplicate-week" && (
+            <div className="flex w-full flex-col gap-2 mt-2">
+              {duplicateResult ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-sm text-blue-700">{duplicateResult}</span>
+                  <button onClick={() => setBulkAction(null)} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
+                    סגור
+                  </button>
+                </div>
+              ) : (
+                <div className="flex w-full items-center gap-2">
+                  <input
+                    type="date"
+                    value={bulkTargetWeekDate}
+                    onChange={(e) => setBulkTargetWeekDate(e.target.value)}
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <button
+                    onClick={executeBulkAction}
+                    disabled={bulkLoading || !bulkTargetWeekDate || selectedIds.size === 0}
+                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shrink-0"
+                  >
+                    {bulkLoading && <Loader2 size={13} className="animate-spin" />}
+                    שכפל
+                  </button>
+                  <button onClick={() => setBulkAction(null)} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              {!duplicateResult && (
+                <p className="text-xs text-muted-foreground">
+                  בחר תאריך כלשהו בשבוע היעד — השיעורים הנבחרים ישוכפלו כשיעורים חד-פעמיים לימי השבוע המתאימים באותו שבוע.
+                </p>
+              )}
             </div>
           )}
 

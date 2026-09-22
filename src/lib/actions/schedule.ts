@@ -1551,6 +1551,88 @@ export async function bulkApplyPermanentChange(
 }
 
 /**
+ * Duplicate selected fixed-schedule (recurring_schedule) rows into one specific week as
+ * standalone one-off lessons — for e.g. an extra/makeup session, without turning them into a
+ * new permanent template. Same detached shape as createManualLesson (recurring_item_id: null,
+ * is_one_time_change: true); group_name/notes have no column on `lessons` so, like every other
+ * recurring→lesson duplicate path, they aren't carried over.
+ */
+export async function duplicateRecurringItemsToWeek(recurringItemIds: string[], weekStartDate: string) {
+  const supabase = createAdminClient();
+  const uniqueIds = Array.from(new Set(recurringItemIds));
+
+  if (uniqueIds.length === 0) {
+    return { error: "לא נבחרו שיעורים מהלוח הקבוע" };
+  }
+
+  const weekStart = startOfWeek(new Date(weekStartDate), { weekStartsOn: 0 });
+
+  const { data: items, error: itemsError } = await supabase
+    .from("recurring_schedule")
+    .select(
+      "id, day_of_week, start_time, instructor_id, location_id, address, client_name, contact_name, manager_name, manager_phone, framework, framework_name, field, lesson_duration, lessons_count"
+    )
+    .in("id", uniqueIds);
+
+  if (itemsError) {
+    return { error: "שגיאה בקריאת הלוח הקבוע: " + itemsError.message };
+  }
+  if (!items || items.length === 0) {
+    return { error: "השיעורים שנבחרו לא נמצאו" };
+  }
+
+  const newRows = items.map((item) => ({
+    recurring_item_id: null,
+    instructor_id: item.instructor_id,
+    location_id: item.location_id,
+    lesson_date: format(addDays(weekStart, item.day_of_week), "yyyy-MM-dd"),
+    start_time: item.start_time,
+    status: "scheduled",
+    address: item.address,
+    client_name: item.client_name,
+    contact_name: item.contact_name,
+    manager_name: item.manager_name,
+    manager_phone: item.manager_phone,
+    framework: item.framework,
+    framework_name: item.framework_name,
+    field: item.field,
+    lesson_duration: item.lesson_duration,
+    lessons_count: item.lessons_count,
+    is_one_time_change: true,
+  }));
+
+  const uniqueDates = [...new Set(newRows.map((r) => r.lesson_date))];
+  const { data: existingLessons } = await supabase
+    .from("lessons")
+    .select("instructor_id, location_id, lesson_date, start_time")
+    .in("lesson_date", uniqueDates);
+
+  const existingKeys = new Set(
+    (existingLessons ?? []).map((e) => `${e.instructor_id}|${e.location_id}|${e.lesson_date}|${e.start_time}`)
+  );
+
+  const rowsToInsert = newRows.filter(
+    (r) => !existingKeys.has(`${r.instructor_id}|${r.location_id}|${r.lesson_date}|${r.start_time}`)
+  );
+  const skipped = newRows.length - rowsToInsert.length;
+
+  if (rowsToInsert.length > 0) {
+    const { error: insertError } = await supabase.from("lessons").insert(rowsToInsert);
+    if (insertError) {
+      return { error: "שגיאה ביצירת השיעורים: " + insertError.message };
+    }
+  }
+
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
+  revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true, inserted: rowsToInsert.length, skipped };
+}
+
+/**
  * Admin clears an instructor request completely (removes it).
  */
 export async function clearInstructorRequest(lessonId: string) {
