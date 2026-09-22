@@ -322,6 +322,27 @@ export interface StaffingAssignment {
 }
 
 // =============================================
+// INSTRUCTOR PAYROLL (שכר מדריכים) — owner-only
+// =============================================
+
+export interface InstructorPayRate {
+  id: string;
+  instructor_id: string;
+  rate_per_lesson: number;
+  travel_rate_per_day: number;
+  updated_at: string;
+}
+
+export interface InstructorPayException {
+  id: string;
+  lesson_id: string;
+  instructor_id: string;
+  amount: number;
+  notes: string | null;
+  created_at: string;
+}
+
+// =============================================
 // CAMPS INTAKE (קייטנות)
 // =============================================
 

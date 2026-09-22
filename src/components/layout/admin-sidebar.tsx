@@ -22,6 +22,7 @@ import {
   GitMerge,
   Table,
   Tent,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -74,9 +75,19 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navSections: NavSection[] = isOwner
+    ? [
+        ...NAV_SECTIONS,
+        {
+          title: "אישי",
+          items: [{ href: "/payroll", label: "שכר מדריכים", icon: Banknote }],
+        },
+      ]
+    : NAV_SECTIONS;
 
   return (
     <>
@@ -124,7 +135,7 @@ export function AdminSidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-          {NAV_SECTIONS.map((section) => (
+          {navSections.map((section) => (
             <div key={section.title ?? "root"} className="space-y-1">
               {section.title && (
                 <div className="border-b border-black bg-primary/30 px-3 py-1 text-base font-bold text-black">
