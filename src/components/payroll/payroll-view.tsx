@@ -141,23 +141,32 @@ export function PayrollView({ lessons, rates, exceptions, bonuses, year, month }
       .sort((a, b) => a.name.localeCompare(b.name, "he"));
   }, [lessons]);
 
-  function instructorTotal(instructorId: string, iLessons: LessonData[]) {
+  function instructorSummary(instructorId: string, iLessons: LessonData[]) {
     const groups = groupByClientCity(iLessons);
-    let sum = 0;
+    let total = 0;
+    let lessonCount = 0;
     for (const g of groups) {
       const rate = rateMap.get(rateKey(instructorId, g.client_name, g.city));
-      sum += computeGroupTotal(g.lessons, rate, exceptionMap).total;
+      const gt = computeGroupTotal(g.lessons, rate, exceptionMap);
+      total += gt.total;
+      lessonCount += gt.active.length;
     }
     const bonusSum = bonuses
       .filter((b) => b.instructor_id === instructorId)
       .reduce((s, b) => s + b.amount, 0);
-    return sum + bonusSum;
+    total += bonusSum;
+    return { total, lessonCount, average: lessonCount > 0 ? total / lessonCount : 0 };
   }
 
-  const grandTotal = byInstructor.reduce(
-    (sum, i) => sum + instructorTotal(i.id, i.lessons),
-    0
-  );
+  const summaries = byInstructor.map((i, idx) => ({
+    ...i,
+    ...instructorSummary(i.id, i.lessons),
+    theme: THEMES[idx % THEMES.length],
+  }));
+
+  const grandTotal = summaries.reduce((sum, s) => sum + s.total, 0);
+
+  const avgSorted = [...summaries].sort((a, b) => b.average - a.average);
 
   return (
     <div className="space-y-4">
@@ -165,6 +174,44 @@ export function PayrollView({ lessons, rates, exceptions, bonuses, year, month }
         <p className="text-3xl font-bold text-[#1C1917]">₪{money(grandTotal)}</p>
         <p className="mt-1 text-xs text-muted-foreground">{'סה"כ לתשלום לחודש זה'}</p>
       </div>
+
+      {avgSorted.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-border bg-background">
+          <p className="border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold text-muted-foreground">
+            ממוצע תשלום למדריך לשיעור (כולל נסיעות, חריגים ותוספות)
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th className="px-4 py-2 text-start">מדריך</th>
+                <th className="px-4 py-2 text-center">שיעורים</th>
+                <th className="px-4 py-2 text-center">{'סה"כ'}</th>
+                <th className="px-4 py-2 text-center">ממוצע לשיעור</th>
+              </tr>
+            </thead>
+            <tbody>
+              {avgSorted.map((s) => (
+                <tr key={s.id} className="border-b border-border/50 last:border-0">
+                  <td className="px-4 py-2 font-medium">
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: s.theme.accent }}
+                      />
+                      {s.name}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-center text-muted-foreground">
+                    {s.lessonCount}
+                  </td>
+                  <td className="px-4 py-2 text-center">₪{money(s.total)}</td>
+                  <td className="px-4 py-2 text-center font-bold">₪{money(s.average)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {byInstructor.length === 0 && (
         <div className="rounded-xl border border-border bg-background py-12 text-center text-muted-foreground">
