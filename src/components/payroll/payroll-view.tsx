@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Banknote, Car, XCircle, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Banknote, Car, XCircle, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { formatTime } from "@/lib/utils/date";
 import { DAYS_SHORT } from "@/lib/utils/constants";
 import {
@@ -221,10 +221,14 @@ function InstructorPayCard({
   }, [rates, instructorId]);
 
   const groupTotals = useMemo(() => {
-    return groupByClientCity(lessons).map((g) => ({
-      ...g,
-      ...computeGroupTotal(g.lessons, rateByKey.get(rateKey(instructorId, g.client_name, g.city)), exceptionMap),
-    }));
+    return groupByClientCity(lessons).map((g) => {
+      const rate = rateByKey.get(rateKey(instructorId, g.client_name, g.city));
+      return {
+        ...g,
+        ...computeGroupTotal(g.lessons, rate, exceptionMap),
+        hasRate: !!rate,
+      };
+    });
   }, [lessons, rateByKey, instructorId, exceptionMap]);
 
   const lessonsSum = groupTotals.reduce((s, g) => s + g.total, 0);
@@ -234,6 +238,7 @@ function InstructorPayCard({
   const totalWorkDays = new Set(
     lessons.filter((l) => l.status !== "cancelled").map((l) => l.lesson_date)
   ).size;
+  const unpricedCount = groupTotals.filter((g) => !g.hasRate).length;
 
   const initials = name.trim().slice(0, 2);
 
@@ -257,6 +262,12 @@ function InstructorPayCard({
             <div className="flex items-center gap-2">
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               <span className="font-semibold">{name}</span>
+              {unpricedCount > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                  <AlertTriangle size={11} />
+                  {unpricedCount} ללא תעריף
+                </span>
+              )}
             </div>
             <span className="text-xs text-muted-foreground">
               {totalActive} שיעורים · {totalWorkDays} ימי עבודה
@@ -348,12 +359,20 @@ function ClientRateGroup({
     router.refresh();
   }
 
+  const isUnpriced = !rate;
+
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div
+      className={`overflow-hidden rounded-lg border ${
+        isUnpriced ? "border-red-300" : "border-border"
+      }`}
+    >
       <button
         type="button"
         onClick={() => setShowLessons((v) => !v)}
-        className="flex w-full flex-wrap items-center justify-between gap-2 bg-muted/30 px-3 py-2 text-start"
+        className={`flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-start ${
+          isUnpriced ? "bg-red-50" : "bg-muted/30"
+        }`}
       >
         <div className="flex items-center gap-2 text-sm">
           {showLessons ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -362,6 +381,12 @@ function ClientRateGroup({
           <span className="text-xs text-muted-foreground">
             ({group.active.length} שיעורים · {group.workDays} ימים)
           </span>
+          {isUnpriced && (
+            <span className="flex items-center gap-1 text-xs font-bold text-red-600">
+              <AlertTriangle size={12} />
+              טרם הוגדר תעריף - נא למלא
+            </span>
+          )}
         </div>
         <span className={`text-sm font-semibold ${theme.text}`}>₪{money(group.total)}</span>
       </button>
