@@ -165,6 +165,8 @@ export function PayrollView({ lessons, rates, exceptions, bonuses, year, month }
   }));
 
   const grandTotal = summaries.reduce((sum, s) => sum + s.total, 0);
+  const grandLessonCount = summaries.reduce((sum, s) => sum + s.lessonCount, 0);
+  const grandAverage = grandLessonCount > 0 ? grandTotal / grandLessonCount : 0;
 
   const avgSorted = [...summaries].sort((a, b) => b.average - a.average);
 
@@ -209,6 +211,14 @@ export function PayrollView({ lessons, rates, exceptions, bonuses, year, month }
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                <td className="px-4 py-2">{'סה"כ / ממוצע כללי'}</td>
+                <td className="px-4 py-2 text-center">{grandLessonCount}</td>
+                <td className="px-4 py-2 text-center">₪{money(grandTotal)}</td>
+                <td className="px-4 py-2 text-center">₪{money(grandAverage)}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
