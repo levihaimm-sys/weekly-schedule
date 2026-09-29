@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
 import { updateWeeklyAssignment, createWeeklyAssignment, distributeEquipmentToInstructor } from "@/lib/actions/equipment";
 import { updateRotationOrders, clearRotationOrder } from "@/lib/actions/instructors";
+import { NO_HEADER_LESSON_PLAN_CATEGORIES } from "@/lib/queries/lesson-plans";
 import type { LessonPlan } from "@/types/database";
 
 interface Assignment {
@@ -770,15 +771,23 @@ export function AssignmentsOverviewTable({
               >
                 <option value="">-- בחר מערך --</option>
                 <option value="__none__">ללא שיעור (לא מלמד שבוע זה)</option>
-                {Object.entries(lessonPlansByCategory).map(([category, plans]) => (
-                  <optgroup key={category} label={category}>
-                    {plans.map((plan) => (
+                {Object.entries(lessonPlansByCategory).map(([category, plans]) =>
+                  NO_HEADER_LESSON_PLAN_CATEGORIES.includes(category) ? (
+                    plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
                         {plan.name}
                       </option>
-                    ))}
-                  </optgroup>
-                ))}
+                    ))
+                  ) : (
+                    <optgroup key={category} label={category}>
+                      {plans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )
+                )}
               </select>
             </div>
 
