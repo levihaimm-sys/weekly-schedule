@@ -112,7 +112,7 @@ export default async function ClientPaymentsPage({
 
   const { data: rates } = await admin
     .from("client_payment_rates")
-    .select("client_name, city, rate_per_lesson")
+    .select("client_name, city, billing_mode, rate_per_lesson, fixed_monthly_amount")
     .in("client_name", clientNames.length > 0 ? clientNames : ["__none__"]);
 
   const lessonIds = flatLessons.map((l) => l.id);

@@ -26,7 +26,9 @@ interface LessonData {
 interface RateData {
   client_name: string;
   city: string;
+  billing_mode: "per_lesson" | "fixed_monthly";
   rate_per_lesson: number;
+  fixed_monthly_amount: number;
 }
 
 interface ExceptionData {
@@ -90,6 +92,12 @@ function computeGroupTotal(
   exceptionMap: Map<string, ExceptionData>
 ) {
   const active = lessons.filter((l) => l.status !== "cancelled");
+
+  if (rate?.billing_mode === "fixed_monthly") {
+    const total = active.length > 0 ? rate.fixed_monthly_amount : 0;
+    return { active, regularCount: active.length, exceptionsAmount: 0, baseAmount: total, total };
+  }
+
   const ratePerLesson = rate?.rate_per_lesson ?? 0;
 
   let regularCount = 0;
@@ -371,19 +379,34 @@ function CityRateGroup({
   theme: (typeof THEMES)[number];
 }) {
   const router = useRouter();
+  const billingMode = rate?.billing_mode ?? "per_lesson";
   const [rateDraft, setRateDraft] = useState(String(rate?.rate_per_lesson ?? 0));
+  const [fixedDraft, setFixedDraft] = useState(String(rate?.fixed_monthly_amount ?? 0));
   const [showLessons, setShowLessons] = useState(false);
 
   useEffect(() => {
     setRateDraft(String(rate?.rate_per_lesson ?? 0));
   }, [rate?.rate_per_lesson]);
 
-  async function saveRate() {
+  useEffect(() => {
+    setFixedDraft(String(rate?.fixed_monthly_amount ?? 0));
+  }, [rate?.fixed_monthly_amount]);
+
+  async function saveRate(mode: "per_lesson" | "fixed_monthly" = billingMode) {
     const ratePerLesson = Number(rateDraft) || 0;
-    if (ratePerLesson === (rate?.rate_per_lesson ?? 0)) {
+    const fixedMonthlyAmount = Number(fixedDraft) || 0;
+    if (
+      mode === billingMode &&
+      ratePerLesson === (rate?.rate_per_lesson ?? 0) &&
+      fixedMonthlyAmount === (rate?.fixed_monthly_amount ?? 0)
+    ) {
       return;
     }
-    const result = await updateClientPaymentRate(clientName, group.city, ratePerLesson);
+    const result = await updateClientPaymentRate(clientName, group.city, {
+      billing_mode: mode,
+      rate_per_lesson: ratePerLesson,
+      fixed_monthly_amount: fixedMonthlyAmount,
+    });
     if (result.error) {
       onError(result.error);
       return;
@@ -424,21 +447,60 @@ function CityRateGroup({
       </button>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-border px-3 py-2">
-        <label className="flex items-center gap-1.5 text-xs">
-          <Banknote size={13} className="text-muted-foreground" />
-          <span className="text-muted-foreground">לשיעור:</span>
-          <input
-            type="number"
-            min={0}
-            dir="ltr"
-            value={rateDraft}
-            onChange={(e) => setRateDraft(e.target.value)}
-            onBlur={saveRate}
-            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-            className="w-16 rounded-md border border-border bg-background px-1.5 py-0.5 text-right"
-          />
-          <span className="text-muted-foreground">₪</span>
-        </label>
+        <div className="flex items-center gap-1 rounded-md border border-border p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => billingMode !== "per_lesson" && saveRate("per_lesson")}
+            className={`rounded px-2 py-0.5 ${
+              billingMode === "per_lesson" ? "bg-secondary font-semibold" : "text-muted-foreground"
+            }`}
+          >
+            לפי שיעור
+          </button>
+          <button
+            type="button"
+            onClick={() => billingMode !== "fixed_monthly" && saveRate("fixed_monthly")}
+            className={`rounded px-2 py-0.5 ${
+              billingMode === "fixed_monthly" ? "bg-secondary font-semibold" : "text-muted-foreground"
+            }`}
+          >
+            מחיר קבוע לחודש
+          </button>
+        </div>
+
+        {billingMode === "per_lesson" ? (
+          <label className="flex items-center gap-1.5 text-xs">
+            <Banknote size={13} className="text-muted-foreground" />
+            <span className="text-muted-foreground">לשיעור:</span>
+            <input
+              type="number"
+              min={0}
+              dir="ltr"
+              value={rateDraft}
+              onChange={(e) => setRateDraft(e.target.value)}
+              onBlur={() => saveRate()}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              className="w-16 rounded-md border border-border bg-background px-1.5 py-0.5 text-right"
+            />
+            <span className="text-muted-foreground">₪</span>
+          </label>
+        ) : (
+          <label className="flex items-center gap-1.5 text-xs">
+            <Banknote size={13} className="text-muted-foreground" />
+            <span className="text-muted-foreground">לחודש (אם היה שיעור אחד לפחות):</span>
+            <input
+              type="number"
+              min={0}
+              dir="ltr"
+              value={fixedDraft}
+              onChange={(e) => setFixedDraft(e.target.value)}
+              onBlur={() => saveRate()}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              className="w-20 rounded-md border border-border bg-background px-1.5 py-0.5 text-right"
+            />
+            <span className="text-muted-foreground">₪</span>
+          </label>
+        )}
       </div>
 
       {showLessons && (
@@ -450,6 +512,7 @@ function CityRateGroup({
               clientName={clientName}
               exception={exceptionMap.get(lesson.id)}
               defaultRate={rate?.rate_per_lesson ?? 0}
+              editable={billingMode === "per_lesson"}
               onError={onError}
             />
           ))}
@@ -464,12 +527,14 @@ function LessonRow({
   clientName,
   exception,
   defaultRate,
+  editable,
   onError,
 }: {
   lesson: LessonData;
   clientName: string;
   exception: ExceptionData | undefined;
   defaultRate: number;
+  editable: boolean;
   onError: (msg: string | null) => void;
 }) {
   const router = useRouter();
@@ -513,7 +578,7 @@ function LessonRow({
       <span className="w-12 shrink-0">{formatTime(lesson.start_time)}</span>
 
       <div className="flex items-center gap-2">
-        {editing ? (
+        {!editable ? null : editing ? (
           <>
             <input
               type="number"

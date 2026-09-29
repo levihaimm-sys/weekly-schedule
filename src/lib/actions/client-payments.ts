@@ -26,7 +26,11 @@ async function requireOwner() {
 export async function updateClientPaymentRate(
   clientName: string,
   city: string,
-  rate_per_lesson: number
+  data: {
+    billing_mode: "per_lesson" | "fixed_monthly";
+    rate_per_lesson: number;
+    fixed_monthly_amount: number;
+  }
 ) {
   const { supabase, error: authError } = await requireOwner();
   if (!supabase) return { error: authError };
@@ -35,7 +39,9 @@ export async function updateClientPaymentRate(
     {
       client_name: clientName,
       city,
-      rate_per_lesson,
+      billing_mode: data.billing_mode,
+      rate_per_lesson: data.rate_per_lesson,
+      fixed_monthly_amount: data.fixed_monthly_amount,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_name,city" }
