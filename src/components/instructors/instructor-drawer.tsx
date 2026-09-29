@@ -20,15 +20,12 @@ import {
   Trash2,
 } from "lucide-react";
 import {
-  INSTRUCTOR_STATUS,
   CLASSIFICATIONS,
-  InstructorStatusType,
   EmploymentType,
   ClassificationType,
 } from "@/lib/utils/constants";
 import {
   updateInstructor,
-  updateInstructorStatus,
   updateInstructorClassifications,
   updateInstructorNote,
   updateInstructorEquipment,
@@ -43,7 +40,6 @@ export interface InstructorFull {
   full_name: string;
   phone: string | null;
   email: string | null;
-  status: InstructorStatusType;
   address: string | null;
   work_cities: string | null;
   rotation_order: number | null;
@@ -90,7 +86,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
   const [address, setAddress] = useState(instructor.address ?? "");
   const [workCities, setWorkCities] = useState(instructor.work_cities ?? "");
   const [rotationOrder, setRotationOrder] = useState(instructor.rotation_order?.toString() ?? "");
-  const [status, setStatus] = useState<InstructorStatusType>(instructor.status);
   const [selectedClassifications, setSelectedClassifications] = useState<ClassificationType[]>(
     instructor.classifications ?? []
   );
@@ -134,7 +129,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
           work_cities: workCities.trim() || null,
           rotation_order: isNaN(rotNum as number) ? null : rotNum,
         }),
-        updateInstructorStatus(instructor.id, status),
         updateInstructorClassifications(instructor.id, selectedClassifications),
         updateInstructorNote(instructor.id, note.trim() || null),
         updateInstructorEquipment(instructor.id, hasEquipment),
@@ -197,11 +191,11 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
     }
   }
 
-  const statusColors: Record<InstructorStatusType, string> = {
-    active: "bg-green-100 text-green-700 border-green-200",
-    substitute: "bg-blue-100 text-blue-700 border-blue-200",
-    inactive: "bg-gray-100 text-gray-700 border-gray-200",
-  };
+  const isInactive = selectedClassifications.includes("inactive");
+  const classificationLabel =
+    selectedClassifications.length > 0
+      ? selectedClassifications.map((c) => CLASSIFICATIONS[c]).join(", ")
+      : "—";
 
   const onboardingItems = [
     { key: "id_photo", done: !!idPhotoUrl },
@@ -227,20 +221,14 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
           <div className="flex items-center gap-3">
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                status === "active"
-                  ? "bg-green-100 text-green-700"
-                  : status === "substitute"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-700"
+                isInactive ? "bg-gray-100 text-gray-700" : "bg-green-100 text-green-700"
               }`}
             >
               {instructor.full_name.charAt(0)}
             </div>
             <div>
               <p className="font-semibold">{instructor.full_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {INSTRUCTOR_STATUS[status]}
-              </p>
+              <p className="text-xs text-muted-foreground">{classificationLabel}</p>
             </div>
           </div>
           <button
@@ -368,9 +356,11 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
                       key={key}
                       type="button"
                       onClick={() => toggleClassification(key)}
-                      className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                      className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
                         selectedClassifications.includes(key)
-                          ? "border-primary bg-primary/10 text-primary"
+                          ? key === "inactive"
+                            ? "border-red-300 bg-red-50 text-red-700"
+                            : "border-primary bg-primary/10 text-primary"
                           : "border-border bg-background text-muted-foreground hover:bg-muted"
                       }`}
                     >
@@ -407,27 +397,6 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
                   placeholder="טקסט חופשי..."
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="mb-2 block text-xs font-medium text-muted-foreground">סטטוס</label>
-                <div className="flex gap-2">
-                  {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setStatus(key)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                        status === key
-                          ? statusColors[key]
-                          : "border-border bg-background text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Rotation order */}

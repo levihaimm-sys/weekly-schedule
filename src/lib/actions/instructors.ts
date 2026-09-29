@@ -25,6 +25,7 @@ export async function addInstructor(formData: FormData) {
       address: address || null,
       work_cities: workCities || null,
       status: "active",
+      classifications: ["regular"],
     })
     .select("id")
     .single();
@@ -96,36 +97,25 @@ export async function updateInstructor(
   return { success: true };
 }
 
-export async function updateInstructorStatus(
-  instructorId: string,
-  status: InstructorStatusType
-) {
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("instructors")
-    .update({ status })
-    .eq("id", instructorId);
-
-  if (error) {
-    return { error: "שגיאה בעדכון: " + error.message };
-  }
-
-  // Only revalidate instructors page - no need to revalidate other paths
-  revalidatePath("/instructors");
-  revalidateTag("instructors");
-  return { success: true };
-}
-
+// Classifications (קבוע/משלים/לא פעיל, multi-select) are now the single source
+// of truth in the UI. The legacy single-value `status` column is kept in sync
+// here because other parts of the app (schedule instructor pickers, bulk
+// import matching) still filter on it to exclude inactive instructors.
 export async function updateInstructorClassifications(
   instructorId: string,
   classifications: ClassificationType[]
 ) {
   const supabase = await createClient();
 
+  const status: InstructorStatusType = classifications.includes("inactive")
+    ? "inactive"
+    : classifications.includes("fill_in")
+      ? "substitute"
+      : "active";
+
   const { error } = await supabase
     .from("instructors")
-    .update({ classifications })
+    .update({ classifications, status })
     .eq("id", instructorId);
 
   if (error) {
@@ -133,6 +123,7 @@ export async function updateInstructorClassifications(
   }
 
   revalidatePath("/instructors");
+  revalidateTag("instructors");
   return { success: true };
 }
 

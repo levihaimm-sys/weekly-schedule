@@ -25,7 +25,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
 } from "lucide-react";
-import { INSTRUCTOR_STATUS, CLASSIFICATIONS, InstructorStatusType } from "@/lib/utils/constants";
+import { CLASSIFICATIONS, ClassificationType } from "@/lib/utils/constants";
 import { InstructorDrawer, InstructorFull } from "./instructor-drawer";
 
 interface InstructorManagerProps {
@@ -38,7 +38,6 @@ type SortKey =
   | "full_name"
   | "phone"
   | "address"
-  | "status"
   | "note"
   | "classifications"
   | "equipment"
@@ -107,10 +106,10 @@ function OnboardingDots({
   );
 }
 
-const statusColors: Record<InstructorStatusType, string> = {
-  active: "bg-green-50 text-green-700 border-green-200",
-  substitute: "bg-blue-50 text-blue-700 border-blue-200",
-  inactive: "bg-gray-50 text-gray-700 border-gray-200",
+const classificationColors: Record<ClassificationType, string> = {
+  regular: "bg-green-50 text-green-700 border-green-200",
+  fill_in: "bg-blue-50 text-blue-700 border-blue-200",
+  inactive: "bg-red-50 text-red-700 border-red-200",
 };
 
 function SortableTh({
@@ -151,8 +150,8 @@ function SortableTh({
 
 export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMap }: InstructorManagerProps) {
   const router = useRouter();
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<InstructorStatusType>>(
-    new Set(["active", "substitute"])
+  const [selectedClassifications, setSelectedClassifications] = useState<Set<ClassificationType>>(
+    new Set(["regular", "fill_in"])
   );
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -181,8 +180,6 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
         return instructor.phone ?? "";
       case "address":
         return instructor.address ?? "";
-      case "status":
-        return INSTRUCTOR_STATUS[instructor.status];
       case "note":
         return instructor.note ?? "";
       case "classifications":
@@ -201,10 +198,11 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
   }
 
   const filtered = instructors.filter((i) => {
-    const matchesStatus = selectedStatuses.has(i.status ?? "active");
+    const classifications = i.classifications && i.classifications.length > 0 ? i.classifications : (["regular"] as ClassificationType[]);
+    const matchesClassification = classifications.some((c) => selectedClassifications.has(c));
     const matchesSearch =
       !searchQuery || i.full_name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesClassification && matchesSearch;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -227,26 +225,26 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
     router.refresh();
   }
 
-  const activeCount = instructors.filter((i) => (i.status ?? "active") === "active").length;
-  const substituteCount = instructors.filter((i) => i.status === "substitute").length;
-  const inactiveCount = instructors.filter((i) => i.status === "inactive").length;
+  const regularCount = instructors.filter((i) => (i.classifications ?? []).includes("regular") || !i.classifications?.length).length;
+  const fillInCount = instructors.filter((i) => (i.classifications ?? []).includes("fill_in")).length;
+  const inactiveCount = instructors.filter((i) => (i.classifications ?? []).includes("inactive")).length;
 
-  function toggleStatus(status: InstructorStatusType) {
-    const newSet = new Set(selectedStatuses);
-    if (newSet.has(status)) newSet.delete(status);
-    else newSet.add(status);
-    if (newSet.size > 0) setSelectedStatuses(newSet);
+  function toggleClassificationFilter(classification: ClassificationType) {
+    const newSet = new Set(selectedClassifications);
+    if (newSet.has(classification)) newSet.delete(classification);
+    else newSet.add(classification);
+    if (newSet.size > 0) setSelectedClassifications(newSet);
   }
 
-  const defaultStatuses: InstructorStatusType[] = ["active", "substitute"];
+  const defaultClassifications: ClassificationType[] = ["regular", "fill_in"];
   const hasActiveFilters =
     searchQuery.trim() !== "" ||
-    selectedStatuses.size !== defaultStatuses.length ||
-    defaultStatuses.some((s) => !selectedStatuses.has(s));
+    selectedClassifications.size !== defaultClassifications.length ||
+    defaultClassifications.some((c) => !selectedClassifications.has(c));
 
   function clearFilters() {
     setSearchQuery("");
-    setSelectedStatuses(new Set(defaultStatuses));
+    setSelectedClassifications(new Set(defaultClassifications));
   }
 
   async function handleAdd(formData: FormData) {
@@ -289,7 +287,7 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
         {/* Header row */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            {activeCount} פעילים | {substituteCount} משלימים | {inactiveCount} לא פעילים
+            {regularCount} קבועים | {fillInCount} משלימים | {inactiveCount} לא פעילים
           </p>
           <div className="flex items-center gap-2">
             {unsyncedIds.length > 0 && (
@@ -336,19 +334,19 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
             <Filter size={14} />
             <span>הצג:</span>
           </div>
-          {(Object.entries(INSTRUCTOR_STATUS) as [InstructorStatusType, string][]).map(([key, label]) => (
+          {(Object.entries(CLASSIFICATIONS) as [ClassificationType, string][]).map(([key, label]) => (
             <label
               key={key}
               className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-all ${
-                selectedStatuses.has(key)
-                  ? statusColors[key] + " font-medium"
+                selectedClassifications.has(key)
+                  ? classificationColors[key] + " font-medium"
                   : "border-border bg-background hover:bg-muted"
               }`}
             >
               <input
                 type="checkbox"
-                checked={selectedStatuses.has(key)}
-                onChange={() => toggleStatus(key)}
+                checked={selectedClassifications.has(key)}
+                onChange={() => toggleClassificationFilter(key)}
                 className="h-4 w-4 rounded border-gray-300"
               />
               {label}
@@ -431,7 +429,6 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
                 <SortableTh label="שם" sortKey="full_name" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="w-px whitespace-nowrap px-4 py-3" />
                 <SortableTh label="טלפון" sortKey="phone" currentKey={sortKey} dir={sortDir} onSort={toggleSort} align="end" className="w-px whitespace-nowrap px-4 py-3" />
                 <SortableTh label="כתובת" sortKey="address" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
-                <SortableTh label="סטטוס" sortKey="status" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
                 <SortableTh label="הערה / זמינות" sortKey="note" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
                 <SortableTh label="סיווג" sortKey="classifications" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
                 <SortableTh label="ציוד" sortKey="equipment" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
@@ -443,7 +440,7 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
             <tbody className="divide-y divide-border">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={9} className="py-10 text-center text-muted-foreground">
                     אין מדריכים להצגה
                   </td>
                 </tr>
@@ -457,7 +454,7 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
                       key={instructor.id}
                       onClick={() => setOpenInstructorId(instructor.id)}
                       className={`cursor-pointer transition-colors hover:bg-muted/40 ${
-                        instructor.status === "inactive" ? "opacity-50" : ""
+                        instructor.classifications?.includes("inactive") ? "opacity-50" : ""
                       }`}
                     >
                       {/* Name */}
@@ -471,17 +468,6 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
                       {/* Address */}
                       <td className="px-4 py-3 text-muted-foreground">
                         {instructor.address ?? <span className="text-xs text-muted-foreground/50">—</span>}
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                            statusColors[instructor.status]
-                          }`}
-                        >
-                          {INSTRUCTOR_STATUS[instructor.status]}
-                        </span>
                       </td>
 
                       {/* Note / availability (inline editable) */}
@@ -502,14 +488,18 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
                             {instructor.classifications.map((c) => (
                               <span
                                 key={c}
-                                className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${classificationColors[c]}`}
                               >
                                 {CLASSIFICATIONS[c]}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${classificationColors.regular}`}
+                          >
+                            {CLASSIFICATIONS.regular}
+                          </span>
                         )}
                       </td>
 

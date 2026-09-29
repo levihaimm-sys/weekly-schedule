@@ -52,6 +52,7 @@ export type EmploymentType = keyof typeof EMPLOYMENT_TYPE;
 export const CLASSIFICATIONS = {
   regular: "קבוע",
   fill_in: "משלים",
+  inactive: "לא פעיל",
 } as const;
 
 export type ClassificationType = keyof typeof CLASSIFICATIONS;
