@@ -225,16 +225,6 @@ export function ScheduleGrid({
           onChange={setLocalClients}
           placeholder="כל הלקוחות"
         />
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
-          >
-            <X size={14} />
-            נקה סינון
-          </button>
-        )}
         <button
           type="button"
           onClick={toggleSelectMode}
@@ -255,6 +245,16 @@ export function ScheduleGrid({
           <Plus size={14} />
           הוסף שיעור קבוע
         </button>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {/* Bulk action bar */}

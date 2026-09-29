@@ -112,16 +112,6 @@ export function WeeklyOverviewGrid({
                 שינויים
               </button>
             )}
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
-              >
-                <X size={14} />
-                נקה סינון
-              </button>
-            )}
           </>
         )}
         {/* Fixed / Live view toggle */}
@@ -136,6 +126,16 @@ export function WeeklyOverviewGrid({
         >
           {isFixedView ? "לוז שבועי" : "לוז קבוע"}
         </button>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {/* Compact 5-column grid - always visible, even on mobile */}
