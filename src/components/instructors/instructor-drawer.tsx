@@ -123,10 +123,13 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
     setIsSavingDetails(true);
     setSaveError(null);
     const rotNum = rotationOrder.trim() ? parseInt(rotationOrder.trim(), 10) : null;
+    const phoneChanged = phone.trim() !== (instructor.phone ?? "");
     const results = await Promise.all([
       updateInstructor(instructor.id, {
         full_name: name.trim() || instructor.full_name,
-        phone: phone.trim() || null,
+        // Only send phone when it actually changed — sending it unconditionally
+        // triggers an unnecessary (and slow) auth password re-sync on every save.
+        ...(phoneChanged ? { phone: phone.trim() || null } : {}),
         address: address.trim() || null,
         work_cities: workCities.trim() || null,
         rotation_order: isNaN(rotNum as number) ? null : rotNum,

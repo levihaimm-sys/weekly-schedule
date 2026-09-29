@@ -127,6 +127,50 @@ export async function updateInstructorClassifications(
   return { success: true };
 }
 
+export async function bulkUpdateInstructorClassifications(
+  instructorIds: string[],
+  classifications: ClassificationType[]
+) {
+  if (instructorIds.length === 0) return { success: true };
+  const supabase = await createClient();
+
+  const status: InstructorStatusType = classifications.includes("inactive")
+    ? "inactive"
+    : classifications.includes("fill_in")
+      ? "substitute"
+      : "active";
+
+  const { error } = await supabase
+    .from("instructors")
+    .update({ classifications, status })
+    .in("id", instructorIds);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/instructors");
+  revalidateTag("instructors");
+  return { success: true };
+}
+
+export async function bulkUpdateInstructorEquipment(instructorIds: string[], hasEquipment: boolean) {
+  if (instructorIds.length === 0) return { success: true };
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("instructors")
+    .update({ has_equipment: hasEquipment })
+    .in("id", instructorIds);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
 export async function updateInstructorEquipment(instructorId: string, hasEquipment: boolean) {
   const supabase = await createClient();
 

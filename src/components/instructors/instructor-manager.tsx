@@ -7,6 +7,8 @@ import {
   syncInstructorAuthUsers,
   updateInstructorNote,
   updateInstructorEquipment,
+  bulkUpdateInstructorClassifications,
+  bulkUpdateInstructorEquipment,
 } from "@/lib/actions/instructors";
 import {
   Plus,
@@ -162,6 +164,9 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
   const [openInstructorId, setOpenInstructorId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("full_name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkClassifications, setBulkClassifications] = useState<ClassificationType[]>([]);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -222,6 +227,48 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
 
   async function handleEquipmentToggle(instructorId: string, current: boolean) {
     await updateInstructorEquipment(instructorId, !current);
+    router.refresh();
+  }
+
+  function toggleRowSelection(instructorId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(instructorId)) next.delete(instructorId);
+      else next.add(instructorId);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sorted.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sorted.map((i) => i.id)));
+    }
+  }
+
+  function toggleBulkClassification(classification: ClassificationType) {
+    setBulkClassifications((prev) =>
+      prev.includes(classification) ? prev.filter((c) => c !== classification) : [...prev, classification]
+    );
+  }
+
+  async function handleApplyBulkClassifications() {
+    if (bulkClassifications.length === 0 || selectedIds.size === 0) return;
+    setIsBulkSaving(true);
+    await bulkUpdateInstructorClassifications(Array.from(selectedIds), bulkClassifications);
+    setIsBulkSaving(false);
+    setSelectedIds(new Set());
+    setBulkClassifications([]);
+    router.refresh();
+  }
+
+  async function handleApplyBulkEquipment(hasEquipment: boolean) {
+    if (selectedIds.size === 0) return;
+    setIsBulkSaving(true);
+    await bulkUpdateInstructorEquipment(Array.from(selectedIds), hasEquipment);
+    setIsBulkSaving(false);
+    setSelectedIds(new Set());
     router.refresh();
   }
 
@@ -363,6 +410,77 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
           )}
         </div>
 
+        {/* Bulk actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <span className="text-sm font-medium">{selectedIds.size} מדריכים נבחרו</span>
+            <div className="mx-1 h-6 w-px bg-border" />
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">סיווג:</span>
+              {(Object.entries(CLASSIFICATIONS) as [ClassificationType, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleBulkClassification(key)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    bulkClassifications.includes(key)
+                      ? classificationColors[key]
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={handleApplyBulkClassifications}
+                disabled={isBulkSaving || bulkClassifications.length === 0}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {isBulkSaving ? <Loader2 size={12} className="animate-spin" /> : null}
+                החל
+              </button>
+            </div>
+
+            <div className="mx-1 h-6 w-px bg-border" />
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">ציוד:</span>
+              <button
+                type="button"
+                onClick={() => handleApplyBulkEquipment(true)}
+                disabled={isBulkSaving}
+                className="rounded-full border border-green-300 bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 transition-colors hover:bg-green-200 disabled:opacity-50"
+              >
+                עם ציוד
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyBulkEquipment(false)}
+                disabled={isBulkSaving}
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                בלי ציוד
+              </button>
+            </div>
+
+            <div className="mx-1 h-6 w-px bg-border" />
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedIds(new Set());
+                setBulkClassifications([]);
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+            >
+              <X size={12} />
+              נקה בחירה
+            </button>
+          </div>
+        )}
+
         {/* Add form */}
         {addFormOpen && (
           <form
@@ -426,6 +544,14 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
+                <th className="w-px whitespace-nowrap px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={sorted.length > 0 && selectedIds.size === sorted.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </th>
                 <SortableTh label="שם" sortKey="full_name" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="w-px whitespace-nowrap px-4 py-3" />
                 <SortableTh label="טלפון" sortKey="phone" currentKey={sortKey} dir={sortDir} onSort={toggleSort} align="end" className="w-px whitespace-nowrap px-4 py-3" />
                 <SortableTh label="כתובת" sortKey="address" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
@@ -440,7 +566,7 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
             <tbody className="divide-y divide-border">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="py-10 text-center text-muted-foreground">
                     אין מדריכים להצגה
                   </td>
                 </tr>
@@ -457,6 +583,16 @@ export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMa
                         instructor.classifications?.includes("inactive") ? "opacity-50" : ""
                       }`}
                     >
+                      {/* Select */}
+                      <td className="w-px whitespace-nowrap px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(instructor.id)}
+                          onChange={() => toggleRowSelection(instructor.id)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                      </td>
+
                       {/* Name */}
                       <td className="w-px whitespace-nowrap px-4 py-3 font-medium">{instructor.full_name}</td>
 
