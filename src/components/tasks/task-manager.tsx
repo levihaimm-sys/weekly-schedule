@@ -19,6 +19,7 @@ import {
   ChevronUp,
   Trash2,
   ClipboardList,
+  X,
 } from "lucide-react";
 import type { TaskWithProfiles } from "@/types/database";
 
@@ -82,6 +83,13 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     if (ua !== ub) return ua - ub;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  const hasActiveFilters = statusFilter !== "all" || assigneeFilter !== "all";
+
+  function clearFilters() {
+    setStatusFilter("all");
+    setAssigneeFilter("all");
+  }
 
   const counts = {
     all: tasks.filter((t) => t.status !== "completed").length,
@@ -214,6 +222,16 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
             </option>
           ))}
         </select>
+
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {/* Add form */}

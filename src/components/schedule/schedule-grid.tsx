@@ -80,6 +80,14 @@ export function ScheduleGrid({
   const [bulkTargetWeekDate, setBulkTargetWeekDate] = useState("");
   const [duplicateResult, setDuplicateResult] = useState<string | null>(null);
 
+  const hasActiveFilters = localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0;
+
+  function clearFilters() {
+    setLocalCities([]);
+    setLocalInstructors([]);
+    setLocalClients([]);
+  }
+
   function toggleSelectMode() {
     setSelectMode((prev) => !prev);
     setSelectedIds(new Set());
@@ -217,6 +225,16 @@ export function ScheduleGrid({
           onChange={setLocalClients}
           placeholder="כל הלקוחות"
         />
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleSelectMode}

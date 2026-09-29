@@ -109,6 +109,16 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     return instructors.filter((inst) => byId.has(inst.id));
   }, [allLessons, instructors]);
 
+  const hasActiveFilters =
+    localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly;
+
+  function clearFilters() {
+    setLocalCities([]);
+    setLocalInstructors([]);
+    setLocalClients([]);
+    setLocalChangesOnly(false);
+  }
+
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -267,6 +277,16 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           >
             שינויים
           </button>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+            >
+              <X size={14} />
+              נקה סינון
+            </button>
+          )}
           {/* Multi-select toggle */}
           <button
             type="button"

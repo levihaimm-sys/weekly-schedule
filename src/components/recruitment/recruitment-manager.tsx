@@ -200,6 +200,22 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
 
   const hasDateFilter = dateFrom || dateTo;
 
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "all" ||
+    seriousnessFilter !== "all" ||
+    selectedAreas.length > 0 ||
+    !!hasDateFilter;
+
+  function clearFilters() {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setSeriousnessFilter("all");
+    setSelectedAreas([]);
+    setDateFrom("");
+    setDateTo("");
+  }
+
   return (
     <>
       <div className="space-y-4">
@@ -420,6 +436,15 @@ export function RecruitmentManager({ candidates, lastActivityMap }: Props) {
                       {showAreaFilter ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                   </>
+                )}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                  >
+                    <X size={14} />
+                    נקה סינון
+                  </button>
                 )}
               </div>
               {showAreaFilter && areas.length > 0 && (

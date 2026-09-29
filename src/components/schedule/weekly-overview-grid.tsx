@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { DAYS_SHORT } from "@/lib/utils/constants";
 import { formatTime, smartSortLessons } from "@/lib/utils/date";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
+import { X } from "lucide-react";
 
 interface OverviewLesson {
   id: string;
@@ -56,6 +57,19 @@ export function WeeklyOverviewGrid({
     router.push(`/schedule/weekly-overview?${params.toString()}`);
   }
 
+  const hasActiveFilters =
+    (currentFilters?.cities?.length ?? 0) > 0 ||
+    (currentFilters?.instructors?.length ?? 0) > 0 ||
+    !!currentFilters?.changesOnly;
+
+  function clearFilters() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("city");
+    params.delete("instructor");
+    params.delete("changes");
+    router.push(`/schedule/weekly-overview?${params.toString()}`);
+  }
+
   function toggleView() {
     const params = new URLSearchParams(searchParams.toString());
     if (isFixedView) {
@@ -96,6 +110,16 @@ export function WeeklyOverviewGrid({
                 }`}
               >
                 שינויים
+              </button>
+            )}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+              >
+                <X size={14} />
+                נקה סינון
               </button>
             )}
           </>

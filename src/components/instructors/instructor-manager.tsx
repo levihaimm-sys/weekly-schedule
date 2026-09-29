@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Smartphone,
   Link,
+  X,
 } from "lucide-react";
 import { INSTRUCTOR_STATUS, CLIENTS, InstructorStatusType, EmploymentType } from "@/lib/utils/constants";
 import { InstructorDrawer, InstructorFull } from "./instructor-drawer";
@@ -114,6 +115,17 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
     if (newSet.has(status)) newSet.delete(status);
     else newSet.add(status);
     if (newSet.size > 0) setSelectedStatuses(newSet);
+  }
+
+  const defaultStatuses: InstructorStatusType[] = ["active", "substitute"];
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    selectedStatuses.size !== defaultStatuses.length ||
+    defaultStatuses.some((s) => !selectedStatuses.has(s));
+
+  function clearFilters() {
+    setSearchQuery("");
+    setSelectedStatuses(new Set(defaultStatuses));
   }
 
   async function handleAdd(formData: FormData) {
@@ -221,6 +233,15 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
               {label}
             </label>
           ))}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+            >
+              <X size={14} />
+              נקה סינון
+            </button>
+          )}
         </div>
 
         {/* Add form */}

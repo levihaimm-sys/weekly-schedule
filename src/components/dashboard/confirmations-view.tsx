@@ -14,6 +14,7 @@ import {
   PenTool,
   XCircle,
   HelpCircle,
+  X,
 } from "lucide-react";
 import { AdminConfirmButton } from "./admin-confirm-button";
 import { AdminCancelButton } from "./admin-cancel-button";
@@ -117,6 +118,15 @@ export function ConfirmationsView({
     });
   }, [lessons, sigMap, instructorFilter, clientFilter, statusFilter]);
 
+  const hasActiveFilters =
+    instructorFilter !== "all" || clientFilter !== "all" || statusFilter !== "all";
+
+  function clearFilters() {
+    setInstructorFilter("all");
+    setClientFilter("all");
+    setStatusFilter("all");
+  }
+
   const totalCount = filtered.length;
   const confirmedCount = filtered.filter((l) => sigMap[l.id]).length;
   const cancelledCount = filtered.filter((l) => l.status === "cancelled").length;
@@ -194,6 +204,16 @@ export function ConfirmationsView({
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
         </div>
+
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 sm:col-span-1"
+          >
+            <X size={14} />
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {/* Summary */}

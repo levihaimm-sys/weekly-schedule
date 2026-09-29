@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Loader2, Check, Phone, Search,
-  Filter, Archive, ArchiveRestore, Trash2, MapPin, ChevronUp, ChevronDown, User,
+  Filter, Archive, ArchiveRestore, Trash2, MapPin, ChevronUp, ChevronDown, User, X,
 } from "lucide-react";
 import { CLIENT_STATUS, ClientStatus, CLIENT_PRIORITY, ClientPriority } from "@/lib/utils/constants";
 import { addClient, bulkArchiveClients, bulkDeleteClients } from "@/lib/actions/clients";
@@ -86,6 +86,19 @@ export function ClientManager({ clients, lastActivityMap }: Props) {
       return true;
     })
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "all" ||
+    selectedCategories.length > 0 ||
+    selectedRegions.length > 0;
+
+  function clearFilters() {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setSelectedCategories([]);
+    setSelectedRegions([]);
+  }
 
   const filteredIds = filtered.map((c) => c.id);
   const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
@@ -350,6 +363,15 @@ export function ClientManager({ clients, lastActivityMap }: Props) {
                       {showRegionFilter ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                   </>
+                )}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                  >
+                    <X size={14} />
+                    נקה סינון
+                  </button>
                 )}
               </div>
               {showCategoryFilter && categories.length > 0 && (
