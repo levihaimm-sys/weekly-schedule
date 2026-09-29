@@ -60,19 +60,6 @@ export function EquipmentDistributionManager({
     return equipmentFilter === "has" ? hasEquipment : !hasEquipment;
   });
 
-  // Group instructors by route
-  const groupedInstructors = filteredInstructors.reduce(
-    (acc, instructor) => {
-      const route = instructor.route || "ללא מסלול";
-      if (!acc[route]) acc[route] = [];
-      acc[route].push(instructor);
-      return acc;
-    },
-    {} as Record<string, Instructor[]>
-  );
-
-  const routes = Object.keys(groupedInstructors).sort();
-
   // Counts for filter badges
   const hasEquipmentCount = instructors.filter(
     (i) => i.assignment?.equipment_distributed && i.assignment?.lesson_plan_id
@@ -182,15 +169,14 @@ export function EquipmentDistributionManager({
         ))}
       </div>
 
-      {routes.map((route) => (
-        <div key={route} className="rounded-xl border bg-card p-4">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Package className="text-orange-500" size={20} />
-            מסלול: {route}
-          </h2>
+      <div className="rounded-xl border bg-card p-4">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <Package className="text-orange-500" size={20} />
+          סדר חלוקה
+        </h2>
 
-          <div className="space-y-3">
-            {groupedInstructors[route].map((instructor) => {
+        <div className="space-y-3">
+          {filteredInstructors.map((instructor) => {
               const assignment = instructor.assignment;
               const isDistributed = assignment?.equipment_distributed || false;
               const isNotTeaching = isDistributed && !assignment?.lesson_plan_id;
@@ -349,10 +335,9 @@ export function EquipmentDistributionManager({
                   </div>
                 </div>
               );
-            })}
-          </div>
+          })}
         </div>
-      ))}
+      </div>
 
       {filteredInstructors.length === 0 && (
         <div className="rounded-xl border border-dashed p-8 text-center">
