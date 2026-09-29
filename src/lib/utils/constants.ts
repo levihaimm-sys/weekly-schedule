@@ -120,8 +120,13 @@ export const NEED_STATUS = {
 
 export type NeedStatus = keyof typeof NEED_STATUS;
 
-/** Categories whose optgroup header is suppressed in the lesson-plan dropdown (flattened into the list). */
-export const NO_HEADER_LESSON_PLAN_CATEGORIES = ["מערכים חדשים - תחנות ציוד", "פתיחת שנה, היכרות וכללי בסיס"];
+/**
+ * Categories whose optgroup header is suppressed in the lesson-plan dropdown (flattened
+ * into the list). Order here also drives the dropdown's display order: "פתיחת שנה,
+ * היכרות וכללי בסיס" (מערך 1-2) first, then the new equipment-station sets (מערך 3-40),
+ * then everything else in its normal order.
+ */
+export const NO_HEADER_LESSON_PLAN_CATEGORIES = ["פתיחת שנה, היכרות וכללי בסיס", "מערכים חדשים - תחנות ציוד"];
 
 export const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
