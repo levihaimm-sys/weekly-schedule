@@ -9,7 +9,8 @@ export function resolveLessonClient(
   recurringItemId: string | null | undefined,
   recurringClientMap: Map<string, string>
 ): string | null {
-  if (lessonClientName) return lessonClientName;
-  if (recurringItemId) return recurringClientMap.get(recurringItemId) ?? null;
+  const trimmedLessonName = lessonClientName?.trim();
+  if (trimmedLessonName) return trimmedLessonName;
+  if (recurringItemId) return recurringClientMap.get(recurringItemId)?.trim() || null;
   return null;
 }
