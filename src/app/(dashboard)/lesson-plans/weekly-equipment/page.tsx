@@ -108,7 +108,7 @@ export default async function WeeklyEquipmentPage({
 
       <div>
         <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">
-          רשימת ציוד למדריכות
+          טבלת חלוקת ציוד
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           לפי סדר הקצאת ציוד: איזה מערך ואיזה ציוד כל מדריכה תקבל
