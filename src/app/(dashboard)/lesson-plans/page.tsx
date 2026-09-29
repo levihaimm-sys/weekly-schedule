@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { BookOpen, Package, Calendar, Scale, Boxes } from "lucide-react";
+import { BookOpen, Package, Calendar, Scale, Boxes, ClipboardList } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +68,23 @@ export default async function LessonPlansPage() {
               <h3 className="text-lg font-semibold mb-2">הקצאות שבועיות</h3>
               <p className="text-sm text-gray-600">
                 ניהול והקצאת מערכי שיעור למדריכים לפי שבועות
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/lesson-plans/weekly-equipment"
+          className="bg-white border border-gray-200 rounded-lg p-6 hover:border-amber-300 hover:shadow-md transition-all"
+        >
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-amber-50 rounded-lg">
+              <ClipboardList className="w-6 h-6 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold mb-2">רשימת ציוד למדריכות</h3>
+              <p className="text-sm text-gray-600">
+                טבלה לפי סדר הקצאת ציוד: מערך, ציוד וכתובת לכל מדריכה לשבוע הקרוב
               </p>
             </div>
           </div>

@@ -155,6 +155,7 @@ export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
                         pathname === "/lesson-plans/inventory" ||
                         pathname === "/lesson-plans/confirmations-review" ||
                         pathname === "/lesson-plans/equipment-report" ||
+                        pathname === "/lesson-plans/weekly-equipment" ||
                         pathname === "/equipment-distribution"
                       : item.href === "/lesson-plans/assignments"
                         ? pathname.startsWith("/lesson-plans/assignments")
