@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { InstructorStatusType, EmploymentType } from "@/lib/utils/constants";
+import { InstructorStatusType, EmploymentType, ClassificationType } from "@/lib/utils/constants";
 
 export async function addInstructor(formData: FormData) {
   const fullName = (formData.get("full_name") as string)?.trim();
@@ -114,6 +114,57 @@ export async function updateInstructorStatus(
   // Only revalidate instructors page - no need to revalidate other paths
   revalidatePath("/instructors");
   revalidateTag("instructors");
+  return { success: true };
+}
+
+export async function updateInstructorClassifications(
+  instructorId: string,
+  classifications: ClassificationType[]
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("instructors")
+    .update({ classifications })
+    .eq("id", instructorId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
+export async function updateInstructorEquipment(instructorId: string, hasEquipment: boolean) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("instructors")
+    .update({ has_equipment: hasEquipment })
+    .eq("id", instructorId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/instructors");
+  return { success: true };
+}
+
+export async function updateInstructorNote(instructorId: string, note: string | null) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("instructors")
+    .update({ note })
+    .eq("id", instructorId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
+  revalidatePath("/instructors");
   return { success: true };
 }
 

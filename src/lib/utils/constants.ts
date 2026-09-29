@@ -49,6 +49,13 @@ export const EMPLOYMENT_TYPE = {
 
 export type EmploymentType = keyof typeof EMPLOYMENT_TYPE;
 
+export const CLASSIFICATIONS = {
+  regular: "קבוע",
+  fill_in: "משלים",
+} as const;
+
+export type ClassificationType = keyof typeof CLASSIFICATIONS;
+
 export const CLIENTS = ["טומשין", "טומשין כצנלסון", "עיריית הוד השרון", "אופק", "ינוקא"] as const;
 
 export type Client = (typeof CLIENTS)[number];

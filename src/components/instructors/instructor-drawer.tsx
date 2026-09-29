@@ -21,13 +21,17 @@ import {
 } from "lucide-react";
 import {
   INSTRUCTOR_STATUS,
-  CLIENTS,
+  CLASSIFICATIONS,
   InstructorStatusType,
   EmploymentType,
+  ClassificationType,
 } from "@/lib/utils/constants";
 import {
   updateInstructor,
   updateInstructorStatus,
+  updateInstructorClassifications,
+  updateInstructorNote,
+  updateInstructorEquipment,
   updateInstructorOnboarding,
   uploadInstructorFile,
   syncInstructorAuthUsers,
@@ -44,6 +48,9 @@ export interface InstructorFull {
   work_cities: string | null;
   rotation_order: number | null;
   employment_type: EmploymentType | null;
+  classifications: ClassificationType[] | null;
+  note: string | null;
+  has_equipment: boolean | null;
   clients: string[] | null;
   id_photo_url: string | null;
   contract_url: string | null;
@@ -55,6 +62,7 @@ interface Props {
   instructor: InstructorFull;
   lastLogin: string | null;
   hasAppAccess: boolean;
+  scheduleClients: string[];
   onClose: () => void;
 }
 
@@ -71,7 +79,7 @@ function formatLastLogin(dateStr: string | null | undefined): string {
   return `${day}/${month}`;
 }
 
-export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose }: Props) {
+export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, scheduleClients, onClose }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<"details" | "onboarding">("details");
   const [isPending, startTransition] = useTransition();
@@ -83,7 +91,11 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
   const [workCities, setWorkCities] = useState(instructor.work_cities ?? "");
   const [rotationOrder, setRotationOrder] = useState(instructor.rotation_order?.toString() ?? "");
   const [status, setStatus] = useState<InstructorStatusType>(instructor.status);
-  const [selectedClients, setSelectedClients] = useState<string[]>(instructor.clients ?? []);
+  const [selectedClassifications, setSelectedClassifications] = useState<ClassificationType[]>(
+    instructor.classifications ?? []
+  );
+  const [note, setNote] = useState(instructor.note ?? "");
+  const [hasEquipment, setHasEquipment] = useState(instructor.has_equipment ?? false);
   const [detailsSaved, setDetailsSaved] = useState(false);
 
   // Onboarding tab state
@@ -105,9 +117,9 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const contractInputRef = useRef<HTMLInputElement>(null);
 
-  function toggleClient(client: string) {
-    setSelectedClients((prev) =>
-      prev.includes(client) ? prev.filter((c) => c !== client) : [...prev, client]
+  function toggleClassification(classification: ClassificationType) {
+    setSelectedClassifications((prev) =>
+      prev.includes(classification) ? prev.filter((c) => c !== classification) : [...prev, classification]
     );
   }
 
@@ -123,9 +135,9 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
           rotation_order: isNaN(rotNum as number) ? null : rotNum,
         }),
         updateInstructorStatus(instructor.id, status),
-        updateInstructorOnboarding(instructor.id, {
-          clients: selectedClients,
-        }),
+        updateInstructorClassifications(instructor.id, selectedClassifications),
+        updateInstructorNote(instructor.id, note.trim() || null),
+        updateInstructorEquipment(instructor.id, hasEquipment),
       ]);
       setDetailsSaved(true);
       setTimeout(() => setDetailsSaved(false), 2000);
@@ -326,25 +338,75 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, onClose 
                 />
               </div>
 
-              {/* Clients */}
+              {/* Clients (derived from the fixed schedule, read-only) */}
               <div>
-                <label className="mb-2 block text-xs font-medium text-muted-foreground">לקוחות</label>
+                <label className="mb-2 block text-xs font-medium text-muted-foreground">
+                  לקוחות <span className="text-muted-foreground/60">(מתוך הלוח הקבוע)</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
-                  {CLIENTS.map((client) => (
+                  {scheduleClients.length > 0 ? (
+                    scheduleClients.map((client) => (
+                      <span
+                        key={client}
+                        className="rounded-full border border-border bg-muted px-3 py-1 text-sm text-muted-foreground"
+                      >
+                        {client}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground/50">אין שיבוץ קבוע</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Classifications */}
+              <div>
+                <label className="mb-2 block text-xs font-medium text-muted-foreground">סיווג</label>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(CLASSIFICATIONS) as [ClassificationType, string][]).map(([key, label]) => (
                     <button
-                      key={client}
+                      key={key}
                       type="button"
-                      onClick={() => toggleClient(client)}
+                      onClick={() => toggleClassification(key)}
                       className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-                        selectedClients.includes(client)
+                        selectedClassifications.includes(key)
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-background text-muted-foreground hover:bg-muted"
                       }`}
                     >
-                      {client}
+                      {label}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Equipment */}
+              <div>
+                <label className="mb-2 block text-xs font-medium text-muted-foreground">ציוד</label>
+                <button
+                  type="button"
+                  onClick={() => setHasEquipment(!hasEquipment)}
+                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${
+                    hasEquipment
+                      ? "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {hasEquipment ? <Check size={14} /> : null}
+                  {hasEquipment ? "עם ציוד" : "בלי ציוד"}
+                </button>
+              </div>
+
+              {/* Note / availability */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">הערה / זמינות</label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  placeholder="טקסט חופשי..."
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
               </div>
 
               {/* Status */}

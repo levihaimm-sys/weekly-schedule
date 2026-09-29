@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   addInstructor,
   syncInstructorAuthUsers,
+  updateInstructorNote,
+  updateInstructorEquipment,
 } from "@/lib/actions/instructors";
 import {
   Plus,
@@ -19,13 +21,39 @@ import {
   Smartphone,
   Link,
   X,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
-import { INSTRUCTOR_STATUS, CLIENTS, InstructorStatusType, EmploymentType } from "@/lib/utils/constants";
+import { INSTRUCTOR_STATUS, CLASSIFICATIONS, InstructorStatusType } from "@/lib/utils/constants";
 import { InstructorDrawer, InstructorFull } from "./instructor-drawer";
 
 interface InstructorManagerProps {
   instructors: InstructorFull[];
   lastLoginMap: Record<string, string | null>;
+  scheduleClientsMap: Record<string, string[]>;
+}
+
+type SortKey =
+  | "full_name"
+  | "phone"
+  | "address"
+  | "status"
+  | "note"
+  | "classifications"
+  | "equipment"
+  | "clients"
+  | "onboarding"
+  | "last_login";
+
+function getOnboardingCount(instructor: InstructorFull, hasAppAccess: boolean): number {
+  return [
+    !!instructor.id_photo_url,
+    !!instructor.contract_url,
+    !!instructor.monthly_report_link,
+    !!instructor.whatsapp_added,
+    hasAppAccess,
+  ].filter(Boolean).length;
 }
 
 function formatLastLogin(dateStr: string | null | undefined): string {
@@ -85,8 +113,43 @@ const statusColors: Record<InstructorStatusType, string> = {
   inactive: "bg-gray-50 text-gray-700 border-gray-200",
 };
 
+function SortableTh({
+  label,
+  sortKey,
+  currentKey,
+  dir,
+  onSort,
+  className,
+  align,
+}: {
+  label: string;
+  sortKey: SortKey;
+  currentKey: SortKey;
+  dir: 1 | -1;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  align?: "end";
+}) {
+  const active = sortKey === currentKey;
+  return (
+    <th className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`flex items-center gap-1 hover:text-foreground ${align === "end" ? "w-full justify-end" : ""}`}
+      >
+        {label}
+        {active ? (
+          dir === 1 ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+        ) : (
+          <ChevronsUpDown size={12} className="opacity-30" />
+        )}
+      </button>
+    </th>
+  );
+}
 
-export function InstructorManager({ instructors, lastLoginMap }: InstructorManagerProps) {
+export function InstructorManager({ instructors, lastLoginMap, scheduleClientsMap }: InstructorManagerProps) {
   const router = useRouter();
   const [selectedStatuses, setSelectedStatuses] = useState<Set<InstructorStatusType>>(
     new Set(["active", "substitute"])
@@ -98,6 +161,44 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [openInstructorId, setOpenInstructorId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("full_name");
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 1 ? -1 : 1));
+    } else {
+      setSortKey(key);
+      setSortDir(1);
+    }
+  }
+
+  function getSortValue(instructor: InstructorFull, key: SortKey): string | number {
+    switch (key) {
+      case "full_name":
+        return instructor.full_name;
+      case "phone":
+        return instructor.phone ?? "";
+      case "address":
+        return instructor.address ?? "";
+      case "status":
+        return INSTRUCTOR_STATUS[instructor.status];
+      case "note":
+        return instructor.note ?? "";
+      case "classifications":
+        return (instructor.classifications ?? []).map((c) => CLASSIFICATIONS[c]).join(", ");
+      case "equipment":
+        return instructor.has_equipment ? 1 : 0;
+      case "clients":
+        return (scheduleClientsMap[instructor.id] ?? []).join(", ");
+      case "onboarding":
+        return getOnboardingCount(instructor, instructor.id in lastLoginMap);
+      case "last_login": {
+        const lastLogin = lastLoginMap[instructor.id];
+        return lastLogin ? new Date(lastLogin).getTime() : 0;
+      }
+    }
+  }
 
   const filtered = instructors.filter((i) => {
     const matchesStatus = selectedStatuses.has(i.status ?? "active");
@@ -105,6 +206,26 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
       !searchQuery || i.full_name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  const sorted = [...filtered].sort((a, b) => {
+    const va = getSortValue(a, sortKey);
+    const vb = getSortValue(b, sortKey);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb), "he") * sortDir;
+  });
+
+  async function handleNoteBlur(instructorId: string, value: string) {
+    const trimmed = value.trim();
+    const instructor = instructors.find((i) => i.id === instructorId);
+    if ((instructor?.note ?? "") === trimmed) return;
+    await updateInstructorNote(instructorId, trimmed || null);
+    router.refresh();
+  }
+
+  async function handleEquipmentToggle(instructorId: string, current: boolean) {
+    await updateInstructorEquipment(instructorId, !current);
+    router.refresh();
+  }
 
   const activeCount = instructors.filter((i) => (i.status ?? "active") === "active").length;
   const substituteCount = instructors.filter((i) => i.status === "substitute").length;
@@ -307,24 +428,27 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-3">שם</th>
-                <th className="px-4 py-3 text-center">טלפון</th>
-                <th className="px-4 py-3">כתובת</th>
-                <th className="px-4 py-3">סטטוס</th>
-                <th className="px-4 py-3">לקוחות</th>
-                <th className="px-4 py-3">קליטה</th>
-                <th className="px-4 py-3">התחברות</th>
+                <SortableTh label="שם" sortKey="full_name" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="w-px whitespace-nowrap px-4 py-3" />
+                <SortableTh label="טלפון" sortKey="phone" currentKey={sortKey} dir={sortDir} onSort={toggleSort} align="end" className="w-px whitespace-nowrap px-4 py-3" />
+                <SortableTh label="כתובת" sortKey="address" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="סטטוס" sortKey="status" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="הערה / זמינות" sortKey="note" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="סיווג" sortKey="classifications" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="ציוד" sortKey="equipment" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="לקוחות" sortKey="clients" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="קליטה" sortKey="onboarding" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
+                <SortableTh label="התחברות" sortKey="last_login" currentKey={sortKey} dir={sortDir} onSort={toggleSort} className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? (
+              {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="py-10 text-center text-muted-foreground">
                     אין מדריכים להצגה
                   </td>
                 </tr>
               ) : (
-                filtered.map((instructor) => {
+                sorted.map((instructor) => {
                   const hasAppAccess = instructor.id in lastLoginMap;
                   const lastLogin = lastLoginMap[instructor.id] ?? null;
 
@@ -337,10 +461,10 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
                       }`}
                     >
                       {/* Name */}
-                      <td className="px-4 py-3 font-medium">{instructor.full_name}</td>
+                      <td className="w-px whitespace-nowrap px-4 py-3 font-medium">{instructor.full_name}</td>
 
                       {/* Phone */}
-                      <td className="px-4 py-3 text-center text-muted-foreground" dir="ltr">
+                      <td className="w-px whitespace-nowrap px-4 py-3 text-right text-muted-foreground" dir="ltr">
                         {instructor.phone ?? "—"}
                       </td>
 
@@ -360,11 +484,56 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
                         </span>
                       </td>
 
-                      {/* Clients */}
+                      {/* Note / availability (inline editable) */}
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          key={instructor.note ?? ""}
+                          defaultValue={instructor.note ?? ""}
+                          onBlur={(e) => handleNoteBlur(instructor.id, e.target.value)}
+                          placeholder="הערה / זמינות..."
+                          className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-border focus:border-border focus:bg-background focus:outline-none"
+                        />
+                      </td>
+
+                      {/* Classifications */}
                       <td className="px-4 py-3">
-                        {instructor.clients && instructor.clients.length > 0 ? (
+                        {instructor.classifications && instructor.classifications.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {instructor.clients.map((c) => (
+                            {instructor.classifications.map((c) => (
+                              <span
+                                key={c}
+                                className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                              >
+                                {CLASSIFICATIONS[c]}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        )}
+                      </td>
+
+                      {/* Equipment */}
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleEquipmentToggle(instructor.id, !!instructor.has_equipment)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                            instructor.has_equipment
+                              ? "border-green-300 bg-green-100 text-green-700 hover:bg-green-200"
+                              : "border-border bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {instructor.has_equipment ? <Check size={12} /> : null}
+                          {instructor.has_equipment ? "עם ציוד" : "בלי ציוד"}
+                        </button>
+                      </td>
+
+                      {/* Clients (derived from the fixed schedule) */}
+                      <td className="px-4 py-3">
+                        {(scheduleClientsMap[instructor.id]?.length ?? 0) > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {scheduleClientsMap[instructor.id].map((c) => (
                               <span
                                 key={c}
                                 className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
@@ -406,6 +575,7 @@ export function InstructorManager({ instructors, lastLoginMap }: InstructorManag
           instructor={openInstructor}
           lastLogin={lastLoginMap[openInstructor.id] ?? null}
           hasAppAccess={openInstructor.id in lastLoginMap}
+          scheduleClients={scheduleClientsMap[openInstructor.id] ?? []}
           onClose={() => setOpenInstructorId(null)}
         />
       )}
