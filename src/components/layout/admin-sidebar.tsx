@@ -23,6 +23,7 @@ import {
   Table,
   Tent,
   Banknote,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -84,7 +85,10 @@ export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
         ...NAV_SECTIONS,
         {
           title: "אישי",
-          items: [{ href: "/payroll", label: "שכר מדריכים", icon: Banknote }],
+          items: [
+            { href: "/payroll", label: "שכר מדריכים", icon: Banknote },
+            { href: "/client-payments", label: "תשלום לקוחות", icon: Wallet },
+          ],
         },
       ]
     : NAV_SECTIONS;
