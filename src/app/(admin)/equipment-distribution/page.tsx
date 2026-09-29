@@ -96,34 +96,10 @@ export default async function EquipmentDistributionPage({
   );
 
   // Combine data
-  const combinedInstructors = (instructors || []).map((instructor) => ({
+  const instructorData = (instructors || []).map((instructor) => ({
     ...instructor,
     assignment: assignmentMap.get(instructor.id) || null,
   }));
-
-  // Custom manual order for equipment distribution (per admin request)
-  const EQUIPMENT_ORDER = [
-    "מעיין זנדאני",
-    "אריאל ברמן",
-    "קרן ינוב",
-    "קארין גינתי",
-    "ליאור חדש",
-    "עדי שאמו",
-    "חנאן אבו רמדאן",
-    "פרח באבו",
-    "מורן דגיר",
-    "חוי פוקס",
-    "עליזה אברבנל",
-    "טל שומרת",
-    "אילת סופר",
-  ];
-  const orderIndex = new Map(EQUIPMENT_ORDER.map((name, i) => [name, i]));
-
-  const instructorData = [...combinedInstructors].sort((a, b) => {
-    const ai = orderIndex.get(a.full_name.trim()) ?? EQUIPMENT_ORDER.length;
-    const bi = orderIndex.get(b.full_name.trim()) ?? EQUIPMENT_ORDER.length;
-    return ai - bi;
-  });
 
   return (
     <div className="space-y-6">
