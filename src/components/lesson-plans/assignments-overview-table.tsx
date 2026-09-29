@@ -549,91 +549,68 @@ export function AssignmentsOverviewTable({
       <div className="overflow-auto rounded-lg border border-border max-h-[calc(100vh-200px)]">
         <table className="border-collapse text-sm" dir="rtl">
           <thead className="sticky top-0 z-20">
-            {/* City header row */}
             <tr className="bg-secondary text-[#1C1917]">
-              <th
-                className="sticky right-0 z-30 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold"
-                rowSpan={2}
-              >
-                תאריך
+              <th className="sticky right-0 z-30 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold whitespace-nowrap">
+                מדריכה
               </th>
-              {instructors.map((inst) => (
-                <th
-                  key={inst.id}
-                  className="border border-secondary/70 px-1 py-1 text-center text-[10px] font-normal"
-                >
-                  {inst.city || "—"}
-                </th>
-              ))}
-            </tr>
-            {/* Instructor name header row */}
-            <tr className="bg-secondary/80 text-[#1C1917]">
-              {instructors.map((inst) => (
-                <th
-                  key={inst.id}
-                  className="border border-secondary/60 px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap"
-                >
-                  {inst.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map((week) => {
-              const isCurrentWeek = week === currentWeekStart;
-              const past = isPastWeek(week);
-              return (
-                <tr
-                  key={week}
-                  className={
-                    isCurrentWeek
-                      ? "bg-secondary/20 font-semibold"
-                      : past
-                        ? "bg-gray-50/50"
-                        : "hover:bg-muted/30"
-                  }
-                >
-                  <td
-                    className={`sticky right-0 z-10 border border-border px-3 py-2 text-center font-bold whitespace-nowrap ${
-                      isCurrentWeek
-                        ? "bg-amber-200 text-amber-900"
-                        : past
-                          ? "bg-gray-100"
-                          : "bg-background"
+              <th className="border border-secondary/70 px-2 py-2 text-center text-xs font-normal whitespace-nowrap">
+                ישוב
+              </th>
+              {weeks.map((week) => {
+                const isCurrentWeek = week === currentWeekStart;
+                return (
+                  <th
+                    key={week}
+                    className={`border border-secondary/60 px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap ${
+                      isCurrentWeek ? "bg-amber-200 text-amber-900" : ""
                     }`}
                   >
                     {formatWeekDate(week)}
-                  </td>
-                  {instructors.map((inst) => {
-                    const assignment = assignmentMap[week]?.[inst.id];
-                    const lessonName = assignment?.lesson_plan?.name ?? "";
-                    const isEditing =
-                      editingCell?.week === week && editingCell?.instructorId === inst.id;
-                    return (
-                      <td
-                        key={inst.id}
-                        onClick={() => handleCellClick(week, inst)}
-                        className={`border border-border px-2 py-1.5 text-center text-xs whitespace-nowrap transition-colors ${
-                          past
-                            ? "text-muted-foreground cursor-default"
-                            : "cursor-pointer"
-                        } ${
-                          isEditing
-                            ? "bg-primary/20 ring-2 ring-primary ring-inset"
-                            : isCurrentWeek
-                              ? "bg-amber-50 hover:bg-amber-100"
-                              : past
-                                ? ""
-                                : "hover:bg-primary/5"
-                        } ${!lessonName ? "text-muted-foreground/50" : ""}`}
-                      >
-                        {lessonName || "—"}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {instructors.map((inst) => (
+              <tr key={inst.id} className="hover:bg-muted/30">
+                <td className="sticky right-0 z-10 border border-border bg-background px-3 py-2 text-center font-bold whitespace-nowrap">
+                  {inst.name}
+                </td>
+                <td className="border border-border px-2 py-1.5 text-center text-xs text-muted-foreground whitespace-nowrap">
+                  {inst.city || "—"}
+                </td>
+                {weeks.map((week) => {
+                  const isCurrentWeek = week === currentWeekStart;
+                  const past = isPastWeek(week);
+                  const assignment = assignmentMap[week]?.[inst.id];
+                  const lessonName = assignment?.lesson_plan?.name ?? "";
+                  const isEditing =
+                    editingCell?.week === week && editingCell?.instructorId === inst.id;
+                  return (
+                    <td
+                      key={week}
+                      onClick={() => handleCellClick(week, inst)}
+                      className={`border border-border px-2 py-1.5 text-center text-xs whitespace-nowrap transition-colors ${
+                        past
+                          ? "text-muted-foreground cursor-default bg-gray-50/50"
+                          : "cursor-pointer"
+                      } ${
+                        isEditing
+                          ? "bg-primary/20 ring-2 ring-primary ring-inset"
+                          : isCurrentWeek
+                            ? "bg-amber-50 hover:bg-amber-100"
+                            : past
+                              ? ""
+                              : "hover:bg-primary/5"
+                      } ${!lessonName ? "text-muted-foreground/50" : ""}`}
+                    >
+                      {lessonName || "—"}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
