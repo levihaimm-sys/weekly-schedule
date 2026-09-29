@@ -91,7 +91,8 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
   );
   const [note, setNote] = useState(instructor.note ?? "");
   const [hasEquipment, setHasEquipment] = useState(instructor.has_equipment ?? false);
-  const [detailsSaved, setDetailsSaved] = useState(false);
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Onboarding tab state
   const [reportLink, setReportLink] = useState(instructor.monthly_report_link ?? "");
@@ -119,24 +120,32 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
   }
 
   async function handleSaveDetails() {
-    startTransition(async () => {
-      const rotNum = rotationOrder.trim() ? parseInt(rotationOrder.trim(), 10) : null;
-      await Promise.all([
-        updateInstructor(instructor.id, {
-          full_name: name.trim() || instructor.full_name,
-          phone: phone.trim() || null,
-          address: address.trim() || null,
-          work_cities: workCities.trim() || null,
-          rotation_order: isNaN(rotNum as number) ? null : rotNum,
-        }),
-        updateInstructorClassifications(instructor.id, selectedClassifications),
-        updateInstructorNote(instructor.id, note.trim() || null),
-        updateInstructorEquipment(instructor.id, hasEquipment),
-      ]);
-      setDetailsSaved(true);
-      setTimeout(() => setDetailsSaved(false), 2000);
-      router.refresh();
-    });
+    setIsSavingDetails(true);
+    setSaveError(null);
+    const rotNum = rotationOrder.trim() ? parseInt(rotationOrder.trim(), 10) : null;
+    const results = await Promise.all([
+      updateInstructor(instructor.id, {
+        full_name: name.trim() || instructor.full_name,
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+        work_cities: workCities.trim() || null,
+        rotation_order: isNaN(rotNum as number) ? null : rotNum,
+      }),
+      updateInstructorClassifications(instructor.id, selectedClassifications),
+      updateInstructorNote(instructor.id, note.trim() || null),
+      updateInstructorEquipment(instructor.id, hasEquipment),
+    ]);
+    setIsSavingDetails(false);
+    const failed = results.find((r) => r && "error" in r && r.error);
+    if (failed) {
+      setSaveError(failed.error as string);
+      return;
+    }
+    // Refresh the underlying table in the background (don't block on it — it
+    // re-fetches the whole page, including a slow auth-users lookup) and
+    // close right away so the admin isn't stuck waiting.
+    router.refresh();
+    onClose();
   }
 
   async function handleSaveOnboarding() {
@@ -421,20 +430,13 @@ export function InstructorDrawer({ instructor, lastLogin, hasAppAccess, schedule
               </div>
 
               {/* Save */}
+              {saveError && <p className="text-sm text-red-600">{saveError}</p>}
               <button
                 onClick={handleSaveDetails}
-                disabled={isPending}
+                disabled={isSavingDetails}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
-                {isPending ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : detailsSaved ? (
-                  <>
-                    <Check size={14} /> נשמר
-                  </>
-                ) : (
-                  "שמור שינויים"
-                )}
+                {isSavingDetails ? <Loader2 size={14} className="animate-spin" /> : "שמור שינויים"}
               </button>
 
               {/* Delete */}
