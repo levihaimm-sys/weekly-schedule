@@ -120,6 +120,9 @@ export const NEED_STATUS = {
 
 export type NeedStatus = keyof typeof NEED_STATUS;
 
+/** Categories whose optgroup header is suppressed in the lesson-plan dropdown (flattened into the list). */
+export const NO_HEADER_LESSON_PLAN_CATEGORIES = ["מערכים חדשים - תחנות ציוד", "פתיחת שנה, היכרות וכללי בסיס"];
+
 export const CITY_TO_CLIENT: Record<string, string> = {
   "פת": "טומשין",
   "גבעתיים": "טומשין",

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
 import { updateWeeklyAssignment, createWeeklyAssignment, distributeEquipmentToInstructor } from "@/lib/actions/equipment";
 import { updateRotationOrders, clearRotationOrder } from "@/lib/actions/instructors";
-import { NO_HEADER_LESSON_PLAN_CATEGORIES } from "@/lib/queries/lesson-plans";
+import { NO_HEADER_LESSON_PLAN_CATEGORIES } from "@/lib/utils/constants";
 import type { LessonPlan } from "@/types/database";
 
 interface Assignment {

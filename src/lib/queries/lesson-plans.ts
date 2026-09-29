@@ -4,6 +4,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getNowInIsrael } from "@/lib/utils/date";
+import { NO_HEADER_LESSON_PLAN_CATEGORIES } from "@/lib/utils/constants";
 import type {
   LessonPlan,
   Equipment,
@@ -453,24 +454,20 @@ export async function getLessonPlansByCategory(): Promise<
 
   // Dropdown order requested 2026-09-29: the new equipment-station sets first, then the
   // "פתיחת שנה, היכרות וכללי בסיס" group, then every other category in its normal order.
-  const priorityOrder = ["מערכים חדשים - תחנות ציוד", "פתיחת שנה, היכרות וכללי בסיס"];
   const ordered: Record<string, LessonPlan[]> = {};
-  for (const category of priorityOrder) {
+  for (const category of NO_HEADER_LESSON_PLAN_CATEGORIES) {
     if (grouped[category]) {
       ordered[category] = grouped[category];
     }
   }
   for (const [category, plans] of Object.entries(grouped)) {
-    if (!priorityOrder.includes(category)) {
+    if (!NO_HEADER_LESSON_PLAN_CATEGORIES.includes(category)) {
       ordered[category] = plans;
     }
   }
 
   return ordered;
 }
-
-/** Categories whose optgroup header is suppressed in the lesson-plan dropdown (flattened into the list). */
-export const NO_HEADER_LESSON_PLAN_CATEGORIES = ["מערכים חדשים - תחנות ציוד", "פתיחת שנה, היכרות וכללי בסיס"];
 
 /**
  * Get every lesson plan together with its full equipment list (required quantity and the
