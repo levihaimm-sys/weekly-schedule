@@ -99,10 +99,6 @@ export function LessonEditDialog({
   const [locationName, setLocationName] = useState(item.location?.name ?? "");
   const [locationCity, setLocationCity] = useState(item.location?.city ?? "");
 
-  const locationNameOptions = useMemo(
-    () => Array.from(new Set(locations.map((l) => l.name))).sort((a, b) => a.localeCompare(b, "he")),
-    [locations]
-  );
   const cityOptions = useMemo(
     () => Array.from(new Set(locations.map((l) => l.city))).sort((a, b) => a.localeCompare(b, "he")),
     [locations]
@@ -615,9 +611,6 @@ export function LessonEditDialog({
                     <option key={city} value={city} />
                   ))}
                 </datalist>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  אפשר לבחור עיר מהרשימה או להקליד עיר חדשה — מיקום חדש ייווצר אוטומטית אם השילוב לא קיים.
-                </p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">כתובת</label>
@@ -635,21 +628,6 @@ export function LessonEditDialog({
                 onChange={setInstructorId}
               />
 
-              <div>
-                <label className="mb-1 block text-sm font-medium">שם הגן / מסגרת</label>
-                <input
-                  type="text"
-                  list="recurring-edit-location-name-options"
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-                />
-                <datalist id="recurring-edit-location-name-options">
-                  {locationNameOptions.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">איש קשר</label>
                 <input
@@ -769,21 +747,6 @@ export function LessonEditDialog({
               )}
 
               <div>
-                <label className="mb-1 block text-sm font-medium">שם הגן / מסגרת</label>
-                <input
-                  type="text"
-                  list="recurring-edit-location-name-options"
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-                />
-                <datalist id="recurring-edit-location-name-options">
-                  {locationNameOptions.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-              </div>
-              <div>
                 <label className="mb-1 block text-sm font-medium">עיר</label>
                 <input
                   type="text"
@@ -797,9 +760,6 @@ export function LessonEditDialog({
                     <option key={city} value={city} />
                   ))}
                 </datalist>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  אפשר לבחור עיר מהרשימה או להקליד עיר חדשה — מיקום חדש ייווצר אוטומטית אם השילוב לא קיים.
-                </p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">כתובת</label>
