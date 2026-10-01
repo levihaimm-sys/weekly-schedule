@@ -601,18 +601,17 @@ export async function getAssignmentsOverview() {
     return { assignments: [], instructorCities: {} as Record<string, string>, currentWeekStart };
   }
 
-  // Get instructor-to-route mapping (manually-set route label, e.g. "ראש העין") -
-  // this is intentionally not the actual recurring class location, since a route
-  // can group several instructors and doesn't need to track real scheduling changes.
-  const { data: routeData } = await supabase
+  // Get instructor-to-city mapping, derived from the instructor's home address
+  // (the part after any street name + house number, e.g. "סתוונית 7 נס ציונה" -> "נס ציונה").
+  const { data: addressData } = await supabase
     .from("instructors")
-    .select("id, route");
+    .select("id, address");
 
   const instructorCities: Record<string, string> = {};
-  if (routeData) {
-    for (const inst of routeData) {
-      if (inst.route) {
-        instructorCities[inst.id] = inst.route;
+  if (addressData) {
+    for (const inst of addressData) {
+      if (inst.address) {
+        instructorCities[inst.id] = inst.address.replace(/^.*?\d+\s*/, "").trim();
       }
     }
   }
