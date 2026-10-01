@@ -617,7 +617,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             )}
                           </p>
                           <p className="mt-1 text-sm leading-tight">
-                            {lesson.group_name ?? lesson.location?.name}
+                            {lesson.group_name ?? lesson.framework_name ?? "—"}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
@@ -737,7 +737,7 @@ function MobileLessonCard({
             )}
           </p>
           <p className="mt-1 text-base leading-tight">
-            {lesson.group_name ?? lesson.location?.name ?? "—"}
+            {lesson.group_name ?? lesson.framework_name ?? "—"}
           </p>
           <p className="text-base text-muted-foreground">
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}

@@ -578,27 +578,196 @@ export function LessonEditDialog({
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
-          {/* Framework name — editable directly in recurring mode, or in lesson mode when this
-              instance is linked to a recurring template (this always updates the template, so
-              it applies from here on regardless of instructor/time scope) */}
-          {(mode === "recurring" || (hasRecurringLink && item.group_name !== undefined)) && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="שם המסגרת / חוג"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-              />
-            </div>
-          )}
-
-          {/* Full field set — for the fixed (recurring) schedule and for any lesson instance.
-              When linked to a recurring template, saving these updates that row directly;
-              otherwise they update the one-off lesson row itself. */}
-          {(mode === "recurring" || mode === "lesson") && (
+          {mode === "recurring" ? (
             <>
+              {/* Fixed-schedule field order: client, framework name, city, address,
+                  instructor — then the rest in their previous relative order. */}
+              <div>
+                <label className="mb-1 block text-sm font-medium">לקוח</label>
+                <input
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="שם המסגרת / חוג"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">עיר</label>
+                <input
+                  type="text"
+                  list="recurring-edit-location-city-options"
+                  value={locationCity}
+                  onChange={(e) => setLocationCity(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+                <datalist id="recurring-edit-location-city-options">
+                  {cityOptions.map((city) => (
+                    <option key={city} value={city} />
+                  ))}
+                </datalist>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  אפשר לבחור עיר מהרשימה או להקליד עיר חדשה — מיקום חדש ייווצר אוטומטית אם השילוב לא קיים.
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">כתובת</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+
+              <InstructorSearchSelect
+                instructors={instructors}
+                value={instructorId}
+                onChange={setInstructorId}
+              />
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">שם הגן / מסגרת</label>
+                <input
+                  type="text"
+                  list="recurring-edit-location-name-options"
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+                <datalist id="recurring-edit-location-name-options">
+                  {locationNameOptions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">איש קשר</label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">גננת/רכזת</label>
+                <input
+                  type="text"
+                  value={managerName}
+                  onChange={(e) => setManagerName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">טלפון גננת/רכזת</label>
+                <input
+                  type="tel"
+                  value={managerPhone}
+                  onChange={(e) => setManagerPhone(e.target.value)}
+                  dir="ltr"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-right"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">תחום</label>
+                <input
+                  type="text"
+                  value={field}
+                  onChange={(e) => setField(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">מסגרת</label>
+                <input
+                  type="text"
+                  value={framework}
+                  onChange={(e) => setFramework(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium">משך שיעור (דק&apos;)</label>
+                  <input
+                    type="number"
+                    value={lessonDuration}
+                    onChange={(e) => setLessonDuration(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium">מס&apos; שיעורים</label>
+                  <input
+                    type="number"
+                    value={lessonsCount}
+                    onChange={(e) => setLessonsCount(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">הערות</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">שעה</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">יום</label>
+                <select
+                  value={dayOfWeek}
+                  onChange={(e) => setDayOfWeek(Number(e.target.value))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                >
+                  {DAYS_HEBREW.slice(0, 6).map((day, i) => (
+                    <option key={i} value={i}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Framework name — only when this lesson instance is linked to a recurring
+                  template (editing it here always updates the template directly) */}
+              {hasRecurringLink && item.group_name !== undefined && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
+                  <input
+                    type="text"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="שם המסגרת / חוג"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="mb-1 block text-sm font-medium">שם הגן / מסגרת</label>
                 <input
@@ -717,7 +886,7 @@ export function LessonEditDialog({
                 </div>
               </div>
               {/* notes only exists as a column on recurring_schedule, not on a one-off lesson */}
-              {(mode === "recurring" || hasRecurringLink) && (
+              {hasRecurringLink && (
                 <div>
                   <label className="mb-1 block text-sm font-medium">הערות</label>
                   <input
@@ -728,144 +897,113 @@ export function LessonEditDialog({
                   />
                 </div>
               )}
-            </>
-          )}
 
-          {/* Instructor */}
-          <InstructorSearchSelect
-            instructors={instructors}
-            value={instructorId}
-            onChange={setInstructorId}
-          />
-
-          {/* Time */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">שעה</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            />
-          </div>
-
-          {/* Day of week (only for recurring mode) */}
-          {mode === "recurring" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">יום</label>
-              <select
-                value={dayOfWeek}
-                onChange={(e) => setDayOfWeek(Number(e.target.value))}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-              >
-                {DAYS_HEBREW.slice(0, 6).map((day, i) => (
-                  <option key={i} value={i}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Date (only for lesson mode) */}
-          {mode === "lesson" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">תאריך</label>
-              <input
-                type="date"
-                value={lessonDate}
-                onChange={(e) => setLessonDate(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+              <InstructorSearchSelect
+                instructors={instructors}
+                value={instructorId}
+                onChange={setInstructorId}
               />
-            </div>
-          )}
 
-          {/* Status (only for lesson mode) */}
-          {mode === "lesson" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">סטטוס</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-              >
-                <option value="scheduled">מתוכנן</option>
-                <option value="completed">הושלם</option>
-                <option value="cancelled">בוטל</option>
-                <option value="substitute">מחליף</option>
-              </select>
-            </div>
-          )}
+              <div>
+                <label className="mb-1 block text-sm font-medium">שעה</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
 
-          {/* Notes (only for lesson mode) */}
-          {mode === "lesson" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">הערות</label>
-              <input
-                type="text"
-                value={changeNotes}
-                onChange={(e) => setChangeNotes(e.target.value)}
-                placeholder="הערה לשינוי..."
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-              />
-            </div>
-          )}
+              <div>
+                <label className="mb-1 block text-sm font-medium">תאריך</label>
+                <input
+                  type="date"
+                  value={lessonDate}
+                  onChange={(e) => setLessonDate(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
 
-          {/* Absence report — lets an admin mark a lesson as an instructor-reported absence,
-              exactly like when the instructor submits it herself from her app. */}
-          {mode === "lesson" && (
-            <div>
-              {item.instructor_absence_request || absenceReported ? (
-                <div className="rounded-xl bg-warning/10 px-3 py-2">
-                  <span className="text-sm font-bold text-foreground">
-                    📢 {item.instructor_request_type === "absence" || absenceReported ? "חיסור צפוי" : "בקשה"} נשלחה
-                  </span>
-                  {item.instructor_notes && (
-                    <span className="text-sm font-medium text-foreground/80"> - {item.instructor_notes}</span>
-                  )}
-                </div>
-              ) : !showAbsenceReport ? (
-                <button
-                  type="button"
-                  onClick={() => setShowAbsenceReport(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-orange-300 py-2.5 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-50"
+              <div>
+                <label className="mb-1 block text-sm font-medium">סטטוס</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
                 >
-                  <UserMinus size={15} />
-                  סמן חיסור (המדריכה הודיעה)
-                </button>
-              ) : (
-                <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3 space-y-2">
-                  <label className="block text-sm font-medium">סיבת החיסור</label>
-                  <textarea
-                    value={absenceNote}
-                    onChange={(e) => setAbsenceNote(e.target.value)}
-                    placeholder="למשל: מחלה, אירוע משפחתי..."
-                    rows={2}
-                    autoFocus
-                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  />
-                  {absenceError && <p className="text-sm text-destructive">{absenceError}</p>}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleReportAbsence}
-                      disabled={absenceLoading}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
-                    >
-                      {absenceLoading && <Loader2 size={14} className="animate-spin" />}
-                      שלח דיווח
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowAbsenceReport(false); setAbsenceNote(""); setAbsenceError(null); }}
-                      className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-                    >
-                      ביטול
-                    </button>
+                  <option value="scheduled">מתוכנן</option>
+                  <option value="completed">הושלם</option>
+                  <option value="cancelled">בוטל</option>
+                  <option value="substitute">מחליף</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">הערות</label>
+                <input
+                  type="text"
+                  value={changeNotes}
+                  onChange={(e) => setChangeNotes(e.target.value)}
+                  placeholder="הערה לשינוי..."
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
+                />
+              </div>
+
+              {/* Absence report — lets an admin mark a lesson as an instructor-reported absence,
+                  exactly like when the instructor submits it herself from her app. */}
+              <div>
+                {item.instructor_absence_request || absenceReported ? (
+                  <div className="rounded-xl bg-warning/10 px-3 py-2">
+                    <span className="text-sm font-bold text-foreground">
+                      📢 {item.instructor_request_type === "absence" || absenceReported ? "חיסור צפוי" : "בקשה"} נשלחה
+                    </span>
+                    {item.instructor_notes && (
+                      <span className="text-sm font-medium text-foreground/80"> - {item.instructor_notes}</span>
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
+                ) : !showAbsenceReport ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAbsenceReport(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-orange-300 py-2.5 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-50"
+                  >
+                    <UserMinus size={15} />
+                    סמן חיסור (המדריכה הודיעה)
+                  </button>
+                ) : (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3 space-y-2">
+                    <label className="block text-sm font-medium">סיבת החיסור</label>
+                    <textarea
+                      value={absenceNote}
+                      onChange={(e) => setAbsenceNote(e.target.value)}
+                      placeholder="למשל: מחלה, אירוע משפחתי..."
+                      rows={2}
+                      autoFocus
+                      className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                    {absenceError && <p className="text-sm text-destructive">{absenceError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleReportAbsence}
+                        disabled={absenceLoading}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+                      >
+                        {absenceLoading && <Loader2 size={14} className="animate-spin" />}
+                        שלח דיווח
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowAbsenceReport(false); setAbsenceNote(""); setAbsenceError(null); }}
+                        className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
 

@@ -551,7 +551,7 @@ export function ScheduleGrid({
                       {item.instructor?.full_name ?? <span className="text-red-600">ללא מדריך</span>}
                     </p>
                     <p className="mt-1 text-base leading-tight">
-                      {item.group_name ?? item.location?.name}
+                      {item.group_name ?? item.framework_name ?? "—"}
                     </p>
                     <p className="text-base text-muted-foreground">
                       {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
@@ -607,7 +607,7 @@ export function ScheduleGrid({
                             {item.instructor?.full_name ?? <span className="text-red-600 font-medium">ללא מדריך</span>}
                           </p>
                           <p className="mt-1 text-sm leading-tight">
-                            {item.group_name ?? item.location?.name}
+                            {item.group_name ?? item.framework_name ?? "—"}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}

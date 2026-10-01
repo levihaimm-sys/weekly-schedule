@@ -50,7 +50,7 @@ interface Props {
 const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
 
 function frameworkLabel(r: WeeklyLessonRow): string {
-  return r.framework_name || r.group_name || "—";
+  return r.group_name || r.framework_name || "—";
 }
 
 function dateOf(r: WeeklyLessonRow): Date {
