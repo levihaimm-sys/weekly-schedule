@@ -54,17 +54,17 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "תוכניות ופעילויות",
-    items: [
-      { href: "/camps", label: "קייטנות", icon: Tent },
-      { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
-    ],
-  },
-  {
     title: "תוכן ותפעול",
     items: [
       { href: "/lesson-plans", label: "ציוד", icon: Package },
       { href: "/lesson-plans/assignments", label: "הקצאות שבועיות", icon: BookOpen },
+    ],
+  },
+  {
+    title: "תוכניות ופעילויות",
+    items: [
+      { href: "/camps", label: "קייטנות", icon: Tent },
+      { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
     ],
   },
   {
@@ -142,7 +142,7 @@ export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
           {navSections.map((section) => (
             <div key={section.title ?? "root"} className="space-y-1">
               {section.title && (
-                <div className="border-b border-black bg-primary/30 px-3 py-1 text-base font-bold text-black">
+                <div className="rounded-md border-s-4 border-primary bg-primary/15 px-3 py-1.5 text-sm font-bold tracking-wide text-[#3F5C3F]">
                   {section.title}
                 </div>
               )}
