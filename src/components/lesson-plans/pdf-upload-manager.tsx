@@ -124,8 +124,7 @@ export function PdfUploadManager() {
                 <div>
                   <label className="block">
                     <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      רשימת ציוד נדרש — נקרא אוטומטית מתוך שורת &quot;ציוד:&quot; בקובץ. כדאי לעבור
-                      עליה במהירות ולתקן אם צריך (שורה לכל פריט, בפורמט &quot;כמות שם&quot;)
+                      רשימת ציוד נדרש (שורה לכל פריט, בפורמט &quot;כמות שם&quot;) — ערכו לפי הצורך
                     </span>
                     <textarea
                       value={equipmentDrafts[i] ?? ""}
