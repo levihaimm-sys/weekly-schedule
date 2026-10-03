@@ -4,6 +4,7 @@ import { addDays, format } from "date-fns";
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
 import { WeekNavigator } from "@/components/equipment/week-navigator";
+import { CollectedCheckbox } from "@/components/equipment/collected-checkbox";
 import { getNowInIsrael, getWeekStart } from "@/lib/utils/date";
 
 export const dynamic = "force-dynamic";
@@ -121,6 +122,7 @@ export default async function WeeklyEquipmentPage({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
+              <th className="w-10 px-3 py-2 text-center">נאסף</th>
               <th className="px-3 py-2 text-center">#</th>
               <th className="px-3 py-2 text-start">מדריכה</th>
               <th className="px-3 py-2 text-start">מערך</th>
@@ -129,7 +131,13 @@ export default async function WeeklyEquipmentPage({
           </thead>
           <tbody>
             {rows.map((r, idx) => (
-              <tr key={r.id} className="border-b border-border/50 last:border-0">
+              <tr
+                key={r.id}
+                className="border-b border-border/50 last:border-0 has-[input:checked]:bg-green-50 has-[input:checked]:text-muted-foreground"
+              >
+                <td className="px-3 py-2 text-center">
+                  <CollectedCheckbox weekStartDate={weekStartDate} instructorId={r.id} />
+                </td>
                 <td className="px-3 py-2 text-center text-muted-foreground">
                   {idx + 1}
                 </td>
@@ -152,9 +160,13 @@ export default async function WeeklyEquipmentPage({
                 <td className="px-3 py-2">
                   {r.equipment.length > 0 ? (
                     <span>
-                      {r.equipment
-                        .map((e) => `${e.name} x${e.quantity}`)
-                        .join(", ")}
+                      {r.equipment.map((e, i) => (
+                        <span key={i}>
+                          {i > 0 && ", "}
+                          <bdi className="font-semibold">{e.quantity}×</bdi>{" "}
+                          {e.name}
+                        </span>
+                      ))}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">—</span>
