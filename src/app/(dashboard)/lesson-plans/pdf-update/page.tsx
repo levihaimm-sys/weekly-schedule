@@ -30,7 +30,8 @@ export default async function PdfUpdatePage() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917] mb-2">עדכון קבצי מערכים</h2>
         <p className="text-gray-600">
-          העלאת PDF מעודכן למערך קיים — הקובץ המועלה יחליף את מה שמוצג למדריכות באפליקציה
+          העלאת PDF מעודכן למערך קיים — מחליף את ה-PDF שמוצג למדריכות באפליקציה, ומעדכן את רשימת
+          הציוד הנדרש בכל המסכים (ניהול מערכים, התאמת ציוד, מלאי, טבלת חלוקת ציוד ודו&quot;ח ציוד חסר)
         </p>
       </div>
 
