@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { extractEquipmentTextFromPdf } from "@/lib/utils/pdf-text";
 
 const FILENAME_PATTERN = /^מערך\s+(\d+)\s*-.*?(?:\(([^)]+)\))?\.pdf$/i;
 
@@ -79,14 +80,18 @@ export type MatchResult = {
 };
 
 /**
- * Step 1: matches each selected filename to a lesson plan and returns its current
- * equipment list (pre-filled, editable) so the admin can correct it before saving.
+ * Step 1: matches each selected file to a lesson plan and pre-fills its equipment list —
+ * read automatically from the PDF's own "ציוד:" line when possible, falling back to
+ * whatever is already saved in the database — so the admin only has to glance at it
+ * (and fix anything unusual) rather than type it from scratch.
  */
-export async function matchLessonPlanFiles(fileNames: string[]): Promise<MatchResult[]> {
+export async function matchLessonPlanFiles(formData: FormData): Promise<MatchResult[]> {
   const supabase = createAdminClient();
+  const files = formData.getAll("files") as File[];
   const results: MatchResult[] = [];
 
-  for (const fileName of fileNames) {
+  for (const file of files) {
+    const fileName = file.name;
     const match = await matchFileToLessonPlan(supabase, fileName);
 
     if (match.status !== "matched") {
@@ -94,14 +99,24 @@ export async function matchLessonPlanFiles(fileNames: string[]): Promise<MatchRe
       continue;
     }
 
-    const { data: equipmentRows } = await supabase
-      .from("lesson_plan_equipment")
-      .select("quantity, equipment:equipment(name)")
-      .eq("lesson_plan_id", match.plan.id);
+    let equipmentText: string | null = null;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      equipmentText = await extractEquipmentTextFromPdf(buffer);
+    } catch {
+      equipmentText = null;
+    }
 
-    const equipmentText = (equipmentRows ?? [])
-      .map((row) => `${row.quantity} ${(row.equipment as any)?.name ?? ""}`.trim())
-      .join("\n");
+    if (!equipmentText) {
+      const { data: equipmentRows } = await supabase
+        .from("lesson_plan_equipment")
+        .select("quantity, equipment:equipment(name)")
+        .eq("lesson_plan_id", match.plan.id);
+
+      equipmentText = (equipmentRows ?? [])
+        .map((row) => `${row.quantity} ${(row.equipment as any)?.name ?? ""}`.trim())
+        .join("\n");
+    }
 
     results.push({
       fileName,

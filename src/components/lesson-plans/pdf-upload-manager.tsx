@@ -34,7 +34,10 @@ export function PdfUploadManager() {
     if (files.length === 0) return;
 
     startMatching(async () => {
-      const results = await matchLessonPlanFiles(files.map((f) => f.name));
+      const formData = new FormData();
+      files.forEach((file) => formData.append("files", file));
+
+      const results = await matchLessonPlanFiles(formData);
       setMatches(results);
       const drafts: Record<number, string> = {};
       results.forEach((r, i) => {
@@ -121,7 +124,8 @@ export function PdfUploadManager() {
                 <div>
                   <label className="block">
                     <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      רשימת ציוד נדרש (שורה לכל פריט, בפורמט &quot;כמות שם&quot;) — ערכו לפי הצורך
+                      רשימת ציוד נדרש — נקרא אוטומטית מתוך שורת &quot;ציוד:&quot; בקובץ. כדאי לעבור
+                      עליה במהירות ולתקן אם צריך (שורה לכל פריט, בפורמט &quot;כמות שם&quot;)
                     </span>
                     <textarea
                       value={equipmentDrafts[i] ?? ""}
