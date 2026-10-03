@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { DAYS_HEBREW, DAYS_SHORT, LESSON_STATUS } from "@/lib/utils/constants";
-import { formatTime, formatDateShort, getTodayInIsrael, getNowInIsrael } from "@/lib/utils/date";
+import {
+  formatTime,
+  formatDateShort,
+  getTodayInIsrael,
+  getNowInIsrael,
+  getInstructorEffectiveWeekStart,
+} from "@/lib/utils/date";
 import { MapPin, Clock, CalendarDays, Phone } from "lucide-react";
 import Link from "next/link";
 import { format, addDays, startOfWeek } from "date-fns";
@@ -39,20 +45,21 @@ export default async function MySchedulePage({
     );
   }
 
-  // Calculate week boundaries
-  const baseDate = params.week ? new Date(params.week) : new Date();
-  const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
+  // Calculate week boundaries. With no explicit ?week param, default to the instructor's
+  // "effective" current week — which is next week once Friday/Saturday hit, since the
+  // work week is Sunday-Thursday and they should see what's coming before the weekend ends.
+  const effectiveWeekStart = getInstructorEffectiveWeekStart();
+  const weekStart = params.week ? startOfWeek(new Date(params.week), { weekStartsOn: 0 }) : effectiveWeekStart;
   const weekEnd = addDays(weekStart, 4);
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
-  
+
   const today = getTodayInIsrael();
   const now = getNowInIsrael();
   const dayOfWeek = now.getDay();
 
-  // Check if current week
-  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
-  const isCurrentWeek = format(currentWeekStart, "yyyy-MM-dd") === weekStartStr;
+  // Check if this is the week being shown by default (for the greeting/"today" framing)
+  const isCurrentWeek = format(effectiveWeekStart, "yyyy-MM-dd") === weekStartStr;
 
   // Get lessons for this week
   const { data: weekLessons } = await supabase

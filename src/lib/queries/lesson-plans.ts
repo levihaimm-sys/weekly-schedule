@@ -3,7 +3,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { getNowInIsrael } from "@/lib/utils/date";
+import { getNowInIsrael, getInstructorEffectiveWeekStart } from "@/lib/utils/date";
 import { NO_HEADER_LESSON_PLAN_CATEGORIES } from "@/lib/utils/constants";
 import type {
   LessonPlan,
@@ -20,24 +20,23 @@ import type {
 
 /**
  * Get instructor's current weekly lesson assignment
- * Returns the lesson plan for the current week
+ * Returns the lesson plan for the current week — or, from Friday onward, for next week,
+ * since the work week is Sunday-Thursday and instructors should see what's coming next
+ * as soon as they're done for the week.
  */
 export async function getInstructorCurrentWeekAssignment(
   instructorId: string
 ): Promise<WeeklyLessonAssignmentWithDetails | null> {
   const supabase = await createClient();
 
-  // Get Sunday of current week (Israel timezone)
   const now = getNowInIsrael();
-  const dayOfWeek = now.getDay();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - dayOfWeek);
+  const sunday = getInstructorEffectiveWeekStart(now);
   const weekStartDate = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, "0")}-${String(sunday.getDate()).padStart(2, "0")}`;
 
   console.log("[getInstructorCurrentWeekAssignment] Query params:", {
     instructorId,
     weekStartDate,
-    dayOfWeek,
+    dayOfWeek: now.getDay(),
   });
 
   const { data, error } = await supabase
@@ -82,18 +81,16 @@ export async function getInstructorCurrentWeekAssignment(
 
 /**
  * Get instructor's next weekly lesson assignment
- * Returns the lesson plan for the following week
+ * Returns the lesson plan for the week after whichever one counts as "current" above.
  */
 export async function getInstructorNextWeekAssignment(
   instructorId: string
 ): Promise<WeeklyLessonAssignmentWithDetails | null> {
   const supabase = await createClient();
 
-  // Get Sunday of next week (Israel timezone)
-  const now = getNowInIsrael();
-  const dayOfWeek = now.getDay();
-  const nextSunday = new Date(now);
-  nextSunday.setDate(now.getDate() - dayOfWeek + 7);
+  const currentWeekStart = getInstructorEffectiveWeekStart();
+  const nextSunday = new Date(currentWeekStart);
+  nextSunday.setDate(currentWeekStart.getDate() + 7);
   const weekStartDate = `${nextSunday.getFullYear()}-${String(nextSunday.getMonth() + 1).padStart(2, "0")}-${String(nextSunday.getDate()).padStart(2, "0")}`;
 
   const { data, error } = await supabase

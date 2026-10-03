@@ -45,6 +45,18 @@ export function getWeekEnd(date: Date = new Date()): Date {
   return endOfWeek(date, { weekStartsOn: 0 });
 }
 
+/**
+ * The week instructors should see as "their current week" for the lesson plan and
+ * weekly schedule screens. The work week is Sunday-Thursday, so once an instructor is
+ * done for the week on Thursday, Friday and Saturday should already show next week —
+ * not the just-finished one.
+ */
+export function getInstructorEffectiveWeekStart(date: Date = getNowInIsrael()): Date {
+  const weekStart = getWeekStart(date);
+  const dayOfWeek = date.getDay(); // 0=Sun ... 5=Fri, 6=Sat
+  return dayOfWeek >= 5 ? addDays(weekStart, 7) : weekStart;
+}
+
 export function getWeekDates(date: Date = new Date()): Date[] {
   const start = getWeekStart(date);
   return Array.from({ length: 6 }, (_, i) => addDays(start, i)); // Sun-Fri

@@ -36,13 +36,15 @@ export function PdfViewer({ pdfPath, lessonName }: PdfViewerProps) {
       }
 
       try {
-        // Get public URL from Supabase Storage
+        // Get public URL from Supabase Storage. The path is stable even after an admin
+        // replaces the file (same lesson-<id>.pdf), so a cache-busting query param is
+        // required here — otherwise browsers/CDNs keep serving the old cached file.
         const { data } = supabase.storage
           .from('lesson-plans')
           .getPublicUrl(pdfPath);
 
         if (data?.publicUrl) {
-          setPdfUrl(data.publicUrl);
+          setPdfUrl(`${data.publicUrl}?t=${Date.now()}`);
           setError(null);
         } else {
           setError('שגיאה בטעינת קובץ ה-PDF');
