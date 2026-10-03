@@ -16,18 +16,50 @@ import {
   type ApplyResult,
 } from "@/lib/actions/lesson-plan-pdf";
 
+type AutoReadStatus = "reading" | "read" | "fallback";
+
 export function PdfUploadManager() {
   const [isMatching, startMatching] = useTransition();
   const [isSaving, startSaving] = useTransition();
   const [files, setFiles] = useState<File[]>([]);
   const [matches, setMatches] = useState<MatchResult[] | null>(null);
   const [equipmentDrafts, setEquipmentDrafts] = useState<Record<number, string>>({});
+  const [autoReadStatus, setAutoReadStatus] = useState<Record<number, AutoReadStatus>>({});
   const [applyResults, setApplyResults] = useState<ApplyResult[] | null>(null);
 
   function handleFilesSelected(fileList: FileList | null) {
     setFiles(fileList ? Array.from(fileList) : []);
     setMatches(null);
     setApplyResults(null);
+  }
+
+  async function tryAutoReadEquipment(index: number, file: File) {
+    try {
+      const singleFileForm = new FormData();
+      singleFileForm.append("file", file);
+
+      const res = await fetch("/api/lesson-plans/extract-equipment", {
+        method: "POST",
+        body: singleFileForm,
+      });
+
+      if (!res.ok) {
+        setAutoReadStatus((prev) => ({ ...prev, [index]: "fallback" }));
+        return;
+      }
+
+      const data = (await res.json()) as { equipmentText: string | null };
+      if (data.equipmentText) {
+        setEquipmentDrafts((prev) => ({ ...prev, [index]: data.equipmentText! }));
+        setAutoReadStatus((prev) => ({ ...prev, [index]: "read" }));
+      } else {
+        setAutoReadStatus((prev) => ({ ...prev, [index]: "fallback" }));
+      }
+    } catch {
+      // Network/runtime failure on this one file — the DB-based fallback already
+      // shown stays as-is, nothing else on the page is affected.
+      setAutoReadStatus((prev) => ({ ...prev, [index]: "fallback" }));
+    }
   }
 
   function handleCheckMatches() {
@@ -40,11 +72,22 @@ export function PdfUploadManager() {
       const results = await matchLessonPlanFiles(formData);
       setMatches(results);
       const drafts: Record<number, string> = {};
+      const readStatus: Record<number, AutoReadStatus> = {};
       results.forEach((r, i) => {
-        if (r.status === "matched") drafts[i] = r.equipmentText ?? "";
+        if (r.status === "matched") {
+          drafts[i] = r.equipmentText ?? "";
+          readStatus[i] = "reading";
+        }
       });
       setEquipmentDrafts(drafts);
+      setAutoReadStatus(readStatus);
       setApplyResults(null);
+
+      results.forEach((r, i) => {
+        if (r.status === "matched") {
+          tryAutoReadEquipment(i, files[i]);
+        }
+      });
     });
   }
 
@@ -125,6 +168,19 @@ export function PdfUploadManager() {
                   <label className="block">
                     <span className="text-xs font-medium text-gray-700 mb-1 block">
                       רשימת ציוד נדרש (שורה לכל פריט, בפורמט &quot;כמות שם&quot;) — ערכו לפי הצורך
+                    </span>
+                    <span className="text-xs mb-1 block">
+                      {autoReadStatus[i] === "reading" && (
+                        <span className="text-gray-400">קורא מתוך ה-PDF...</span>
+                      )}
+                      {autoReadStatus[i] === "read" && (
+                        <span className="text-green-600">✓ נקרא אוטומטית מתוך הקובץ — בדקו שהכל נכון</span>
+                      )}
+                      {autoReadStatus[i] === "fallback" && (
+                        <span className="text-amber-600">
+                          לא הצלחתי לקרוא מהקובץ — זו הרשימה הקיימת במערכת, ערכו ידנית
+                        </span>
+                      )}
                     </span>
                     <textarea
                       value={equipmentDrafts[i] ?? ""}

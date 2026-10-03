@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // pdfjs-dist does its own dynamic module loading (worker, canvas) that the server
+  // bundler shouldn't try to process — load it as a plain runtime dependency instead.
+  // Only the isolated /api/lesson-plans/extract-equipment route imports it.
+  serverExternalPackages: ["pdfjs-dist"],
 };
 
 export default nextConfig;
