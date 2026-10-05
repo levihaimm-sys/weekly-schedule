@@ -1,10 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ConfirmationsView } from "@/components/dashboard/confirmations-view";
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { resolveLessonClient } from "@/lib/utils/client-name";
-
-import Link from "next/link";
-import { ChevronRight, ChevronLeft, Calendar } from "lucide-react";
+import { MonthNavigator } from "@/components/ui/month-navigator";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +19,6 @@ const CITY_TO_CLIENT: Record<string, string> = {
   "נס ציונה": "ינוקא",
 };
 
-const MONTHS_HEBREW = [
-  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
-  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
-];
-
 export default async function ConfirmationsPage({
   searchParams,
 }: {
@@ -36,9 +29,6 @@ export default async function ConfirmationsPage({
   const selectedMonth = params.month ? new Date(params.month + "-01") : now;
   const monthStart = format(startOfMonth(selectedMonth), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(selectedMonth), "yyyy-MM-dd");
-  const monthLabel = `${MONTHS_HEBREW[selectedMonth.getMonth()]} ${selectedMonth.getFullYear()}`;
-  const prevMonthStr = format(subMonths(selectedMonth, 1), "yyyy-MM");
-  const nextMonthStr = format(addMonths(selectedMonth, 1), "yyyy-MM");
   const currentMonthStr = format(now, "yyyy-MM");
   const selectedMonthStr = format(selectedMonth, "yyyy-MM");
 
@@ -145,36 +135,11 @@ export default async function ConfirmationsPage({
       </h2>
 
       {/* Month navigation */}
-      <div className="flex items-center gap-3">
-        <Calendar size={18} className="text-orange-500 shrink-0" />
-        <div className="flex items-center gap-1 rounded-lg border border-border p-1">
-          <Link
-            href={`/confirmations?month=${prevMonthStr}`}
-            className="flex items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            <ChevronRight size={16} />
-          </Link>
-          <Link
-            href={`/confirmations?month=${currentMonthStr}`}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              selectedMonthStr === currentMonthStr
-                ? "bg-secondary text-[#1C1917]"
-                : "hover:bg-muted"
-            }`}
-          >
-            חודש נוכחי
-          </Link>
-          <Link
-            href={`/confirmations?month=${nextMonthStr}`}
-            className="flex items-center justify-center rounded-md px-2 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
-          >
-            <ChevronLeft size={16} />
-          </Link>
-        </div>
-        <span className="text-sm font-medium text-muted-foreground">
-          {monthLabel}
-        </span>
-      </div>
+      <MonthNavigator
+        basePath="/confirmations"
+        selectedMonthStr={selectedMonthStr}
+        currentMonthStr={currentMonthStr}
+      />
 
       <ConfirmationsView
         lessons={flatLessons}
