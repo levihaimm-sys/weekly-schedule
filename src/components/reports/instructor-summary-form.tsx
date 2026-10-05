@@ -5,7 +5,7 @@ import {
   getInstructorMonthlySummary,
   InstructorMonthlySummary,
   } from "@/lib/actions/reports";
-import { Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 const MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -14,6 +14,39 @@ const MONTHS = [
 
 const COL = "px-4 py-2 text-center tabular-nums";
 const COL_LABEL = "px-4 py-2";
+
+function csvCell(value: string | number) {
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadCsv(rows: InstructorMonthlySummary[], month: number, year: number) {
+  const lines: (string | number)[][] = [
+    ["מדריך", "לקוח", "עיר", 'סה"כ', "הושלמו", "בוטלו", "אישורי גננת", "אישורי מדריכה"],
+  ];
+  for (const instructor of rows) {
+    for (const c of instructor.cities) {
+      lines.push([
+        instructor.instructorName, c.client, c.city,
+        c.total, c.completed, c.cancelled, c.teacherConfirmed, c.instructorConfirmed,
+      ]);
+    }
+    lines.push([
+      instructor.instructorName, 'סה"כ', "",
+      instructor.total, instructor.completed, instructor.cancelled,
+      instructor.teacherConfirmed, instructor.instructorConfirmed,
+    ]);
+  }
+  const csv = lines.map((l) => l.map(csvCell).join(",")).join("\r\n");
+  const bom = "﻿"; // UTF-8 BOM so Excel opens Hebrew correctly
+  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `סיכום מדריכים ${MONTHS[month - 1]} ${year}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function InstructorSummaryForm({ instructors }: { instructors: { full_name: string }[] }) {
   const now = new Date();
@@ -79,6 +112,21 @@ export function InstructorSummaryForm({ instructors }: { instructors: { full_nam
           {isPending ? <Loader2 size={14} className="animate-spin" /> : null}
           הצג סיכום
         </button>
+        {data && data.length > 0 && (
+          <button
+            onClick={() =>
+              downloadCsv(
+                data.filter((i) => !filterInstructor || i.instructorName === filterInstructor),
+                month,
+                year
+              )
+            }
+            className="flex items-center gap-2 rounded-lg border border-border bg-background px-5 py-2 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            <Download size={14} />
+            ייצוא לאקסל
+          </button>
+        )}
       </div>
 
       {error && (
