@@ -24,6 +24,7 @@ import {
   Tent,
   Banknote,
   Wallet,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -88,6 +89,7 @@ export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
           items: [
             { href: "/payroll", label: "שכר מדריכים", icon: Banknote },
             { href: "/client-payments", label: "תשלום לקוחות", icon: Wallet },
+            { href: "/profit-loss", label: "רווח והפסד", icon: TrendingUp },
           ],
         },
       ]
