@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Download, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, Download, Filter, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { updatePayRate } from "@/lib/actions/payroll";
 import {
   updateEmploymentSettings,
@@ -79,7 +79,7 @@ interface Props {
 const DEFAULT_EMPLOYER_PCT = 25;
 
 const TABS = [
-  { key: "detail", label: "פירוט לפי לקוח" },
+  { key: "detail", label: "פירוט מדריכים" },
   { key: "payroll", label: "ריכוז שכר" },
   { key: "operators", label: "הכנסות מול הוצאות" },
   { key: "report", label: "דיווח לשכר" },
@@ -100,14 +100,47 @@ function csvCell(value: string | number) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+interface Filters {
+  instructorId: string;
+  client: string;
+  city: string;
+  employment: "" | "freelance" | "employee" | "office";
+  onlyOverridden: boolean;
+  onlyMissingRate: boolean;
+}
+
+const EMPTY_FILTERS: Filters = {
+  instructorId: "",
+  client: "",
+  city: "",
+  employment: "",
+  onlyOverridden: false,
+  onlyMissingRate: false,
+};
+
+// Cycled per instructor purely to make instructor blocks visually distinguishable.
+const THEMES = [
+  { accent: "#3b82f6", header: "bg-blue-50", text: "text-blue-800" },
+  { accent: "#a855f7", header: "bg-purple-50", text: "text-purple-800" },
+  { accent: "#10b981", header: "bg-emerald-50", text: "text-emerald-800" },
+  { accent: "#f59e0b", header: "bg-amber-50", text: "text-amber-800" },
+  { accent: "#f43f5e", header: "bg-rose-50", text: "text-rose-800" },
+  { accent: "#06b6d4", header: "bg-cyan-50", text: "text-cyan-800" },
+  { accent: "#6366f1", header: "bg-indigo-50", text: "text-indigo-800" },
+  { accent: "#f97316", header: "bg-orange-50", text: "text-orange-800" },
+];
+
 const TH = "px-3 py-2 text-center font-semibold whitespace-nowrap";
 const TD = "px-3 py-1.5 text-center tabular-nums whitespace-nowrap";
 const TD_LABEL = "px-3 py-1.5 whitespace-nowrap";
 
-function computeReport({
-  lessons, payRates, payExceptions, bonuses, clientRates, clientExceptions,
-  adjustments, settings, overrides, fixedExpenses,
-}: Props) {
+function computeReport(
+  {
+    lessons, payRates, payExceptions, bonuses, clientRates, clientExceptions,
+    adjustments, settings, overrides, fixedExpenses,
+  }: Props,
+  f: Filters
+) {
     const payRateMap = new Map(payRates.map((r) => [key3(r.instructor_id, r.client_name, r.city), r]));
     const payExMap = new Map(payExceptions.map((e) => [e.lesson_id, Number(e.amount)]));
     const clientRateMap = new Map(clientRates.map((r) => [`${r.client_name}__${r.city}`, r]));
@@ -123,7 +156,7 @@ function computeReport({
       rowLessons.get(k)!.push(l);
     }
 
-    const rows = [...rowLessons.entries()].map(([k, ls]) => {
+    const allRows = [...rowLessons.entries()].map(([k, ls]) => {
       const first = ls[0];
       const s = settingsMap.get(first.instructor_id);
       const employmentType = s?.employment_type ?? "freelance";
@@ -182,11 +215,28 @@ function computeReport({
       };
     });
 
-    rows.sort(
+    allRows.sort(
       (a, b) =>
         a.instructorName.localeCompare(b.instructorName, "he") ||
         `${a.clientName}${a.city}`.localeCompare(`${b.clientName}${b.city}`, "he")
     );
+
+    const rows = allRows.filter((r) => {
+      if (f.instructorId && r.instructorId !== f.instructorId) return false;
+      if (f.client && r.clientName !== f.client) return false;
+      if (f.city && r.city !== f.city) return false;
+      if (f.employment === "office" && !r.isOffice) return false;
+      if ((f.employment === "freelance" || f.employment === "employee") &&
+          (r.isOffice || r.employmentType !== f.employment)) return false;
+      if (f.onlyOverridden && r.countOverride === null && r.daysOverride === null) return false;
+      if (f.onlyMissingRate && r.hasRate) return false;
+      return true;
+    });
+
+    const isFiltered = rows.length !== allRows.length;
+    // Client adjustments have no instructor/city — only meaningful unfiltered or filtered by client.
+    const adjustmentsApply =
+      !f.instructorId && !f.city && !f.employment && !f.onlyOverridden && !f.onlyMissingRate;
 
     // Instructors
     const bonusByInstructor = new Map<string, number>();
@@ -271,12 +321,18 @@ function computeReport({
       `${a.clientName}${a.city}`.localeCompare(`${b.clientName}${b.city}`, "he")
     );
 
-    const adjustmentsTotal = adjustments.reduce((s, a) => s + Number(a.amount), 0);
+    const adjustmentsTotal = adjustmentsApply
+      ? adjustments
+          .filter((a) => !f.client || a.client_name === f.client)
+          .reduce((s, a) => s + Number(a.amount), 0)
+      : 0;
     const income = operators.reduce((s, o) => s + o.income, 0) + adjustmentsTotal;
     const wageCost = instructors.reduce((s, i) => s + i.total, 0);
     const fixedTotal = fixedExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
     return {
+      allRows,
+      isFiltered,
       rows,
       instructors,
       operators,
@@ -284,7 +340,8 @@ function computeReport({
       income,
       wageCost,
       fixedTotal,
-      profit: income - wageCost - fixedTotal,
+      // A filtered view is a slice of the month — fixed expenses only count against the whole.
+      profit: income - wageCost - (isFiltered ? 0 : fixedTotal),
     };
 }
 
@@ -307,16 +364,41 @@ export function ProfitLossView(props: Props) {
     router.refresh();
   }
 
-  const data = useMemo(() => computeReport(props), [props]);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const data = useMemo(() => computeReport(props, filters), [props, filters]);
+
+  const options = useMemo(() => {
+    const instructors = new Map<string, string>();
+    const clients = new Set<string>();
+    const cities = new Set<string>();
+    for (const r of data.allRows) {
+      instructors.set(r.instructorId, r.instructorName);
+      clients.add(r.clientName);
+      if (r.city) cities.add(r.city);
+    }
+    const he = (a: string, b: string) => a.localeCompare(b, "he");
+    return {
+      instructors: [...instructors.entries()].sort((a, b) => he(a[1], b[1])),
+      clients: [...clients].sort(he),
+      cities: [...cities].sort(he),
+    };
+  }, [data.allRows]);
+
+  // Theme by position in the unfiltered list so an instructor keeps its color when filtering.
+  const themeByInstructor = useMemo(() => {
+    const m = new Map<string, (typeof THEMES)[number]>();
+    options.instructors.forEach(([id], idx) => m.set(id, THEMES[idx % THEMES.length]));
+    return m;
+  }, [options.instructors]);
 
   const unpricedRows = data.rows.filter((r) => !r.hasRate).length;
   const unpricedOperators = data.operators.filter((o) => !o.rate).length;
 
   function exportCsv() {
     const lines: (string | number)[][] = [];
-    lines.push([`רווח והפסד - ${monthLabel}`]);
+    lines.push([`רווח והפסד - ${monthLabel}${data.isFiltered ? " (מסונן)" : ""}`]);
     lines.push([]);
-    lines.push(["פירוט לפי לקוח"]);
+    lines.push(["פירוט מדריכים"]);
     lines.push(["העסקה", "מדריך", "לקוח", "עיר", "תשלום לפעילות", "נסיעות ליום", "ימי עבודה", "פעילויות", 'סה"כ פעילויות', "נסיעות", "הוצאות העסקה", 'סה"כ']);
     for (const r of data.rows) {
       lines.push([
@@ -373,11 +455,19 @@ export function ProfitLossView(props: Props) {
         <Kpi label='סה"כ עלות שכר' value={data.wageCost} className="text-red-700" />
         <Kpi label='סה"כ הוצאות קבועות' value={data.fixedTotal} className="text-amber-700" />
         <Kpi
-          label="רווח"
+          label={data.isFiltered ? "רווח (ללא הוצאות קבועות)" : "רווח"}
           value={data.profit}
           className={data.profit >= 0 ? "text-emerald-700" : "text-red-700"}
         />
       </div>
+
+      <FilterBar
+        filters={filters}
+        setFilters={setFilters}
+        options={options}
+        shown={data.rows.length}
+        total={data.allRows.length}
+      />
 
       {(unpricedRows > 0 || unpricedOperators > 0) && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -421,12 +511,19 @@ export function ProfitLossView(props: Props) {
 
       {data.rows.length === 0 && (
         <div className="rounded-xl border border-border bg-background py-12 text-center text-muted-foreground">
-          אין שיעורים להצגה בחודש זה
+          {data.allRows.length === 0 ? "אין שיעורים להצגה בחודש זה" : "אין תוצאות לסינון הנוכחי"}
         </div>
       )}
 
       {data.rows.length > 0 && tab === "detail" && (
-        <DetailTable rows={data.rows} year={year} month={month} run={run} />
+        <DetailTable
+          rows={data.rows}
+          instructors={data.instructors}
+          themeByInstructor={themeByInstructor}
+          year={year}
+          month={month}
+          run={run}
+        />
       )}
       {data.rows.length > 0 && tab === "payroll" && (
         <PayrollTable instructors={data.instructors} run={run} />
@@ -450,6 +547,89 @@ export function ProfitLossView(props: Props) {
       )}
       {data.rows.length > 0 && tab === "report" && (
         <ReportTable instructors={data.instructors.filter((i) => i.employmentType === "employee")} />
+      )}
+    </div>
+  );
+}
+
+function FilterBar({
+  filters,
+  setFilters,
+  options,
+  shown,
+  total,
+}: {
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  options: { instructors: [string, string][]; clients: string[]; cities: string[] };
+  shown: number;
+  total: number;
+}) {
+  const set = (patch: Partial<Filters>) => setFilters({ ...filters, ...patch });
+  const active = shown !== total || JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const SELECT = "rounded-md border border-border bg-background px-2 py-1 text-sm";
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-3">
+      <Filter size={15} className="text-muted-foreground" />
+      <select value={filters.instructorId} onChange={(e) => set({ instructorId: e.target.value })} className={SELECT}>
+        <option value="">כל המדריכים</option>
+        {options.instructors.map(([id, name]) => (
+          <option key={id} value={id}>{name}</option>
+        ))}
+      </select>
+      <select value={filters.client} onChange={(e) => set({ client: e.target.value })} className={SELECT}>
+        <option value="">כל הלקוחות</option>
+        {options.clients.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+      <select value={filters.city} onChange={(e) => set({ city: e.target.value })} className={SELECT}>
+        <option value="">כל הערים</option>
+        {options.cities.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+      <select
+        value={filters.employment}
+        onChange={(e) => set({ employment: e.target.value as Filters["employment"] })}
+        className={SELECT}
+      >
+        <option value="">כל סוגי ההעסקה</option>
+        <option value="freelance">עצמאי/ת</option>
+        <option value="employee">שכיר/ה</option>
+        <option value="office">משרד</option>
+      </select>
+      <label className="flex items-center gap-1 text-sm">
+        <input
+          type="checkbox"
+          checked={filters.onlyOverridden}
+          onChange={(e) => set({ onlyOverridden: e.target.checked })}
+        />
+        תיקון ידני בלבד
+      </label>
+      <label className="flex items-center gap-1 text-sm">
+        <input
+          type="checkbox"
+          checked={filters.onlyMissingRate}
+          onChange={(e) => set({ onlyMissingRate: e.target.checked })}
+        />
+        ללא תעריף בלבד
+      </label>
+      {active && (
+        <>
+          <span className="text-xs text-muted-foreground">
+            מוצגות {shown} מתוך {total} שורות
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilters(EMPTY_FILTERS)}
+            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+          >
+            <X size={12} />
+            נקה סינון
+          </button>
+        </>
       )}
     </div>
   );
@@ -518,11 +698,15 @@ function NumberCell({
 
 function DetailTable({
   rows,
+  instructors,
+  themeByInstructor,
   year,
   month,
   run,
 }: {
   rows: Data["rows"];
+  instructors: Data["instructors"];
+  themeByInstructor: Map<string, (typeof THEMES)[number]>;
   year: number;
   month: number;
   run: Run;
@@ -570,9 +754,7 @@ function DetailTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-              <th className={TH}>העסקה</th>
-              <th className={`${TH} text-start`}>מדריך</th>
-              <th className={`${TH} text-start`}>לקוח</th>
+              <th className={`${TH} text-start`}>מדריך / לקוח</th>
               <th className={TH}>תשלום לפעילות</th>
               <th className={TH}>נסיעות ליום</th>
               <th className={TH}>ימי עבודה</th>
@@ -583,19 +765,57 @@ function DetailTable({
               <th className={TH}>{'סה"כ'}</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map((r) => (
+          {instructors.map((ins) => {
+            const theme = themeByInstructor.get(ins.id) ?? THEMES[0];
+            const insRows = rows.filter((r) => r.instructorId === ins.id);
+            return (
+              <tbody key={ins.id} className="border-t-[6px] border-background">
+                <tr
+                  className={`${theme.header} font-bold`}
+                  style={{ boxShadow: `inset -4px 0 0 ${theme.accent}` }}
+                >
+                  <td className={`${TD_LABEL} ${theme.text}`} colSpan={3}>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: theme.accent }}
+                      />
+                      {ins.name}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          ins.employmentType === "employee" && !ins.isOffice
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-white/70 text-muted-foreground"
+                        }`}
+                      >
+                        {employmentLabel(ins)}
+                      </span>
+                      {ins.bonus !== 0 && (
+                        <span className="text-[11px] font-normal text-muted-foreground">
+                          + תוספות ₪{money(ins.bonus)}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td className={TD}>{ins.workDays}</td>
+                  <td className={TD}>{ins.activities}</td>
+                  <td className={TD}>{money(ins.pay)}</td>
+                  <td className={TD}>{money(ins.travel)}</td>
+                  <td className={TD}>{money(ins.employerCost)}</td>
+                  <td className={`${TD} ${theme.text}`}>₪{money(ins.total - ins.bonus)}</td>
+                </tr>
+            {insRows.map((r) => (
               <tr
                 key={r.key}
                 className={`border-b border-border/50 ${!r.hasRate ? "bg-red-50/60" : ""}`}
+                style={{ boxShadow: `inset -4px 0 0 ${theme.accent}` }}
               >
-                <td className={`${TD} ${r.employmentType === "employee" ? "text-orange-700" : "text-muted-foreground"}`}>
-                  {employmentLabel(r)}
-                </td>
-                <td className={`${TD_LABEL} font-medium`}>{r.instructorName}</td>
-                <td className={TD_LABEL}>
+                <td className={`${TD_LABEL} ps-8`}>
                   {r.clientName}
                   {r.city && <span className="ms-1 text-xs text-muted-foreground">{r.city}</span>}
+                  {!r.hasRate && (
+                    <span className="ms-2 text-[11px] font-bold text-red-600">ללא תעריף</span>
+                  )}
                 </td>
                 <td className={TD}>
                   <NumberCell value={r.ratePerLesson} onSave={(v) => saveRate(r, "rate", v)} />
@@ -639,10 +859,12 @@ function DetailTable({
                 <td className={`${TD} font-semibold`}>{money(r.total)}</td>
               </tr>
             ))}
-          </tbody>
+              </tbody>
+            );
+          })}
           <tfoot>
             <tr className="border-t-2 border-border bg-muted/40 font-bold">
-              <td className={TD_LABEL} colSpan={5}>{'סה"כ'}</td>
+              <td className={TD_LABEL} colSpan={3}>{'סה"כ (ללא תוספות)'}</td>
               <td className={TD}>{totals.workDays}</td>
               <td className={TD}>{totals.activities}</td>
               <td className={TD}>{money(totals.pay)}</td>
