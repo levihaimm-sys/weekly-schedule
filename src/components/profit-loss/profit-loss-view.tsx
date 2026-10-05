@@ -19,6 +19,7 @@ interface LessonData {
   instructor_name: string;
   client_name: string;
   city: string;
+  contact_name: string;
 }
 
 interface PayRate {
@@ -67,7 +68,7 @@ interface Props {
   bonuses: { instructor_id: string; amount: number }[];
   clientRates: ClientRate[];
   clientExceptions: { lesson_id: string; amount: number }[];
-  adjustments: { client_name: string; amount: number }[];
+  adjustments: { client_name: string; label: string; amount: number }[];
   settings: Settings[];
   overrides: Override[];
   fixedExpenses: FixedExpense[];
@@ -82,6 +83,7 @@ const TABS = [
   { key: "detail", label: "פירוט מדריכים" },
   { key: "payroll", label: "ריכוז שכר" },
   { key: "operators", label: "הכנסות מול הוצאות" },
+  { key: "invoices", label: "חשבוניות ללקוחות" },
   { key: "report", label: "דיווח לשכר" },
 ] as const;
 
@@ -89,6 +91,10 @@ type TabKey = (typeof TABS)[number]["key"];
 
 function money(n: number) {
   return n.toLocaleString("he-IL", { maximumFractionDigits: 0 });
+}
+
+function isContactBilled(clientName: string) {
+  return clientName.includes("אפטר");
 }
 
 function key3(a: string, b: string, c: string) {
@@ -304,10 +310,35 @@ function computeReport(
       }
       const expenses = rs.reduce((s, r) => s + r.total, 0);
       const diff = income - expenses;
+
+      // After-school clients are invoiced per contact person within each city.
+      const contacts: { name: string; activities: number; amount: number }[] = [];
+      if (isContactBilled(rs[0].clientName) && rate?.billing_mode !== "fixed_monthly") {
+        const clientRate = Number(rate?.rate_per_lesson ?? 0);
+        const byContact = new Map<string, { activities: number; amount: number }>();
+        for (const r of rs) {
+          for (const l of r.signedLessons) {
+            const name = l.contact_name || "ללא איש קשר";
+            const c = byContact.get(name) ?? { activities: 0, amount: 0 };
+            c.activities++;
+            c.amount += clientExMap.get(l.id) ?? clientRate;
+            byContact.set(name, c);
+          }
+        }
+        for (const [name, c] of byContact) contacts.push({ name, ...c });
+        contacts.sort((a, b) => a.name.localeCompare(b.name, "he"));
+        // Manual activity corrections are per instructor+city, not per contact.
+        const manualDiff = activities - contacts.reduce((s, c) => s + c.activities, 0);
+        if (manualDiff !== 0) {
+          contacts.push({ name: "תיקון ידני", activities: manualDiff, amount: manualDiff * clientRate });
+        }
+      }
+
       return {
         key: k,
         clientName: rs[0].clientName,
         city: rs[0].city,
+        contacts,
         rate,
         activities,
         income,
@@ -321,11 +352,31 @@ function computeReport(
       `${a.clientName}${a.city}`.localeCompare(`${b.clientName}${b.city}`, "he")
     );
 
-    const adjustmentsTotal = adjustmentsApply
-      ? adjustments
-          .filter((a) => !f.client || a.client_name === f.client)
-          .reduce((s, a) => s + Number(a.amount), 0)
-      : 0;
+    const appliedAdjustments = adjustmentsApply
+      ? adjustments.filter((a) => !f.client || a.client_name === f.client)
+      : [];
+    const adjustmentsTotal = appliedAdjustments.reduce((s, a) => s + Number(a.amount), 0);
+
+    // Invoices: one per client, broken down by city (and contact for after-school).
+    const invoiceMap = new Map<string, { cities: typeof operators; adjustments: typeof appliedAdjustments }>();
+    for (const o of operators) {
+      if (!invoiceMap.has(o.clientName)) invoiceMap.set(o.clientName, { cities: [], adjustments: [] });
+      invoiceMap.get(o.clientName)!.cities.push(o);
+    }
+    for (const a of appliedAdjustments) {
+      invoiceMap.get(a.client_name)?.adjustments.push(a);
+    }
+    const invoices = [...invoiceMap.entries()]
+      .map(([clientName, v]) => ({
+        clientName,
+        cities: v.cities,
+        adjustments: v.adjustments,
+        activities: v.cities.reduce((s, c) => s + c.activities, 0),
+        total:
+          v.cities.reduce((s, c) => s + c.income, 0) +
+          v.adjustments.reduce((s, a) => s + Number(a.amount), 0),
+      }))
+      .sort((a, b) => a.clientName.localeCompare(b.clientName, "he"));
     const income = operators.reduce((s, o) => s + o.income, 0) + adjustmentsTotal;
     const wageCost = instructors.reduce((s, i) => s + i.total, 0);
     const fixedTotal = fixedExpenses.reduce((s, e) => s + Number(e.amount), 0);
@@ -333,6 +384,7 @@ function computeReport(
     return {
       allRows,
       isFiltered,
+      invoices,
       rows,
       instructors,
       operators,
@@ -545,8 +597,15 @@ export function ProfitLossView(props: Props) {
           />
         </div>
       )}
+      {data.rows.length > 0 && tab === "invoices" && (
+        <InvoicesTab invoices={data.invoices} monthLabel={monthLabel} />
+      )}
       {data.rows.length > 0 && tab === "report" && (
-        <ReportTable instructors={data.instructors.filter((i) => i.employmentType === "employee")} />
+        <ReportTable
+          instructors={data.instructors.filter((i) => i.employmentType === "employee")}
+          rows={data.rows}
+          run={run}
+        />
       )}
     </div>
   );
@@ -1211,7 +1270,15 @@ function FixedExpensesSection({
   );
 }
 
-function ReportTable({ instructors }: { instructors: Data["instructors"] }) {
+function ReportTable({
+  instructors,
+  rows,
+  run,
+}: {
+  instructors: Data["instructors"];
+  rows: Data["rows"];
+  run: Run;
+}) {
   if (instructors.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-background py-12 text-center text-muted-foreground">
@@ -1220,32 +1287,192 @@ function ReportTable({ instructors }: { instructors: Data["instructors"] }) {
     );
   }
 
+  function saveTravel(r: Data["rows"][number], v: number | null) {
+    run(
+      updatePayRate(r.instructorId, r.clientName, r.city, {
+        rate_per_lesson: r.ratePerLesson,
+        travel_rate_per_day: v ?? 0,
+      })
+    );
+  }
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-background">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-amber-100/70 text-xs">
-            <th className={`${TH} text-start`}>עובד</th>
-            <th className={TH}>ימי עבודה</th>
-            <th className={TH}>שעות / פעילויות</th>
-            <th className={TH}>שכר</th>
-            <th className={TH}>תשלום נסיעות</th>
-            <th className={TH}>תוספות</th>
-          </tr>
-        </thead>
-        <tbody>
-          {instructors.map((i) => (
-            <tr key={i.id} className="border-b border-border/50">
-              <td className={`${TD_LABEL} font-medium`}>{i.name}</td>
-              <td className={TD}>{i.workDays}</td>
-              <td className={TD}>{i.activities}</td>
-              <td className={TD}>₪{money(i.pay)}</td>
-              <td className={TD}>₪{money(i.travel)}</td>
-              <td className={TD}>{i.bonus ? `₪${money(i.bonus)}` : "—"}</td>
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        נסיעות לשכירים: יש להזין סכום ליום עבודה בכל עיר. הסכום מוכפל בימי העבודה באותה עיר
+        ונכנס לחישוב השכר. הסכום נשמר ועובר לחודשים הבאים.
+      </p>
+      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-amber-100/70 text-xs">
+              <th className={`${TH} text-start`}>עובד / עיר</th>
+              <th className={TH}>ימי עבודה</th>
+              <th className={TH}>שעות / פעילויות</th>
+              <th className={TH}>שכר</th>
+              <th className={TH}>נסיעות ליום</th>
+              <th className={TH}>תשלום נסיעות</th>
+              <th className={TH}>תוספות</th>
             </tr>
+          </thead>
+          {instructors.map((i) => (
+            <tbody key={i.id} className="border-t-[6px] border-background">
+              <tr className="bg-amber-50 font-bold">
+                <td className={TD_LABEL}>{i.name}</td>
+                <td className={TD}>{i.workDays}</td>
+                <td className={TD}>{i.activities}</td>
+                <td className={TD}>₪{money(i.pay)}</td>
+                <td className={TD} />
+                <td className={TD}>₪{money(i.travel)}</td>
+                <td className={TD}>{i.bonus ? `₪${money(i.bonus)}` : "—"}</td>
+              </tr>
+              {rows
+                .filter((r) => r.instructorId === i.id)
+                .map((r) => (
+                  <tr key={r.key} className="border-b border-border/50">
+                    <td className={`${TD_LABEL} ps-8`}>
+                      {r.city || "—"}
+                      <span className="ms-1 text-xs text-muted-foreground">{r.clientName}</span>
+                    </td>
+                    <td className={TD}>{r.workDays}</td>
+                    <td className={TD}>{r.activityCount}</td>
+                    <td className={TD}>₪{money(r.pay)}</td>
+                    <td className={TD}>
+                      <NumberCell value={r.travelPerDay} onSave={(v) => saveTravel(r, v)} />
+                    </td>
+                    <td className={TD}>₪{money(r.travel)}</td>
+                    <td className={TD} />
+                  </tr>
+                ))}
+            </tbody>
           ))}
-        </tbody>
-      </table>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function InvoicesTab({
+  invoices,
+  monthLabel,
+}: {
+  invoices: Data["invoices"];
+  monthLabel: string;
+}) {
+  function rateLabel(c: Data["operators"][number]) {
+    if (!c.rate) return "לא הוגדר";
+    if (c.rate.billing_mode === "fixed_monthly") return "סכום חודשי קבוע";
+    return `₪${money(Number(c.rate.rate_per_lesson))}`;
+  }
+
+  function exportInvoice(inv: Data["invoices"][number]) {
+    const lines: (string | number)[][] = [
+      [`${inv.clientName} - ${monthLabel}`],
+      [],
+      ["עיר", "איש קשר", "פעילויות", "תעריף", "סכום"],
+    ];
+    for (const c of inv.cities) {
+      const rate = c.rate?.billing_mode === "fixed_monthly" ? "קבוע" : Number(c.rate?.rate_per_lesson ?? 0);
+      if (c.contacts.length > 0) {
+        for (const ct of c.contacts) {
+          lines.push([c.city, ct.name, ct.activities, rate, Math.round(ct.amount)]);
+        }
+        lines.push([`${c.city} סה"כ`, "", c.activities, "", Math.round(c.income)]);
+      } else {
+        lines.push([c.city, "", c.activities, rate, Math.round(c.income)]);
+      }
+    }
+    for (const a of inv.adjustments) {
+      lines.push([a.label, "", "", "", Math.round(Number(a.amount))]);
+    }
+    lines.push([]);
+    lines.push(['סה"כ לחשבונית', "", inv.activities, "", Math.round(inv.total)]);
+
+    const csv = lines.map((l) => l.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `חשבונית ${inv.clientName} ${monthLabel}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const grand = invoices.reduce((s, i) => s + i.total, 0);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        {`ריכוז לחשבונית לכל לקוח, לפי עיר (ובאפטר סקול גם לפי איש קשר). הכמויות מבוססות על
+        החתימות כולל תיקונים ידניים; התעריפים מגיעים ממסך תשלום לקוחות. סה"כ כל החשבוניות: ₪${money(grand)}`}
+      </p>
+      {invoices.map((inv) => (
+        <div key={inv.clientName} className="overflow-hidden rounded-xl border border-border bg-background">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-blue-50 px-4 py-3">
+            <div>
+              <p className="font-bold text-blue-900">{inv.clientName}</p>
+              <p className="text-xs text-muted-foreground">
+                {inv.activities} פעילויות · {inv.cities.length} ערים
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-bold tabular-nums text-blue-900">₪{money(inv.total)}</span>
+              <button
+                type="button"
+                onClick={() => exportInvoice(inv)}
+                className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium hover:bg-muted"
+              >
+                <Download size={12} />
+                ייצוא
+              </button>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th className={`${TH} text-start`}>עיר / איש קשר</th>
+                <th className={TH}>פעילויות</th>
+                <th className={TH}>תעריף</th>
+                <th className={TH}>סכום</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inv.cities.map((c) => (
+                <Fragment key={c.key}>
+                  <tr className={`border-b border-border/50 ${c.contacts.length > 0 ? "bg-muted/30 font-semibold" : ""}`}>
+                    <td className={TD_LABEL}>{c.city || "—"}</td>
+                    <td className={TD}>{c.activities}</td>
+                    <td className={`${TD} ${!c.rate ? "text-red-600" : ""}`}>{rateLabel(c)}</td>
+                    <td className={TD}>₪{money(c.income)}</td>
+                  </tr>
+                  {c.contacts.map((ct) => (
+                    <tr key={ct.name} className="border-b border-border/50 text-muted-foreground">
+                      <td className={`${TD_LABEL} ps-8`}>{ct.name}</td>
+                      <td className={TD}>{ct.activities}</td>
+                      <td className={TD} />
+                      <td className={TD}>₪{money(ct.amount)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+              {inv.adjustments.map((a, idx) => (
+                <tr key={`adj-${idx}`} className="border-b border-border/50">
+                  <td className={TD_LABEL} colSpan={3}>{a.label}</td>
+                  <td className={TD}>₪{money(Number(a.amount))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border bg-blue-50 font-bold">
+                <td className={TD_LABEL}>{'סה"כ לחשבונית'}</td>
+                <td className={TD}>{inv.activities}</td>
+                <td className={TD} />
+                <td className={TD}>₪{money(inv.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }
