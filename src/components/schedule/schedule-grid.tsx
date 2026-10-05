@@ -112,50 +112,57 @@ export function ScheduleGrid({
 
   async function executeBulkAction() {
     if (selectedIds.size === 0 || !bulkAction) return;
+    if (bulkAction === "duplicate-week" && !bulkTargetWeekDate) return;
     setBulkLoading(true);
     const ids = Array.from(selectedIds);
 
-    if (bulkAction === "delete") {
-      const result = await bulkDeleteRecurringScheduleItems(ids);
-      setBulkLoading(false);
-      if (!result.error) {
+    // The writes may land in the DB even when the action reports an error or the response
+    // fails in transit, so always refresh — and close the bulk bar — instead of leaving the
+    // screen frozen on the pre-change state until a manual reload.
+    try {
+      if (bulkAction === "delete") {
+        const result = await bulkDeleteRecurringScheduleItems(ids);
+        if (result.error) alert(result.error);
         clearSelection();
         setSelectMode(false);
-        router.refresh();
+        return;
       }
-      return;
-    }
 
-    if (bulkAction === "duplicate-week") {
-      if (!bulkTargetWeekDate) return;
-      const result = await duplicateRecurringItemsToWeek(ids, bulkTargetWeekDate);
-      setBulkLoading(false);
-      if (!result.error) {
-        setDuplicateResult(
-          result.skipped
-            ? `נוצרו ${result.inserted} שיעורים (${result.skipped} דולגו כי כבר קיימים)`
-            : `נוצרו ${result.inserted} שיעורים בשבוע שנבחר`
-        );
+      if (bulkAction === "duplicate-week") {
+        const result = await duplicateRecurringItemsToWeek(ids, bulkTargetWeekDate);
+        if (result.error) {
+          alert(result.error);
+        } else {
+          setDuplicateResult(
+            result.skipped
+              ? `נוצרו ${result.inserted} שיעורים (${result.skipped} דולגו כי כבר קיימים)`
+              : `נוצרו ${result.inserted} שיעורים בשבוע שנבחר`
+          );
+        }
         setSelectedIds(new Set());
-        router.refresh();
+        return;
       }
-      return;
-    }
 
-    const updates =
-      bulkAction === "instructor"
-        ? { instructor_id: bulkInstructorId || null }
-        : bulkAction === "time"
-        ? { start_time: `${bulkTime}:00` }
-        : bulkAction === "manager"
-        ? { manager_name: bulkManagerName.trim() || null }
-        : { day_of_week: bulkDayOfWeek };
+      const updates =
+        bulkAction === "instructor"
+          ? { instructor_id: bulkInstructorId || null }
+          : bulkAction === "time"
+          ? { start_time: `${bulkTime}:00` }
+          : bulkAction === "manager"
+          ? { manager_name: bulkManagerName.trim() || null }
+          : { day_of_week: bulkDayOfWeek };
 
-    const result = await bulkApplyPermanentChange(ids, updates);
-    setBulkLoading(false);
-    if (!result.error) {
+      const result = await bulkApplyPermanentChange(ids, updates);
+      if (result.error) alert(result.error);
       clearSelection();
       setSelectMode(false);
+    } catch (err) {
+      console.error("Bulk action failed:", err);
+      alert("הפעולה נשלחה אך התגובה מהשרת נכשלה — הלוח רוענן, בדוק שהשינוי נשמר");
+      clearSelection();
+      setSelectMode(false);
+    } finally {
+      setBulkLoading(false);
       router.refresh();
     }
   }
