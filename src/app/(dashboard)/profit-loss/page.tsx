@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ProfitLossView } from "@/components/profit-loss/profit-loss-view";
-import { resolveLessonClient } from "@/lib/utils/client-name";
 import Link from "next/link";
 import { ChevronRight, ChevronLeft, Calendar } from "lucide-react";
 
@@ -28,30 +27,13 @@ const MONTHS_HEBREW = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
-const NONE = ["__none__"];
 const PAGE = 1000;
-const ID_CHUNK = 150;
 
 export default async function ProfitLossPage({
   searchParams,
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_owner")
-    .eq("id", session?.user?.id ?? "")
-    .single();
-
-  if (!profile?.is_owner) {
-    redirect("/dashboard");
-  }
-
   const params = await searchParams;
   const now = new Date();
   const selectedMonth = params.month ? new Date(params.month + "-01") : now;
@@ -67,87 +49,47 @@ export default async function ProfitLossPage({
 
   const admin = createAdminClient();
 
+  // Only lessons up to today matter: future lessons can't be signed yet, so they'd never count.
+  const todayIL = now.toLocaleDateString("sv-SE", { timeZone: "Asia/Jerusalem" });
+  const lessonsEnd = monthEnd < todayIL ? monthEnd : todayIL;
+
   // Same lesson source and client/city resolution as שכר מדריכים and תשלום לקוחות.
-  // Paged: a full month (incl. future scheduled lessons) can exceed PostgREST's 1000-row cap.
-  const lessons: any[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data } = await admin
-      .from("lessons")
-      .select(
-        `id, lesson_date, status, instructor_id, recurring_item_id, client_name,
-         instructor:instructors!lessons_instructor_id_fkey(id, full_name),
-         location:locations!lessons_location_id_fkey(city)`
-      )
-      .gte("lesson_date", monthStart)
-      .lte("lesson_date", monthEnd)
-      .neq("status", "cancelled")
-      .order("id")
-      .range(from, from + PAGE - 1);
-    lessons.push(...(data ?? []));
-    if (!data || data.length < PAGE) break;
-  }
-
-  const allLessons = lessons.filter((l) => l.instructor_id);
-
-  const recurringIds = [
-    ...new Set(allLessons.map((l) => l.recurring_item_id).filter(Boolean)),
-  ] as string[];
-  const recurringClientMap = new Map<string, string>();
-  if (recurringIds.length > 0) {
-    const { data: recurringRows } = await admin
-      .from("recurring_schedule")
-      .select("id, client_name")
-      .in("id", recurringIds);
-    for (const row of recurringRows ?? []) {
-      if (row.client_name) recurringClientMap.set(row.id, row.client_name);
-    }
-  }
-
-  const lessonIds: string[] = allLessons.map((l) => l.id);
-
-  // A month's lesson ids don't fit in one `.in()` URL — query them in chunks.
-  async function byLessonIds<T>(table: string, columns: string): Promise<T[]> {
-    const out: T[] = [];
-    for (let i = 0; i < lessonIds.length; i += ID_CHUNK) {
+  // Signatures, exceptions and the recurring row's client are embedded, so the whole month
+  // comes back in one round-trip instead of dozens of chunked lookups.
+  async function loadLessons() {
+    const out: any[] = [];
+    if (lessonsEnd < monthStart) return out;
+    for (let from = 0; ; from += PAGE) {
       const { data } = await admin
-        .from(table)
-        .select(columns)
-        .in("lesson_id", lessonIds.slice(i, i + ID_CHUNK));
-      out.push(...((data ?? []) as T[]));
+        .from("lessons")
+        .select(
+          `id, lesson_date, instructor_id, client_name,
+           instructor:instructors!lessons_instructor_id_fkey(full_name),
+           location:locations!lessons_location_id_fkey(city),
+           recurring:recurring_schedule!lessons_recurring_item_id_fkey(client_name),
+           signatures(lesson_id),
+           pay_ex:instructor_pay_exceptions(amount),
+           client_ex:client_payment_exceptions(amount)`
+        )
+        .gte("lesson_date", monthStart)
+        .lte("lesson_date", lessonsEnd)
+        .neq("status", "cancelled")
+        .not("instructor_id", "is", null)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      out.push(...(data ?? []));
+      if (!data || data.length < PAGE) break;
     }
     return out;
   }
 
-  const [signatures, payExceptions, clientExceptions] = await Promise.all([
-    byLessonIds<{ lesson_id: string }>("signatures", "lesson_id"),
-    byLessonIds<{ lesson_id: string; amount: number }>("instructor_pay_exceptions", "lesson_id, amount"),
-    byLessonIds<{ lesson_id: string; amount: number }>("client_payment_exceptions", "lesson_id, amount"),
-  ]);
-  const signedIds = new Set(signatures.map((s) => s.lesson_id));
+  // Embedded one-to-one relations come back as an object or a one-item array.
+  const first = (v: any) => (Array.isArray(v) ? v[0] : v) ?? null;
 
-  const flatLessons = allLessons.map((l) => {
-    const city = (l.location as any)?.city ?? "";
-    const clientName =
-      resolveLessonClient(l.client_name, l.recurring_item_id, recurringClientMap) ??
-      CITY_TO_CLIENT[city] ??
-      "אחר";
-    return {
-      id: l.id,
-      lesson_date: l.lesson_date,
-      signed: signedIds.has(l.id),
-      instructor_id: l.instructor_id as string,
-      instructor_name: (l.instructor as any)?.full_name ?? "לא ידוע",
-      client_name: clientName,
-      city,
-    };
-  });
-
-  const instructorIds = [...new Set(flatLessons.map((l) => l.instructor_id))];
-  const clientNames = [...new Set(flatLessons.map((l) => l.client_name))];
-  const iIds = instructorIds.length > 0 ? instructorIds : NONE;
-  const cNames = clientNames.length > 0 ? clientNames : NONE;
-
+  // Everything that doesn't depend on the lesson list runs in parallel with it (incl. the owner check).
   const [
+    lessons,
+    profileRes,
     payRatesRes,
     bonusesRes,
     clientRatesRes,
@@ -159,26 +101,34 @@ export default async function ProfitLossPage({
     officeHoursRes,
     invoiceStatusRes,
   ] = await Promise.all([
+    loadLessons(),
+    (async () => {
+      const supabase = await createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      return supabase
+        .from("profiles")
+        .select("is_owner")
+        .eq("id", session?.user?.id ?? "")
+        .single();
+    })(),
     admin
       .from("instructor_pay_rates")
-      .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day")
-      .in("instructor_id", iIds),
+      .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day"),
     admin
       .from("instructor_pay_bonuses")
       .select("instructor_id, amount")
       .eq("year", year)
-      .eq("month", month)
-      .in("instructor_id", iIds),
+      .eq("month", month),
     admin
       .from("client_payment_rates")
-      .select("client_name, city, billing_mode, rate_per_lesson, fixed_monthly_amount")
-      .in("client_name", cNames),
+      .select("client_name, city, billing_mode, rate_per_lesson, fixed_monthly_amount"),
     admin
       .from("client_payment_adjustments")
       .select("client_name, label, amount")
       .eq("year", year)
-      .eq("month", month)
-      .in("client_name", cNames),
+      .eq("month", month),
     // All settings, not just this month's instructors — office workers may have no lessons.
     admin
       .from("instructor_employment_settings")
@@ -209,6 +159,33 @@ export default async function ProfitLossPage({
       .eq("year", year)
       .eq("month", month),
   ]);
+
+  if (!profileRes.data?.is_owner) {
+    redirect("/dashboard");
+  }
+
+  const payExceptions: { lesson_id: string; amount: number }[] = [];
+  const clientExceptions: { lesson_id: string; amount: number }[] = [];
+
+  const flatLessons = lessons.map((l) => {
+    const city = first(l.location)?.city ?? "";
+    const recurringClient = first(l.recurring)?.client_name?.trim() || null;
+    const clientName =
+      l.client_name?.trim() || recurringClient || CITY_TO_CLIENT[city] || "אחר";
+    const payEx = first(l.pay_ex);
+    if (payEx) payExceptions.push({ lesson_id: l.id, amount: payEx.amount });
+    const clientEx = first(l.client_ex);
+    if (clientEx) clientExceptions.push({ lesson_id: l.id, amount: clientEx.amount });
+    return {
+      id: l.id as string,
+      lesson_date: l.lesson_date as string,
+      signed: !!first(l.signatures),
+      instructor_id: l.instructor_id as string,
+      instructor_name: first(l.instructor)?.full_name ?? "לא ידוע",
+      client_name: clientName as string,
+      city: city as string,
+    };
+  });
 
   return (
     <div className="space-y-6">
