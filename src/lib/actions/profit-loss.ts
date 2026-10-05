@@ -25,7 +25,12 @@ async function requireOwner() {
 
 export async function updateEmploymentSettings(
   instructorId: string,
-  data: { employment_type: "freelance" | "employee"; employer_cost_pct: number; is_office: boolean }
+  data: {
+    employment_type: "freelance" | "employee";
+    employer_cost_pct: number;
+    is_office: boolean;
+    office_hourly_rate: number;
+  }
 ) {
   const { supabase, error: authError } = await requireOwner();
   if (!supabase) return { error: authError };
@@ -36,6 +41,7 @@ export async function updateEmploymentSettings(
       employment_type: data.employment_type,
       employer_cost_pct: data.employer_cost_pct,
       is_office: data.is_office,
+      office_hourly_rate: data.office_hourly_rate,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "instructor_id" }
@@ -68,6 +74,48 @@ export async function setActivityOverride(
           { ...match, ...data, updated_at: new Date().toISOString() },
           { onConflict: "instructor_id,client_name,city,year,month" }
         );
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function setOfficeHours(
+  instructorId: string,
+  year: number,
+  month: number,
+  hours: number
+) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const { error } = await supabase.from("pl_office_hours").upsert(
+    { instructor_id: instructorId, year, month, hours, updated_at: new Date().toISOString() },
+    { onConflict: "instructor_id,year,month" }
+  );
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function setInvoiceSent(
+  clientName: string,
+  year: number,
+  month: number,
+  sent: boolean
+) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const match = { client_name: clientName, year, month };
+  const { error } = sent
+    ? await supabase
+        .from("pl_invoice_status")
+        .upsert({ ...match, sent_at: new Date().toISOString() }, { onConflict: "client_name,year,month" })
+    : await supabase.from("pl_invoice_status").delete().match(match);
 
   if (error) return { error: "שגיאה בשמירה: " + error.message };
 

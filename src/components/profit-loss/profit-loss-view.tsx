@@ -2,11 +2,13 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Download, Filter, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Filter, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { updatePayRate } from "@/lib/actions/payroll";
 import {
   updateEmploymentSettings,
   setActivityOverride,
+  setOfficeHours,
+  setInvoiceSent,
   addFixedExpense,
   deleteFixedExpense,
 } from "@/lib/actions/profit-loss";
@@ -43,6 +45,7 @@ interface Settings {
   employment_type: "freelance" | "employee";
   employer_cost_pct: number;
   is_office: boolean;
+  office_hourly_rate: number;
 }
 
 interface Override {
@@ -72,6 +75,9 @@ interface Props {
   settings: Settings[];
   overrides: Override[];
   fixedExpenses: FixedExpense[];
+  officeHours: { instructor_id: string; hours: number }[];
+  instructorList: { id: string; full_name: string }[];
+  invoicesSent: string[];
   year: number;
   month: number;
   monthLabel: string;
@@ -92,6 +98,11 @@ type TabKey = (typeof TABS)[number]["key"];
 function money(n: number) {
   return n.toLocaleString("he-IL", { maximumFractionDigits: 0 });
 }
+
+// Pseudo-client for manually entered office hours (no lessons, no client billing).
+const OFFICE_CLIENT = "שעות משרד";
+
+type RowKind = "lesson" | "office";
 
 function isContactBilled(clientName: string) {
   return clientName.includes("אפטר");
@@ -143,7 +154,7 @@ const TD_LABEL = "px-3 py-1.5 whitespace-nowrap";
 function computeReport(
   {
     lessons, payRates, payExceptions, bonuses, clientRates, clientExceptions,
-    adjustments, settings, overrides, fixedExpenses,
+    adjustments, settings, overrides, fixedExpenses, officeHours, instructorList,
   }: Props,
   f: Filters
 ) {
@@ -197,6 +208,7 @@ function computeReport(
 
       return {
         key: k,
+        kind: "lesson" as RowKind,
         instructorId: first.instructor_id,
         instructorName: first.instructor_name,
         clientName: first.client_name,
@@ -204,6 +216,7 @@ function computeReport(
         employmentType,
         employerPct,
         isOffice,
+        officeRate: Number(s?.office_hourly_rate ?? 0),
         hasRate: !!rate,
         ratePerLesson,
         travelPerDay,
@@ -220,6 +233,50 @@ function computeReport(
         total: pay + travel + employerCost,
       };
     });
+
+    // Office hours rows: anyone with a persistent office hourly rate, or hours this month.
+    const nameById = new Map(instructorList.map((i) => [i.id, i.full_name]));
+    for (const l of lessons) nameById.set(l.instructor_id, l.instructor_name);
+    const hoursById = new Map(officeHours.map((h) => [h.instructor_id, Number(h.hours)]));
+    const officeIds = new Set([
+      ...settings.filter((s) => Number(s.office_hourly_rate) > 0).map((s) => s.instructor_id),
+      ...hoursById.keys(),
+    ]);
+    for (const id of officeIds) {
+      const s = settingsMap.get(id);
+      const employmentType = s?.employment_type ?? "freelance";
+      const employerPct = s ? Number(s.employer_cost_pct) : DEFAULT_EMPLOYER_PCT;
+      const officeRate = Number(s?.office_hourly_rate ?? 0);
+      const hours = hoursById.get(id) ?? 0;
+      const pay = hours * officeRate;
+      const employerCost = employmentType === "employee" ? (pay * employerPct) / 100 : 0;
+      allRows.push({
+        key: `${id}__office`,
+        kind: "office",
+        instructorId: id,
+        instructorName: nameById.get(id) ?? "לא ידוע",
+        clientName: OFFICE_CLIENT,
+        city: "",
+        employmentType,
+        employerPct,
+        isOffice: s?.is_office ?? false,
+        officeRate,
+        hasRate: officeRate > 0,
+        ratePerLesson: officeRate,
+        travelPerDay: 0,
+        signedCount: hours,
+        signedDays: 0,
+        countOverride: null,
+        daysOverride: null,
+        activityCount: hours,
+        workDays: 0,
+        signedLessons: [],
+        pay,
+        travel: 0,
+        employerCost,
+        total: pay + employerCost,
+      });
+    }
 
     allRows.sort(
       (a, b) =>
@@ -271,6 +328,7 @@ function computeReport(
         employmentType: f.employmentType,
         employerPct: f.employerPct,
         isOffice: f.isOffice,
+        officeRate: f.officeRate,
         workDays: rs.reduce((s, r) => s + r.workDays, 0),
         activities,
         pay,
@@ -286,7 +344,7 @@ function computeReport(
 
     // Operators: client × city
     const operatorMap = new Map<string, typeof rows>();
-    for (const r of rows) {
+    for (const r of rows.filter((r) => r.kind === "lesson")) {
       const k = `${r.clientName}__${r.city}`;
       if (!operatorMap.has(k)) operatorMap.set(k, []);
       operatorMap.get(k)!.push(r);
@@ -381,10 +439,15 @@ function computeReport(
     const wageCost = instructors.reduce((s, i) => s + i.total, 0);
     const fixedTotal = fixedExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
+    const officeCost = rows
+      .filter((r) => r.kind === "office")
+      .reduce((s, r) => s + r.total, 0);
+
     return {
       allRows,
       isFiltered,
       invoices,
+      officeCost,
       rows,
       instructors,
       operators,
@@ -567,6 +630,14 @@ export function ProfitLossView(props: Props) {
         </div>
       )}
 
+      {tab === "detail" && (
+        <OfficeWorkerAdder
+          instructorList={props.instructorList}
+          settings={props.settings}
+          existing={new Set(data.allRows.filter((r) => r.kind === "office").map((r) => r.instructorId))}
+          run={run}
+        />
+      )}
       {data.rows.length > 0 && tab === "detail" && (
         <DetailTable
           rows={data.rows}
@@ -585,6 +656,7 @@ export function ProfitLossView(props: Props) {
           {data.rows.length > 0 && (
             <OperatorsTable
               operators={data.operators}
+              officeCost={data.officeCost}
               adjustmentsTotal={data.adjustmentsTotal}
             />
           )}
@@ -598,7 +670,14 @@ export function ProfitLossView(props: Props) {
         </div>
       )}
       {data.rows.length > 0 && tab === "invoices" && (
-        <InvoicesTab invoices={data.invoices} monthLabel={monthLabel} />
+        <InvoicesTab
+          invoices={data.invoices}
+          monthLabel={monthLabel}
+          sent={new Set(props.invoicesSent)}
+          year={year}
+          month={month}
+          run={run}
+        />
       )}
       {data.rows.length > 0 && tab === "report" && (
         <ReportTable
@@ -690,6 +769,97 @@ function FilterBar({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function OfficeWorkerAdder({
+  instructorList,
+  settings,
+  existing,
+  run,
+}: {
+  instructorList: Props["instructorList"];
+  settings: Settings[];
+  existing: Set<string>;
+  run: Run;
+}) {
+  const [open, setOpen] = useState(false);
+  const [instructorId, setInstructorId] = useState("");
+  const [rate, setRate] = useState("");
+  const [officeOnly, setOfficeOnly] = useState(false);
+
+  async function add() {
+    const r = Number(rate);
+    if (!instructorId || !rate || Number.isNaN(r) || r <= 0) return;
+    const s = settings.find((x) => x.instructor_id === instructorId);
+    await run(
+      updateEmploymentSettings(instructorId, {
+        employment_type: s?.employment_type ?? "freelance",
+        employer_cost_pct: s ? Number(s.employer_cost_pct) : DEFAULT_EMPLOYER_PCT,
+        is_office: officeOnly || (s?.is_office ?? false),
+        office_hourly_rate: r,
+      })
+    );
+    setInstructorId("");
+    setRate("");
+    setOfficeOnly(false);
+    setOpen(false);
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+      >
+        <Plus size={14} />
+        הוספת שעות משרד לעובד/ת
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border bg-background p-3 text-sm">
+      <select
+        value={instructorId}
+        onChange={(e) => setInstructorId(e.target.value)}
+        className="rounded-md border border-border bg-background px-2 py-1"
+      >
+        <option value="">בחירת עובד/ת</option>
+        {instructorList
+          .filter((i) => !existing.has(i.id))
+          .map((i) => (
+            <option key={i.id} value={i.id}>{i.full_name}</option>
+          ))}
+      </select>
+      <input
+        type="number"
+        dir="ltr"
+        value={rate}
+        onChange={(e) => setRate(e.target.value)}
+        placeholder="תעריף לשעה"
+        className="w-28 rounded-md border border-border bg-background px-2 py-1 text-right"
+      />
+      <label className="flex items-center gap-1">
+        <input type="checkbox" checked={officeOnly} onChange={(e) => setOfficeOnly(e.target.checked)} />
+        עובדת משרד בלבד
+      </label>
+      <button
+        type="button"
+        onClick={add}
+        className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+      >
+        הוסף
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted-foreground">
+        ביטול
+      </button>
+      <span className="w-full text-xs text-muted-foreground">
+        העובד/ת יופיעו מעכשיו בכל חודש עם שורת &quot;שעות משרד&quot; - רק להזין את מספר השעות.
+        תעריף 0 מסיר את השורה מהחודשים הבאים.
+      </span>
     </div>
   );
 }
@@ -791,6 +961,17 @@ function DetailTable({
     );
   }
 
+  function saveOfficeRate(r: Data["rows"][number], rate: number) {
+    run(
+      updateEmploymentSettings(r.instructorId, {
+        employment_type: r.employmentType,
+        employer_cost_pct: r.employerPct,
+        is_office: r.isOffice,
+        office_hourly_rate: rate,
+      })
+    );
+  }
+
   const totals = rows.reduce(
     (t, r) => ({
       workDays: t.workDays + r.workDays,
@@ -876,6 +1057,31 @@ function DetailTable({
                     <span className="ms-2 text-[11px] font-bold text-red-600">ללא תעריף</span>
                   )}
                 </td>
+                {r.kind === "office" ? (
+                  <>
+                    <td className={TD}>
+                      <span className="inline-flex items-center gap-1">
+                        <NumberCell value={r.officeRate} onSave={(v) => saveOfficeRate(r, v ?? 0)} />
+                        <span className="text-[11px] text-muted-foreground">לשעה</span>
+                      </span>
+                    </td>
+                    <td className={`${TD} text-muted-foreground`}>—</td>
+                    <td className={`${TD} text-muted-foreground`}>—</td>
+                    <td className={TD}>
+                      <span className="inline-flex items-center gap-1">
+                        <NumberCell
+                          value={r.activityCount}
+                          width="w-14"
+                          highlight
+                          title="שעות משרד - הזנה ידנית"
+                          onSave={(v) => run(setOfficeHours(r.instructorId, year, month, v ?? 0))}
+                        />
+                        <span className="text-[11px] text-muted-foreground">שעות</span>
+                      </span>
+                    </td>
+                  </>
+                ) : (
+                <>
                 <td className={TD}>
                   <NumberCell value={r.ratePerLesson} onSave={(v) => saveRate(r, "rate", v)} />
                 </td>
@@ -912,6 +1118,8 @@ function DetailTable({
                     )}
                   </span>
                 </td>
+                </>
+                )}
                 <td className={TD}>{money(r.pay)}</td>
                 <td className={TD}>{money(r.travel)}</td>
                 <td className={TD}>{money(r.employerCost)}</td>
@@ -967,6 +1175,7 @@ function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; 
         employment_type: i.employmentType,
         employer_cost_pct: i.employerPct,
         is_office: i.isOffice,
+        office_hourly_rate: i.officeRate,
         ...patch,
       })
     );
@@ -1083,9 +1292,11 @@ function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; 
 function OperatorsTable({
   operators,
   adjustmentsTotal,
+  officeCost,
 }: {
   operators: Data["operators"];
   adjustmentsTotal: number;
+  officeCost: number;
 }) {
   const t = operators.reduce(
     (s, o) => ({
@@ -1094,7 +1305,7 @@ function OperatorsTable({
       expenses: s.expenses + o.expenses,
       diff: s.diff + o.diff,
     }),
-    { activities: 0, income: 0, expenses: 0, diff: 0 }
+    { activities: 0, income: 0, expenses: officeCost, diff: -officeCost }
   );
 
   return (
@@ -1150,6 +1361,15 @@ function OperatorsTable({
                 <td className={TD_LABEL} colSpan={3}>התאמות לקוחות (ממסך תשלום לקוחות)</td>
                 <td className={TD}>₪{money(adjustmentsTotal)}</td>
                 <td className={TD} colSpan={4} />
+              </tr>
+            )}
+            {officeCost !== 0 && (
+              <tr className="border-b border-border/50 text-muted-foreground">
+                <td className={TD_LABEL} colSpan={3}>{OFFICE_CLIENT}</td>
+                <td className={TD}>₪0</td>
+                <td className={TD}>₪{money(officeCost)}</td>
+                <td className={`${TD} text-red-600`}>₪{money(-officeCost)}</td>
+                <td className={TD} colSpan={2} />
               </tr>
             )}
           </tbody>
@@ -1338,7 +1558,11 @@ function ReportTable({
                     <td className={TD}>{r.activityCount}</td>
                     <td className={TD}>₪{money(r.pay)}</td>
                     <td className={TD}>
-                      <NumberCell value={r.travelPerDay} onSave={(v) => saveTravel(r, v)} />
+                      {r.kind === "office" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <NumberCell value={r.travelPerDay} onSave={(v) => saveTravel(r, v)} />
+                      )}
                     </td>
                     <td className={TD}>₪{money(r.travel)}</td>
                     <td className={TD} />
@@ -1355,10 +1579,19 @@ function ReportTable({
 function InvoicesTab({
   invoices,
   monthLabel,
+  sent,
+  year,
+  month,
+  run,
 }: {
   invoices: Data["invoices"];
   monthLabel: string;
+  sent: Set<string>;
+  year: number;
+  month: number;
+  run: Run;
 }) {
+  const sentCount = invoices.filter((i) => sent.has(i.clientName)).length;
   function rateLabel(c: Data["operators"][number]) {
     if (!c.rate) return "לא הוגדר";
     if (c.rate.billing_mode === "fixed_monthly") return "סכום חודשי קבוע";
@@ -1402,18 +1635,56 @@ function InvoicesTab({
 
   return (
     <div className="space-y-4">
+      <div
+        className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold ${
+          sentCount === invoices.length
+            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+            : "border-amber-200 bg-amber-50 text-amber-800"
+        }`}
+      >
+        {sentCount === invoices.length ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+        {sentCount === invoices.length
+          ? `כל החשבוניות לחודש ${monthLabel} נשלחו (${sentCount})`
+          : `נשלחו ${sentCount} מתוך ${invoices.length} חשבוניות לחודש ${monthLabel}`}
+      </div>
       <p className="text-xs text-muted-foreground">
         {`ריכוז לחשבונית לכל לקוח, לפי עיר (ובאפטר סקול גם לפי איש קשר). הכמויות מבוססות על
         החתימות כולל תיקונים ידניים; התעריפים מגיעים ממסך תשלום לקוחות. סה"כ כל החשבוניות: ₪${money(grand)}`}
       </p>
-      {invoices.map((inv) => (
-        <div key={inv.clientName} className="overflow-hidden rounded-xl border border-border bg-background">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-blue-50 px-4 py-3">
+      {invoices.map((inv) => {
+        const isSent = sent.has(inv.clientName);
+        return (
+        <div
+          key={inv.clientName}
+          className={`overflow-hidden rounded-xl border bg-background ${isSent ? "border-emerald-300" : "border-border"}`}
+        >
+          <div
+            className={`flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 ${
+              isSent ? "bg-emerald-50" : "bg-blue-50"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <label
+                className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${
+                  isSent
+                    ? "border-emerald-400 bg-emerald-100 text-emerald-800"
+                    : "border-border bg-background text-muted-foreground"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSent}
+                  onChange={(e) => run(setInvoiceSent(inv.clientName, year, month, e.target.checked))}
+                  className="h-4 w-4 accent-emerald-600"
+                />
+                נשלחה חשבונית
+              </label>
             <div>
               <p className="font-bold text-blue-900">{inv.clientName}</p>
               <p className="text-xs text-muted-foreground">
                 {inv.activities} פעילויות · {inv.cities.length} ערים
               </p>
+            </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xl font-bold tabular-nums text-blue-900">₪{money(inv.total)}</span>
@@ -1472,7 +1743,8 @@ function InvoicesTab({
             </tfoot>
           </table>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

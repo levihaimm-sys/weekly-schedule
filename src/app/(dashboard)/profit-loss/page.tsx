@@ -139,6 +139,9 @@ export default async function ProfitLossPage({
     settingsRes,
     overridesRes,
     fixedRes,
+    officeHoursRes,
+    instructorListRes,
+    invoiceStatusRes,
   ] = await Promise.all([
     admin
       .from("instructor_pay_rates")
@@ -168,10 +171,10 @@ export default async function ProfitLossPage({
       .eq("year", year)
       .eq("month", month)
       .in("client_name", cNames),
+    // All settings, not just this month's instructors — office workers may have no lessons.
     admin
       .from("instructor_employment_settings")
-      .select("instructor_id, employment_type, employer_cost_pct, is_office")
-      .in("instructor_id", iIds),
+      .select("instructor_id, employment_type, employer_cost_pct, is_office, office_hourly_rate"),
     admin
       .from("pl_activity_overrides")
       .select("instructor_id, client_name, city, activity_count, work_days")
@@ -182,6 +185,21 @@ export default async function ProfitLossPage({
       .select("id, label, amount, year, month")
       .or(`year.is.null,and(year.eq.${year},month.eq.${month})`)
       .order("created_at"),
+    admin
+      .from("pl_office_hours")
+      .select("instructor_id, hours")
+      .eq("year", year)
+      .eq("month", month),
+    admin
+      .from("instructors")
+      .select("id, full_name")
+      .eq("is_active", true)
+      .order("full_name"),
+    admin
+      .from("pl_invoice_status")
+      .select("client_name")
+      .eq("year", year)
+      .eq("month", month),
   ]);
 
   return (
@@ -237,6 +255,9 @@ export default async function ProfitLossPage({
         settings={settingsRes.data ?? []}
         overrides={overridesRes.data ?? []}
         fixedExpenses={fixedRes.data ?? []}
+        officeHours={officeHoursRes.data ?? []}
+        instructorList={instructorListRes.data ?? []}
+        invoicesSent={(invoiceStatusRes.data ?? []).map((r) => r.client_name)}
         year={year}
         month={month}
         monthLabel={monthLabel}
