@@ -86,6 +86,7 @@ const DEFAULT_EMPLOYER_PCT = 25;
 
 const TABS = [
   { key: "detail", label: "פירוט מדריכים" },
+  { key: "office", label: "שעות משרד" },
   { key: "payroll", label: "ריכוז שכר" },
   { key: "operators", label: "הכנסות מול הוצאות" },
   { key: "invoices", label: "חשבוניות ללקוחות" },
@@ -612,13 +613,21 @@ export function ProfitLossView(props: Props) {
         </div>
       )}
 
-      {tab === "detail" && (
-        <OfficeWorkerAdder
-          instructorList={props.instructorList}
-          settings={props.settings}
-          existing={new Set(data.allRows.filter((r) => r.kind === "office").map((r) => r.instructorId))}
-          run={run}
-        />
+      {tab === "office" && (
+        <div className="space-y-3">
+          <OfficeHoursTable
+            rows={data.rows.filter((r) => r.kind === "office")}
+            year={year}
+            month={month}
+            run={run}
+          />
+          <OfficeWorkerAdder
+            instructorList={props.instructorList}
+            settings={props.settings}
+            existing={new Set(data.allRows.filter((r) => r.kind === "office").map((r) => r.instructorId))}
+            run={run}
+          />
+        </div>
       )}
       {data.rows.length > 0 && tab === "detail" && (
         <DetailTable
@@ -665,7 +674,6 @@ export function ProfitLossView(props: Props) {
         <ReportTable
           instructors={data.instructors.filter((i) => i.employmentType === "employee")}
           rows={data.rows}
-          run={run}
         />
       )}
     </div>
@@ -827,6 +835,103 @@ function ClientSummary({
   );
 }
 
+function OfficeHoursTable({
+  rows,
+  year,
+  month,
+  run,
+}: {
+  rows: Data["rows"];
+  year: number;
+  month: number;
+  run: Run;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-background py-8 text-center text-muted-foreground">
+        אין עובדות משרד. ניתן להוסיף למטה.
+      </div>
+    );
+  }
+
+  function saveSettings(r: Data["rows"][number], patch: { employment_type?: "freelance" | "employee"; office_hourly_rate?: number }) {
+    run(
+      updateEmploymentSettings(r.instructorId, {
+        employment_type: r.employmentType,
+        employer_cost_pct: r.employerPct,
+        is_office: r.isOffice,
+        office_hourly_rate: r.officeRate,
+        ...patch,
+      })
+    );
+  }
+
+  const total = rows.reduce((s, r) => s + r.total, 0);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        עובדות משרד לא מזינות שעות במערכת - יש להזין כאן את מספר השעות לכל חודש. התעריף לשעה
+        נשמר ועובר לחודשים הבאים.
+      </p>
+      <div className={SCROLL_BOX}>
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
+              <th className={`${TH} text-start`}>עובד/ת</th>
+              <th className={TH}>העסקה</th>
+              <th className={TH}>תעריף לשעה</th>
+              <th className={TH}>שעות החודש</th>
+              <th className={TH}>שכר</th>
+              <th className={TH}>הוצאות העסקה</th>
+              <th className={TH}>{'סה"כ עלות'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-b border-border/50">
+                <td className={`${TD_LABEL} font-medium`}>{r.instructorName}</td>
+                <td className={TD}>
+                  <select
+                    value={r.employmentType}
+                    onChange={(e) => saveSettings(r, { employment_type: e.target.value as "freelance" | "employee" })}
+                    className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+                  >
+                    <option value="freelance">עצמאי/ת</option>
+                    <option value="employee">שכיר/ה</option>
+                  </select>
+                </td>
+                <td className={TD}>
+                  <NumberCell value={r.officeRate} onSave={(v) => saveSettings(r, { office_hourly_rate: v ?? 0 })} />
+                </td>
+                <td className={TD}>
+                  <NumberCell
+                    value={r.activityCount}
+                    highlight
+                    onSave={(v) => run(setOfficeHours(r.instructorId, year, month, v ?? 0))}
+                  />
+                </td>
+                <td className={TD}>₪{money(r.pay)}</td>
+                <td className={TD}>₪{money(r.employerCost)}</td>
+                <td className={`${TD} font-semibold`}>₪{money(r.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border bg-muted font-bold">
+              <td className={TD_LABEL} colSpan={3}>{'סה"כ שעות משרד'}</td>
+              <td className={TD}>{rows.reduce((s, r) => s + r.activityCount, 0)}</td>
+              <td className={TD}>₪{money(rows.reduce((s, r) => s + r.pay, 0))}</td>
+              <td className={TD}>₪{money(rows.reduce((s, r) => s + r.employerCost, 0))}</td>
+              <td className={TD}>₪{money(total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function OfficeWorkerAdder({
   instructorList,
   settings,
@@ -869,7 +974,7 @@ function OfficeWorkerAdder({
         className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
       >
         <Plus size={14} />
-        הוספת שעות משרד לעובד/ת
+        הוספת עובד/ת משרד
       </button>
     );
   }
@@ -1547,11 +1652,9 @@ function FixedExpensesSection({
 function ReportTable({
   instructors,
   rows,
-  run,
 }: {
   instructors: Data["instructors"];
   rows: Data["rows"];
-  run: Run;
 }) {
   if (instructors.length === 0) {
     return (
@@ -1561,20 +1664,10 @@ function ReportTable({
     );
   }
 
-  function saveTravel(r: Data["rows"][number], v: number | null) {
-    run(
-      updatePayRate(r.instructorId, r.clientName, r.city, {
-        rate_per_lesson: r.ratePerLesson,
-        travel_rate_per_day: v ?? 0,
-      })
-    );
-  }
-
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        נסיעות לשכירים: יש להזין סכום ליום עבודה בכל עיר. הסכום מוכפל בימי העבודה באותה עיר
-        ונכנס לחישוב השכר. הסכום נשמר ועובר לחודשים הבאים.
+        סיכום לדיווח בלבד. נסיעות ליום מוגדרות בלשונית פירוט מדריכים.
       </p>
       <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
@@ -1612,11 +1705,7 @@ function ReportTable({
                     <td className={TD}>{r.activityCount}</td>
                     <td className={TD}>₪{money(r.pay)}</td>
                     <td className={TD}>
-                      {r.kind === "office" ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <NumberCell value={r.travelPerDay} onSave={(v) => saveTravel(r, v)} />
-                      )}
+                      {r.kind === "office" ? "—" : `₪${money(r.travelPerDay)}`}
                     </td>
                     <td className={TD}>₪{money(r.travel)}</td>
                     <td className={TD} />
