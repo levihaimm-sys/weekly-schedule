@@ -93,6 +93,33 @@ interface Props {
 
 const DEFAULT_EMPLOYER_PCT = 25;
 
+// Approximate Israeli employer costs on top of gross salary (2026, rounded — not payroll-exact).
+const BL_THRESHOLD = 7522; // 60% of the average wage: reduced Bituach Leumi rate up to here
+const BL_LOW = 0.0451; // employer Bituach Leumi + health, up to the threshold
+const BL_HIGH = 0.076; // employer Bituach Leumi + health, above the threshold
+const PENSION = 0.065; // employer pension contribution (mandatory pension order)
+const SEVERANCE = 0.06; // severance contribution to the pension fund
+const PROVISIONS = 0.06; // accrual for paid vacation days + recreation pay (דמי הבראה)
+
+interface EmployerCosts {
+  bituach: number;
+  pension: number;
+  severance: number;
+  provisions: number;
+  total: number;
+}
+
+// Pension, severance and vacation accrue on salary only; Bituach Leumi also on travel pay.
+function employerCosts(pay: number, travel: number): EmployerCosts {
+  const blBase = pay + travel;
+  const bituach =
+    Math.min(blBase, BL_THRESHOLD) * BL_LOW + Math.max(blBase - BL_THRESHOLD, 0) * BL_HIGH;
+  const pension = pay * PENSION;
+  const severance = pay * SEVERANCE;
+  const provisions = pay * PROVISIONS;
+  return { bituach, pension, severance, provisions, total: bituach + pension + severance + provisions };
+}
+
 const TABS = [
   { key: "detail", label: "פירוט מדריכים" },
   { key: "office", label: "שעות משרד" },
@@ -211,8 +238,7 @@ function computeReport(
 
       const pay = activityCount * ratePerLesson + exceptionDelta;
       const travel = workDays * travelPerDay;
-      const employerCost =
-        employmentType === "employee" ? ((pay + travel) * employerPct) / 100 : 0;
+      const employerCost = 0; // filled in per employee below
 
       return {
         key: k,
@@ -250,7 +276,7 @@ function computeReport(
       const officeRate = Number(w.hourly_rate);
       const hours = hoursByWorker.get(w.id) ?? 0;
       const pay = hours * officeRate;
-      const employerCost = employmentType === "employee" ? (pay * employerPct) / 100 : 0;
+      const employerCost = 0; // filled in per employee below
       allRows.push({
         key: `office__${w.id}`,
         kind: "office",
@@ -277,6 +303,27 @@ function computeReport(
         employerCost,
         total: pay + employerCost,
       });
+    }
+
+    // Employer costs for employees are computed on the whole month's salary (the Bituach
+    // Leumi rate depends on the monthly total), then spread over the employee's rows.
+    const costByEmployee = new Map<string, EmployerCosts>();
+    const employeeRows = new Map<string, typeof allRows>();
+    for (const r of allRows) {
+      if (r.employmentType !== "employee") continue;
+      if (!employeeRows.has(r.instructorId)) employeeRows.set(r.instructorId, []);
+      employeeRows.get(r.instructorId)!.push(r);
+    }
+    for (const [id, rs] of employeeRows) {
+      const pay = rs.reduce((s, r) => s + r.pay, 0);
+      const travel = rs.reduce((s, r) => s + r.travel, 0);
+      const costs = employerCosts(pay, travel);
+      costByEmployee.set(id, costs);
+      const gross = pay + travel;
+      for (const r of rs) {
+        r.employerCost = gross > 0 ? (costs.total * (r.pay + r.travel)) / gross : 0;
+        r.total = r.pay + r.travel + r.employerCost;
+      }
     }
 
     allRows.sort(
@@ -331,6 +378,8 @@ function computeReport(
         isOffice: f.isOffice,
         isOfficeWorker: f.kind === "office",
         officeRate: f.officeRate,
+        // Full-month breakdown; only exact when the view isn't filtered down to part of her rows.
+        costs: costByEmployee.get(id) ?? null,
         workDays: rs.reduce((s, r) => s + r.workDays, 0),
         activities,
         pay,
@@ -1018,6 +1067,25 @@ function OfficeWorkerAdder({ run }: { run: Run }) {
   );
 }
 
+function CostBreakdown({ costs }: { costs: EmployerCosts }) {
+  const items = [
+    ["ביטוח לאומי", costs.bituach],
+    ["פנסיה", costs.pension],
+    ["פיצויים", costs.severance],
+    ["חופשה והבראה", costs.provisions],
+  ] as const;
+  return (
+    <div className="space-y-0.5 text-[11px] leading-tight text-muted-foreground">
+      {items.map(([label, v]) => (
+        <div key={label} className="flex justify-between gap-2">
+          <span>{label}</span>
+          <span className="tabular-nums">₪{money(v)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Kpi({ label, value, className }: { label: string; value: number; className: string }) {
   return (
     <div className="rounded-xl border border-border bg-background p-3 text-center">
@@ -1325,15 +1393,17 @@ function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; 
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        סוג העסקה ואחוז הוצאות מעסיק נשמרים לכל מדריך ועוברים לחודשים הבאים. תיקונים/תוספות
-        מגיעים מהתוספות במסך שכר מדריכים.
+        סוג העסקה נשמר לכל מדריך ועובר לחודשים הבאים. תיקונים/תוספות מגיעים מהתוספות במסך שכר
+        מדריכים. הוצאות מעסיק לשכירים מחושבות אוטומטית לפי החישוב המקובל בישראל (הערכה, לא
+        תלוש מדויק): ביטוח לאומי מעסיק (4.51% עד ₪7,522, 7.6% מעל), פנסיה 6.5%, פיצויים 6%,
+        והפרשה לחופשה והבראה כ-6%.
       </p>
       <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
               <th className={TH}>העסקה</th>
-              <th className={TH}>% מעסיק</th>
+              <th className={TH}>פירוט הוצאות מעסיק</th>
               <th className={`${TH} text-start`}>מדריך</th>
               <th className={TH}>ימי עבודה</th>
               <th className={TH}>פעילויות</th>
@@ -1389,12 +1459,8 @@ function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; 
                         )}
                       </td>
                       <td className={TD}>
-                        {i.employmentType === "employee" && !i.isOfficeWorker ? (
-                          <NumberCell
-                            value={i.employerPct}
-                            width="w-14"
-                            onSave={(v) => save(i, { employer_cost_pct: v ?? DEFAULT_EMPLOYER_PCT })}
-                          />
+                        {i.costs ? (
+                          <CostBreakdown costs={i.costs} />
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
