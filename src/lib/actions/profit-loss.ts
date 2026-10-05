@@ -29,7 +29,6 @@ export async function updateEmploymentSettings(
     employment_type: "freelance" | "employee";
     employer_cost_pct: number;
     is_office: boolean;
-    office_hourly_rate: number;
   }
 ) {
   const { supabase, error: authError } = await requireOwner();
@@ -41,7 +40,6 @@ export async function updateEmploymentSettings(
       employment_type: data.employment_type,
       employer_cost_pct: data.employer_cost_pct,
       is_office: data.is_office,
-      office_hourly_rate: data.office_hourly_rate,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "instructor_id" }
@@ -81,8 +79,45 @@ export async function setActivityOverride(
   return { success: true };
 }
 
-export async function setOfficeHours(
-  instructorId: string,
+export async function addOfficeWorker(fullName: string, hourlyRate: number) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const name = fullName.trim();
+  if (!name) return { error: "יש להזין שם" };
+
+  const { error } = await supabase
+    .from("pl_office_workers")
+    .insert({ full_name: name, hourly_rate: hourlyRate });
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function updateOfficeWorker(
+  workerId: string,
+  patch: Partial<{
+    employment_type: "freelance" | "employee";
+    employer_cost_pct: number;
+    hourly_rate: number;
+    is_active: boolean;
+  }>
+) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const { error } = await supabase.from("pl_office_workers").update(patch).eq("id", workerId);
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function setOfficeWorkerHours(
+  workerId: string,
   year: number,
   month: number,
   hours: number
@@ -90,9 +125,9 @@ export async function setOfficeHours(
   const { supabase, error: authError } = await requireOwner();
   if (!supabase) return { error: authError };
 
-  const { error } = await supabase.from("pl_office_hours").upsert(
-    { instructor_id: instructorId, year, month, hours, updated_at: new Date().toISOString() },
-    { onConflict: "instructor_id,year,month" }
+  const { error } = await supabase.from("pl_office_worker_hours").upsert(
+    { worker_id: workerId, year, month, hours, updated_at: new Date().toISOString() },
+    { onConflict: "worker_id,year,month" }
   );
 
   if (error) return { error: "שגיאה בשמירה: " + error.message };
