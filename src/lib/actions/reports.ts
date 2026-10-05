@@ -261,6 +261,7 @@ export async function getMonthlyClientSummary(
 // ─── Instructor Monthly Summary ───────────────────────────────────────────────
 
 export interface InstructorCitySummary {
+  client: string;
   city: string;
   total: number;
   completed: number;
@@ -288,10 +289,18 @@ export async function getInstructorMonthlySummary(
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
+  const { data: recurringRows } = await supabase
+    .from("recurring_schedule")
+    .select("id, client_name")
+    .not("client_name", "is", null);
+  const clientByRecurringId = new Map(
+    (recurringRows ?? []).map((r) => [r.id, r.client_name])
+  );
+
   const { data: rawLessons, error } = await supabase
     .from("lessons")
     .select(
-      `id, status,
+      `id, status, recurring_item_id, client_name,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(city),
        signatures(signer_role)`
@@ -301,19 +310,27 @@ export async function getInstructorMonthlySummary(
 
   if (error) return { error: "שגיאה בטעינת נתונים: " + error.message };
 
-  // Build instructor → city stats map
+  // Build instructor → (client + city) stats map
   const instructorMap = new Map<string, Map<string, InstructorCitySummary>>();
 
   for (const lesson of rawLessons ?? []) {
     const instructorName = (lesson.instructor as any)?.full_name ?? "לא ידוע";
     const city = (lesson.location as any)?.city ?? "—";
+    const client =
+      resolveLessonClient(
+        (lesson as any).client_name,
+        (lesson as any).recurring_item_id,
+        clientByRecurringId as Map<string, string>
+      ) ?? "—";
+    const key = `${client}|${city}`;
 
     if (!instructorMap.has(instructorName))
       instructorMap.set(instructorName, new Map());
     const cityMap = instructorMap.get(instructorName)!;
 
-    if (!cityMap.has(city)) {
-      cityMap.set(city, {
+    if (!cityMap.has(key)) {
+      cityMap.set(key, {
+        client,
         city,
         total: 0,
         completed: 0,
@@ -323,7 +340,7 @@ export async function getInstructorMonthlySummary(
       });
     }
 
-    const stats = cityMap.get(city)!;
+    const stats = cityMap.get(key)!;
     stats.total++;
     if (lesson.status === "completed") stats.completed++;
     if (lesson.status === "cancelled") stats.cancelled++;
@@ -335,8 +352,10 @@ export async function getInstructorMonthlySummary(
 
   const result: InstructorMonthlySummary[] = [];
   for (const [instructorName, cityMap] of instructorMap.entries()) {
-    const cities = [...cityMap.values()].sort((a, b) =>
-      a.city.localeCompare(b.city, "he")
+    const cities = [...cityMap.values()].sort(
+      (a, b) =>
+        a.client.localeCompare(b.client, "he") ||
+        a.city.localeCompare(b.city, "he")
     );
     result.push({
       instructorName,

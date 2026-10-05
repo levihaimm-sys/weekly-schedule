@@ -96,12 +96,13 @@ export function InstructorSummaryForm({ instructors }: { instructors: { full_nam
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
-                <th className="w-[28%] px-4 py-2.5">עיר</th>
-                <th className="w-[12%] px-4 py-2.5 text-center">סה"כ</th>
-                <th className="w-[12%] px-4 py-2.5 text-center">הושלמו</th>
-                <th className="w-[12%] px-4 py-2.5 text-center">בוטלו</th>
-                <th className="w-[18%] px-4 py-2.5 text-center">אישורי גננת</th>
-                <th className="w-[18%] px-4 py-2.5 text-center">אישורי מדריכה</th>
+                <th className="w-[22%] px-4 py-2.5">לקוח</th>
+                <th className="w-[16%] px-4 py-2.5">עיר</th>
+                <th className="w-[10%] px-4 py-2.5 text-center">סה"כ</th>
+                <th className="w-[10%] px-4 py-2.5 text-center">הושלמו</th>
+                <th className="w-[10%] px-4 py-2.5 text-center">בוטלו</th>
+                <th className="w-[16%] px-4 py-2.5 text-center">אישורי גננת</th>
+                <th className="w-[16%] px-4 py-2.5 text-center">אישורי מדריכה</th>
               </tr>
             </thead>
             <tbody>
@@ -109,7 +110,7 @@ export function InstructorSummaryForm({ instructors }: { instructors: { full_nam
                 <>
                   {/* Instructor group header */}
                   <tr key={`h-${instructor.instructorName}`} className="border-y border-border bg-orange-50">
-                    <td colSpan={6} className="px-4 py-2 font-semibold text-orange-900">
+                    <td colSpan={7} className="px-4 py-2 font-semibold text-orange-900">
                       {instructor.instructorName}
                     </td>
                   </tr>
@@ -117,10 +118,11 @@ export function InstructorSummaryForm({ instructors }: { instructors: { full_nam
                   {/* City rows */}
                   {instructor.cities.map((city) => (
                     <tr
-                      key={`${instructor.instructorName}-${city.city}`}
+                      key={`${instructor.instructorName}-${city.client}-${city.city}`}
                       className="border-b border-border/50 hover:bg-muted/20"
                     >
-                      <td className={`${COL_LABEL} pr-8`}>{city.city}</td>
+                      <td className={`${COL_LABEL} pr-8`}>{city.client}</td>
+                      <td className={COL_LABEL}>{city.city}</td>
                       <td className={COL}>{city.total}</td>
                       <td className={`${COL} font-medium text-green-700`}>{city.completed}</td>
                       <td className={`${COL} font-medium text-red-600`}>{city.cancelled}</td>
@@ -131,7 +133,7 @@ export function InstructorSummaryForm({ instructors }: { instructors: { full_nam
 
                   {/* Instructor total row */}
                   <tr key={`t-${instructor.instructorName}`} className="border-b-2 border-border bg-muted/30 font-semibold text-xs">
-                    <td className={`${COL_LABEL} pr-8 text-muted-foreground`}>סה"כ</td>
+                    <td colSpan={2} className={`${COL_LABEL} pr-8 text-muted-foreground`}>סה"כ</td>
                     <td className={COL}>{instructor.total}</td>
                     <td className={`${COL} text-green-700`}>{instructor.completed}</td>
                     <td className={`${COL} text-red-600`}>{instructor.cancelled}</td>
