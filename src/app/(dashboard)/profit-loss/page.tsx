@@ -29,6 +29,8 @@ const MONTHS_HEBREW = [
 ];
 
 const NONE = ["__none__"];
+const PAGE = 1000;
+const ID_CHUNK = 150;
 
 export default async function ProfitLossPage({
   searchParams,
@@ -66,18 +68,26 @@ export default async function ProfitLossPage({
   const admin = createAdminClient();
 
   // Same lesson source and client/city resolution as שכר מדריכים and תשלום לקוחות.
-  const { data: lessons } = await admin
-    .from("lessons")
-    .select(
-      `id, lesson_date, status, instructor_id, recurring_item_id, client_name,
-       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
-       location:locations!lessons_location_id_fkey(city)`
-    )
-    .gte("lesson_date", monthStart)
-    .lte("lesson_date", monthEnd)
-    .neq("status", "cancelled");
+  // Paged: a full month (incl. future scheduled lessons) can exceed PostgREST's 1000-row cap.
+  const lessons: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await admin
+      .from("lessons")
+      .select(
+        `id, lesson_date, status, instructor_id, recurring_item_id, client_name,
+         instructor:instructors!lessons_instructor_id_fkey(id, full_name),
+         location:locations!lessons_location_id_fkey(city)`
+      )
+      .gte("lesson_date", monthStart)
+      .lte("lesson_date", monthEnd)
+      .neq("status", "cancelled")
+      .order("id")
+      .range(from, from + PAGE - 1);
+    lessons.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
 
-  const allLessons = (lessons ?? []).filter((l) => l.instructor_id);
+  const allLessons = lessons.filter((l) => l.instructor_id);
 
   const recurringIds = [
     ...new Set(allLessons.map((l) => l.recurring_item_id).filter(Boolean)),
@@ -93,12 +103,27 @@ export default async function ProfitLossPage({
     }
   }
 
-  const lessonIds = allLessons.map((l) => l.id);
-  const { data: signatures } = await admin
-    .from("signatures")
-    .select("lesson_id")
-    .in("lesson_id", lessonIds.length > 0 ? lessonIds : NONE);
-  const signedIds = new Set((signatures ?? []).map((s) => s.lesson_id));
+  const lessonIds: string[] = allLessons.map((l) => l.id);
+
+  // A month's lesson ids don't fit in one `.in()` URL — query them in chunks.
+  async function byLessonIds<T>(table: string, columns: string): Promise<T[]> {
+    const out: T[] = [];
+    for (let i = 0; i < lessonIds.length; i += ID_CHUNK) {
+      const { data } = await admin
+        .from(table)
+        .select(columns)
+        .in("lesson_id", lessonIds.slice(i, i + ID_CHUNK));
+      out.push(...((data ?? []) as T[]));
+    }
+    return out;
+  }
+
+  const [signatures, payExceptions, clientExceptions] = await Promise.all([
+    byLessonIds<{ lesson_id: string }>("signatures", "lesson_id"),
+    byLessonIds<{ lesson_id: string; amount: number }>("instructor_pay_exceptions", "lesson_id, amount"),
+    byLessonIds<{ lesson_id: string; amount: number }>("client_payment_exceptions", "lesson_id, amount"),
+  ]);
+  const signedIds = new Set(signatures.map((s) => s.lesson_id));
 
   const flatLessons = allLessons.map((l) => {
     const city = (l.location as any)?.city ?? "";
@@ -121,14 +146,11 @@ export default async function ProfitLossPage({
   const clientNames = [...new Set(flatLessons.map((l) => l.client_name))];
   const iIds = instructorIds.length > 0 ? instructorIds : NONE;
   const cNames = clientNames.length > 0 ? clientNames : NONE;
-  const lIds = lessonIds.length > 0 ? lessonIds : NONE;
 
   const [
     payRatesRes,
-    payExceptionsRes,
     bonusesRes,
     clientRatesRes,
-    clientExceptionsRes,
     adjustmentsRes,
     settingsRes,
     overridesRes,
@@ -142,10 +164,6 @@ export default async function ProfitLossPage({
       .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day")
       .in("instructor_id", iIds),
     admin
-      .from("instructor_pay_exceptions")
-      .select("lesson_id, amount")
-      .in("lesson_id", lIds),
-    admin
       .from("instructor_pay_bonuses")
       .select("instructor_id, amount")
       .eq("year", year)
@@ -155,10 +173,6 @@ export default async function ProfitLossPage({
       .from("client_payment_rates")
       .select("client_name, city, billing_mode, rate_per_lesson, fixed_monthly_amount")
       .in("client_name", cNames),
-    admin
-      .from("client_payment_exceptions")
-      .select("lesson_id, amount")
-      .in("lesson_id", lIds),
     admin
       .from("client_payment_adjustments")
       .select("client_name, label, amount")
@@ -241,10 +255,10 @@ export default async function ProfitLossPage({
       <ProfitLossView
         lessons={flatLessons}
         payRates={payRatesRes.data ?? []}
-        payExceptions={payExceptionsRes.data ?? []}
+        payExceptions={payExceptions}
         bonuses={bonusesRes.data ?? []}
         clientRates={clientRatesRes.data ?? []}
-        clientExceptions={clientExceptionsRes.data ?? []}
+        clientExceptions={clientExceptions}
         adjustments={adjustmentsRes.data ?? []}
         settings={settingsRes.data ?? []}
         overrides={overridesRes.data ?? []}

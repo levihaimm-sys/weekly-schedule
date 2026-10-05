@@ -481,6 +481,10 @@ export function ProfitLossView(props: Props) {
     return m;
   }, [options.instructors]);
 
+  // Lessons that already took place but have no signature yet — not counted until signed.
+  const today = new Date().toLocaleDateString("sv-SE");
+  const unsignedPast = props.lessons.filter((l) => !l.signed && l.lesson_date <= today).length;
+
   const unpricedRows = data.rows.filter((r) => !r.hasRate).length;
   const unpricedOperators = data.operators.filter((o) => !o.rate).length;
 
@@ -566,6 +570,16 @@ export function ProfitLossView(props: Props) {
         shown={data.rows.length}
         total={data.allRows.length}
       />
+
+      {unsignedPast > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>
+            {unsignedPast} שיעורים שכבר התקיימו החודש טרם נחתמו ולכן אינם נספרים. הם ייכנסו לחישוב
+            אוטומטית לאחר החתימה (או בתיקון ידני בלשונית פירוט מדריכים).
+          </span>
+        </div>
+      )}
 
       {(unpricedRows > 0 || unpricedOperators > 0) && (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
