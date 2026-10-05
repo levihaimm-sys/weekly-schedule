@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Download, Filter, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Filter, Plus, RotateCcw, Trash2, X, XCircle } from "lucide-react";
 import { updatePayRate } from "@/lib/actions/payroll";
 import {
   updateEmploymentSettings,
@@ -21,7 +21,6 @@ interface LessonData {
   instructor_name: string;
   client_name: string;
   city: string;
-  contact_name: string;
 }
 
 interface PayRate {
@@ -104,10 +103,6 @@ const OFFICE_CLIENT = "שעות משרד";
 
 type RowKind = "lesson" | "office";
 
-function isContactBilled(clientName: string) {
-  return clientName.includes("אפטר");
-}
-
 function key3(a: string, b: string, c: string) {
   return `${a}__${b}__${c}`;
 }
@@ -146,6 +141,9 @@ const THEMES = [
   { accent: "#6366f1", header: "bg-indigo-50", text: "text-indigo-800" },
   { accent: "#f97316", header: "bg-orange-50", text: "text-orange-800" },
 ];
+
+// Tables scroll inside their own box so the sticky header stays visible while scrolling.
+const SCROLL_BOX = "max-h-[75vh] overflow-auto rounded-xl border border-border bg-background";
 
 const TH = "px-3 py-2 text-center font-semibold whitespace-nowrap";
 const TD = "px-3 py-1.5 text-center tabular-nums whitespace-nowrap";
@@ -369,34 +367,10 @@ function computeReport(
       const expenses = rs.reduce((s, r) => s + r.total, 0);
       const diff = income - expenses;
 
-      // After-school clients are invoiced per contact person within each city.
-      const contacts: { name: string; activities: number; amount: number }[] = [];
-      if (isContactBilled(rs[0].clientName) && rate?.billing_mode !== "fixed_monthly") {
-        const clientRate = Number(rate?.rate_per_lesson ?? 0);
-        const byContact = new Map<string, { activities: number; amount: number }>();
-        for (const r of rs) {
-          for (const l of r.signedLessons) {
-            const name = l.contact_name || "ללא איש קשר";
-            const c = byContact.get(name) ?? { activities: 0, amount: 0 };
-            c.activities++;
-            c.amount += clientExMap.get(l.id) ?? clientRate;
-            byContact.set(name, c);
-          }
-        }
-        for (const [name, c] of byContact) contacts.push({ name, ...c });
-        contacts.sort((a, b) => a.name.localeCompare(b.name, "he"));
-        // Manual activity corrections are per instructor+city, not per contact.
-        const manualDiff = activities - contacts.reduce((s, c) => s + c.activities, 0);
-        if (manualDiff !== 0) {
-          contacts.push({ name: "תיקון ידני", activities: manualDiff, amount: manualDiff * clientRate });
-        }
-      }
-
       return {
         key: k,
         clientName: rs[0].clientName,
         city: rs[0].city,
-        contacts,
         rate,
         activities,
         income,
@@ -415,7 +389,7 @@ function computeReport(
       : [];
     const adjustmentsTotal = appliedAdjustments.reduce((s, a) => s + Number(a.amount), 0);
 
-    // Invoices: one per client, broken down by city (and contact for after-school).
+    // Invoices: one per client, broken down by city.
     const invoiceMap = new Map<string, { cities: typeof operators; adjustments: typeof appliedAdjustments }>();
     for (const o of operators) {
       if (!invoiceMap.has(o.clientName)) invoiceMap.set(o.clientName, { cities: [], adjustments: [] });
@@ -575,6 +549,14 @@ export function ProfitLossView(props: Props) {
           className={data.profit >= 0 ? "text-emerald-700" : "text-red-700"}
         />
       </div>
+
+      <ClientSummary
+        invoices={data.invoices}
+        sent={new Set(props.invoicesSent)}
+        year={year}
+        month={month}
+        run={run}
+      />
 
       <FilterBar
         filters={filters}
@@ -769,6 +751,78 @@ function FilterBar({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function ClientSummary({
+  invoices,
+  sent,
+  year,
+  month,
+  run,
+}: {
+  invoices: Data["invoices"];
+  sent: Set<string>;
+  year: number;
+  month: number;
+  run: Run;
+}) {
+  if (invoices.length === 0) return null;
+  const total = invoices.reduce((s, i) => s + i.total, 0);
+  const sentCount = invoices.filter((i) => sent.has(i.clientName)).length;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-background">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted px-4 py-2 text-sm">
+        <span className="font-semibold">סיכום לקוחות</span>
+        <span className="text-xs text-muted-foreground">
+          נשלחו {sentCount} מתוך {invoices.length} חשבוניות · {'סה"כ לתשלום'} ₪{money(total)}
+        </span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-xs text-muted-foreground">
+            <th className={`${TH} text-start`}>לקוח</th>
+            <th className={TH}>פעילויות</th>
+            <th className={TH}>{'סה"כ לתשלום'}</th>
+            <th className={TH}>חשבונית</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoices.map((inv) => {
+            const isSent = sent.has(inv.clientName);
+            return (
+              <tr key={inv.clientName} className="border-b border-border/50 last:border-0">
+                <td className={`${TD_LABEL} font-medium`}>{inv.clientName}</td>
+                <td className={TD}>{inv.activities}</td>
+                <td className={`${TD} font-semibold`}>₪{money(inv.total)}</td>
+                <td className={TD}>
+                  <button
+                    type="button"
+                    onClick={() => run(setInvoiceSent(inv.clientName, year, month, !isSent))}
+                    title={isSent ? "סמן כלא נשלחה" : "סמן כנשלחה"}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      isSent ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {isSent ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                    {isSent ? "נשלחה" : "לא נשלחה"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-border bg-muted font-bold">
+            <td className={TD_LABEL}>{'סה"כ'}</td>
+            <td className={TD}>{invoices.reduce((s, i) => s + i.activities, 0)}</td>
+            <td className={TD}>₪{money(total)}</td>
+            <td className={TD}>{sentCount}/{invoices.length}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
@@ -990,10 +1044,10 @@ function DetailTable({
         פעילויות וימי עבודה מחושבים מהחתימות. ניתן לתקן ידנית - ערך מתוקן מסומן בכתום; מחיקת
         הערך מחזירה לחישוב מהחתימות. תעריפים נשמרים ועוברים לחודשים הבאים.
       </p>
-      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+      <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
               <th className={`${TH} text-start`}>מדריך / לקוח</th>
               <th className={TH}>תשלום לפעילות</th>
               <th className={TH}>נסיעות ליום</th>
@@ -1207,10 +1261,10 @@ function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; 
         סוג העסקה ואחוז הוצאות מעסיק נשמרים לכל מדריך ועוברים לחודשים הבאים. תיקונים/תוספות
         מגיעים מהתוספות במסך שכר מדריכים.
       </p>
-      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+      <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
               <th className={TH}>העסקה</th>
               <th className={TH}>% מעסיק</th>
               <th className={`${TH} text-start`}>מדריך</th>
@@ -1314,10 +1368,10 @@ function OperatorsTable({
         תעריפי לקוחות מגיעים ממסך תשלום לקוחות. הוצאות הדרכה כוללות תשלום, נסיעות והוצאות העסקה
         (ללא תוספות חודשיות למדריך).
       </p>
-      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+      <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
               <th className={`${TH} text-start`}>מפעיל</th>
               <th className={TH}>פעילויות</th>
               <th className={TH}>תשלום המפעיל לפעילות</th>
@@ -1522,10 +1576,10 @@ function ReportTable({
         נסיעות לשכירים: יש להזין סכום ליום עבודה בכל עיר. הסכום מוכפל בימי העבודה באותה עיר
         ונכנס לחישוב השכר. הסכום נשמר ועובר לחודשים הבאים.
       </p>
-      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+      <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-amber-100/70 text-xs">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-amber-100 text-xs">
               <th className={`${TH} text-start`}>עובד / עיר</th>
               <th className={TH}>ימי עבודה</th>
               <th className={TH}>שעות / פעילויות</th>
@@ -1602,24 +1656,17 @@ function InvoicesTab({
     const lines: (string | number)[][] = [
       [`${inv.clientName} - ${monthLabel}`],
       [],
-      ["עיר", "איש קשר", "פעילויות", "תעריף", "סכום"],
+      ["עיר", "פעילויות", "תעריף", "סכום"],
     ];
     for (const c of inv.cities) {
       const rate = c.rate?.billing_mode === "fixed_monthly" ? "קבוע" : Number(c.rate?.rate_per_lesson ?? 0);
-      if (c.contacts.length > 0) {
-        for (const ct of c.contacts) {
-          lines.push([c.city, ct.name, ct.activities, rate, Math.round(ct.amount)]);
-        }
-        lines.push([`${c.city} סה"כ`, "", c.activities, "", Math.round(c.income)]);
-      } else {
-        lines.push([c.city, "", c.activities, rate, Math.round(c.income)]);
-      }
+      lines.push([c.city, c.activities, rate, Math.round(c.income)]);
     }
     for (const a of inv.adjustments) {
-      lines.push([a.label, "", "", "", Math.round(Number(a.amount))]);
+      lines.push([a.label, "", "", Math.round(Number(a.amount))]);
     }
     lines.push([]);
-    lines.push(['סה"כ לחשבונית', "", inv.activities, "", Math.round(inv.total)]);
+    lines.push(['סה"כ לחשבונית', inv.activities, "", Math.round(inv.total)]);
 
     const csv = lines.map((l) => l.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -1648,7 +1695,7 @@ function InvoicesTab({
           : `נשלחו ${sentCount} מתוך ${invoices.length} חשבוניות לחודש ${monthLabel}`}
       </div>
       <p className="text-xs text-muted-foreground">
-        {`ריכוז לחשבונית לכל לקוח, לפי עיר (ובאפטר סקול גם לפי איש קשר). הכמויות מבוססות על
+        {`ריכוז לחשבונית לכל לקוח, לפי עיר. הכמויות מבוססות על
         החתימות כולל תיקונים ידניים; התעריפים מגיעים ממסך תשלום לקוחות. סה"כ כל החשבוניות: ₪${money(grand)}`}
       </p>
       {invoices.map((inv) => {
@@ -1701,7 +1748,7 @@ function InvoicesTab({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-muted-foreground">
-                <th className={`${TH} text-start`}>עיר / איש קשר</th>
+                <th className={`${TH} text-start`}>עיר</th>
                 <th className={TH}>פעילויות</th>
                 <th className={TH}>תעריף</th>
                 <th className={TH}>סכום</th>
@@ -1709,22 +1756,12 @@ function InvoicesTab({
             </thead>
             <tbody>
               {inv.cities.map((c) => (
-                <Fragment key={c.key}>
-                  <tr className={`border-b border-border/50 ${c.contacts.length > 0 ? "bg-muted/30 font-semibold" : ""}`}>
-                    <td className={TD_LABEL}>{c.city || "—"}</td>
-                    <td className={TD}>{c.activities}</td>
-                    <td className={`${TD} ${!c.rate ? "text-red-600" : ""}`}>{rateLabel(c)}</td>
-                    <td className={TD}>₪{money(c.income)}</td>
-                  </tr>
-                  {c.contacts.map((ct) => (
-                    <tr key={ct.name} className="border-b border-border/50 text-muted-foreground">
-                      <td className={`${TD_LABEL} ps-8`}>{ct.name}</td>
-                      <td className={TD}>{ct.activities}</td>
-                      <td className={TD} />
-                      <td className={TD}>₪{money(ct.amount)}</td>
-                    </tr>
-                  ))}
-                </Fragment>
+                <tr key={c.key} className="border-b border-border/50">
+                  <td className={TD_LABEL}>{c.city || "—"}</td>
+                  <td className={TD}>{c.activities}</td>
+                  <td className={`${TD} ${!c.rate ? "text-red-600" : ""}`}>{rateLabel(c)}</td>
+                  <td className={TD}>₪{money(c.income)}</td>
+                </tr>
               ))}
               {inv.adjustments.map((a, idx) => (
                 <tr key={`adj-${idx}`} className="border-b border-border/50">

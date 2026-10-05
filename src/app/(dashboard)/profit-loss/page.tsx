@@ -69,7 +69,7 @@ export default async function ProfitLossPage({
   const { data: lessons } = await admin
     .from("lessons")
     .select(
-      `id, lesson_date, status, instructor_id, recurring_item_id, client_name, contact_name,
+      `id, lesson_date, status, instructor_id, recurring_item_id, client_name,
        instructor:instructors!lessons_instructor_id_fkey(id, full_name),
        location:locations!lessons_location_id_fkey(city)`
     )
@@ -83,15 +83,13 @@ export default async function ProfitLossPage({
     ...new Set(allLessons.map((l) => l.recurring_item_id).filter(Boolean)),
   ] as string[];
   const recurringClientMap = new Map<string, string>();
-  const recurringContactMap = new Map<string, string>();
   if (recurringIds.length > 0) {
     const { data: recurringRows } = await admin
       .from("recurring_schedule")
-      .select("id, client_name, contact_name")
+      .select("id, client_name")
       .in("id", recurringIds);
     for (const row of recurringRows ?? []) {
       if (row.client_name) recurringClientMap.set(row.id, row.client_name);
-      if (row.contact_name) recurringContactMap.set(row.id, row.contact_name);
     }
   }
 
@@ -116,10 +114,6 @@ export default async function ProfitLossPage({
       instructor_name: (l.instructor as any)?.full_name ?? "לא ידוע",
       client_name: clientName,
       city,
-      contact_name:
-        l.contact_name?.trim() ||
-        (l.recurring_item_id ? recurringContactMap.get(l.recurring_item_id)?.trim() : "") ||
-        "",
     };
   });
 
