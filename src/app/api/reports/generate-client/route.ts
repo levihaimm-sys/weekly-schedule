@@ -3,6 +3,11 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { ClientReportDocument } from "@/lib/pdf/report-template";
 import { NextRequest, NextResponse } from "next/server";
 import React from "react";
+import {
+  compareCoordinators,
+  coordinatorName,
+  isGroupedByCoordinator,
+} from "@/lib/utils/client-report";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,16 +31,20 @@ export async function POST(request: NextRequest) {
 
     const { data: recurringRows } = await supabase
       .from("recurring_schedule")
-      .select("id, location:locations!recurring_schedule_location_id_fkey(city)")
+      .select("id, contact_name")
       .eq("client_name", clientName as string);
 
     const recurringIds = (recurringRows ?? []).map((r) => r.id);
+    const recurringContact = new Map(
+      (recurringRows ?? []).map((r) => [r.id, r.contact_name as string | null])
+    );
+    const groupByCoordinator = isGroupedByCoordinator(clientName as string);
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    const lessonSelect = `id, lesson_date, start_time, status,
+    const lessonSelect = `id, lesson_date, start_time, status, contact_name, recurring_item_id,
          instructor:instructors!lessons_instructor_id_fkey(full_name),
          location:locations!lessons_location_id_fkey(name, city)`;
 
@@ -75,17 +84,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
 
-    // Cities come from the actual lessons found (recurring rows alone can miss
-    // cities that only appear via one-off lessons).
-    const cities = [
-      ...new Set(
-        [
-          ...(recurringRows ?? []).map((r) => (r.location as any)?.city),
-          ...lessons.map((l: any) => l.location?.city),
-        ].filter(Boolean)
-      ),
-    ].sort((a, b) => a.localeCompare(b, "he"));
-
     const lessonIds = lessons.map((l: any) => l.id);
     const { data: signatures } = await supabase
       .from("signatures")
@@ -96,10 +94,12 @@ export async function POST(request: NextRequest) {
       (signatures ?? []).map((s) => [s.lesson_id, s])
     );
 
-    // Group by city (alphabetical order)
+    // Group by city — or by coordinator, then city, for clients that review the report per coordinator
     const cityDataMap = new Map<
       string,
       {
+        coordinator: string | undefined;
+        city: string;
         total: number;
         completed: number;
         cancelled: number;
@@ -109,22 +109,30 @@ export async function POST(request: NextRequest) {
       }
     >();
 
-    for (const city of cities) {
-      cityDataMap.set(city, {
-        total: 0,
-        completed: 0,
-        cancelled: 0,
-        teacherConfirmed: 0,
-        instructorConfirmed: 0,
-        lessons: [],
-      });
-    }
-
     for (const lesson of lessons) {
       const city = (lesson as any).location?.city ?? "";
-      if (!cityDataMap.has(city)) continue;
+      if (!city) continue;
+      const coordinator = groupByCoordinator
+        ? coordinatorName(
+            (lesson as any).contact_name ??
+              recurringContact.get((lesson as any).recurring_item_id)
+          )
+        : undefined;
+      const key = `${coordinator ?? ""}\u0000${city}`;
+      if (!cityDataMap.has(key)) {
+        cityDataMap.set(key, {
+          coordinator,
+          city,
+          total: 0,
+          completed: 0,
+          cancelled: 0,
+          teacherConfirmed: 0,
+          instructorConfirmed: 0,
+          lessons: [],
+        });
+      }
 
-      const d = cityDataMap.get(city)!;
+      const d = cityDataMap.get(key)!;
       const sig = sigMap.get((lesson as any).id);
 
       d.total++;
@@ -149,12 +157,16 @@ export async function POST(request: NextRequest) {
 
     const resolvedMode: "full" | "summary" = mode === "summary" ? "summary" : "full";
 
-    const citySections = cities
-      .filter((city) => (cityDataMap.get(city)?.total ?? 0) > 0)
-      .map((city) => {
-        const d = cityDataMap.get(city)!;
+    const citySections = [...cityDataMap.values()]
+      .sort(
+        (a, b) =>
+          compareCoordinators(a.coordinator ?? "", b.coordinator ?? "") ||
+          a.city.localeCompare(b.city, "he")
+      )
+      .map((d) => {
         return {
-          city,
+          coordinator: d.coordinator,
+          city: d.city,
           total: d.total,
           completed: d.completed,
           cancelled: d.cancelled,

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { compareCoordinators, coordinatorName, isGroupedByCoordinator } from "@/lib/utils/client-report";
 
 const HEBREW_DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const MONTHS_HEBREW = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
@@ -21,14 +22,16 @@ export async function GET(request: NextRequest) {
 
   const { data: recurringRows } = await supabase
     .from("recurring_schedule")
-    .select("id, location:locations!recurring_schedule_location_id_fkey(city)")
+    .select("id, contact_name")
     .eq("client_name", clientName);
   const recurringIds = (recurringRows ?? []).map((r: any) => r.id);
+  const recurringContact = new Map<string, string | null>((recurringRows ?? []).map((r: any) => [r.id, r.contact_name]));
+  const groupByCoordinator = isGroupedByCoordinator(clientName);
 
   const startDate = `${year}-${String(month).padStart(2,"0")}-01`;
   const endDate   = `${year}-${String(month).padStart(2,"0")}-${new Date(year,month,0).getDate()}`;
 
-  const lessonSelect = "id,lesson_date,start_time,status,instructor:instructors!lessons_instructor_id_fkey(full_name),location:locations!lessons_location_id_fkey(name,city)";
+  const lessonSelect = "id,lesson_date,start_time,status,contact_name,recurring_item_id,instructor:instructors!lessons_instructor_id_fkey(full_name),location:locations!lessons_location_id_fkey(name,city)";
 
   // A client's lessons are either generated from one of its recurring_schedule
   // rows, or one-off lessons that carry the client name directly (no recurring
@@ -54,25 +57,23 @@ export async function GET(request: NextRequest) {
     return new NextResponse(recurringIds.length ? "אין שיעורים לתקופה זו" : "לקוח לא נמצא", { status: 404 });
   }
 
-  const cities = [
-    ...new Set([
-      ...(recurringRows ?? []).map((r: any) => r.location?.city),
-      ...lessons.map((l: any) => l.location?.city),
-    ].filter(Boolean)),
-  ].sort((a: string, b: string) => a.localeCompare(b, "he"));
-
   const lessonIds = lessons.map((l: any) => l.id);
   const { data: sigs } = await supabase.from("signatures").select("lesson_id,signer_name,signer_role,signature_url").in("lesson_id", lessonIds);
   const sigMap = new Map((sigs ?? []).map((s: any) => [s.lesson_id, s]));
 
-  // Build city-grouped data
-  const cityMap = new Map<string, { lessons: any[]; total: number; completed: number; cancelled: number; teacherConf: number; instrConf: number }>();
-  for (const city of cities) cityMap.set(city, { lessons: [], total: 0, completed: 0, cancelled: 0, teacherConf: 0, instrConf: 0 });
+  // Build city-grouped data — or coordinator, then city, for clients that review the report per coordinator
+  type CityGroup = { coordinator: string | undefined; city: string; lessons: any[]; total: number; completed: number; cancelled: number; teacherConf: number; instrConf: number };
+  const groupMap = new Map<string, CityGroup>();
 
   for (const lesson of lessons as any[]) {
     const city = lesson.location?.city ?? "";
-    if (!cityMap.has(city)) continue;
-    const d = cityMap.get(city)!;
+    if (!city) continue;
+    const coordinator = groupByCoordinator
+      ? coordinatorName(lesson.contact_name ?? recurringContact.get(lesson.recurring_item_id))
+      : undefined;
+    const key = `${coordinator ?? ""}\u0000${city}`;
+    if (!groupMap.has(key)) groupMap.set(key, { coordinator, city, lessons: [], total: 0, completed: 0, cancelled: 0, teacherConf: 0, instrConf: 0 });
+    const d = groupMap.get(key)!;
     const sig = sigMap.get(lesson.id) as any;
     d.total++;
     if (lesson.status === "completed") d.completed++;
@@ -82,11 +83,29 @@ export async function GET(request: NextRequest) {
     d.lessons.push({ lesson, sig });
   }
 
+  const groups = [...groupMap.values()].sort((a, b) =>
+    compareCoordinators(a.coordinator ?? "", b.coordinator ?? "") || a.city.localeCompare(b.city, "he")
+  );
+  const startsCoordinator = (i: number) =>
+    groups[i].coordinator !== undefined && (i === 0 || groups[i - 1].coordinator !== groups[i].coordinator);
+  const coordinatorStats = (coordinator: string) => {
+    const own = groups.filter((g) => g.coordinator === coordinator);
+    const sum = (f: (g: CityGroup) => number) => own.reduce((n, g) => n + f(g), 0);
+    return `סה"כ: ${sum((g) => g.total)} | הושלמו: ${sum((g) => g.completed)} | בוטלו: ${sum((g) => g.cancelled)}`;
+  };
+
   let tableHtml = "";
 
   if (mode === "full") {
-    for (const [city, cityData] of cityMap.entries()) {
-      if (!cityData.total) continue;
+    for (const [gi, cityData] of groups.entries()) {
+      const city = cityData.city;
+      if (startsCoordinator(gi)) {
+        tableHtml += `
+        <div style="background:#1e3a8a;color:#fff;padding:6pt 8pt;margin-top:${gi === 0 ? 0 : 20}pt;font-weight:700;font-size:12pt;border-radius:2pt">
+          רכזת: ${cityData.coordinator}
+          <div style="font-size:7.5pt;color:#dbeafe;margin-top:2pt;font-weight:400">${coordinatorStats(cityData.coordinator!)}</div>
+        </div>`;
+      }
       const rows = cityData.lessons.map(({ lesson, sig }: any, i: number) => {
         const d = new Date(lesson.lesson_date + "T12:00:00");
         const sigCell = showSigs ? (() => {
@@ -120,9 +139,10 @@ export async function GET(request: NextRequest) {
         </table>`;
     }
   } else {
-    const summaryRows = [...cityMap.entries()].filter(([, d]) => d.total > 0).map(([city, d], i) => `
+    const summaryRows = groups.map((d, i) => `${startsCoordinator(i) ? `
+      <tr style="background:#e0e7ff"><td colspan="6" style="font-weight:700;text-align:right">רכזת: ${d.coordinator} — ${coordinatorStats(d.coordinator!)}</td></tr>` : ""}
       <tr style="${i%2===1?"background:#f9f9fb":""}">
-        <td style="font-weight:700">${city}</td>
+        <td style="font-weight:700">${d.city}</td>
         <td>${d.total}</td>
         <td style="color:#16a34a">${d.completed}</td>
         <td style="color:#dc2626">${d.cancelled}</td>

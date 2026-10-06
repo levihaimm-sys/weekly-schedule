@@ -181,6 +181,8 @@ interface ClientLessonRow {
 }
 
 interface ClientCitySection {
+  // Set only for clients whose report is grouped by coordinator; sections arrive sorted by it
+  coordinator?: string;
   city: string;
   total: number;
   completed: number;
@@ -207,6 +209,48 @@ const cityHeaderStyle = StyleSheet.create({
   },
   text: { fontWeight: 700, fontSize: 10, direction: "rtl" },
 });
+
+const coordinatorHeaderStyle = StyleSheet.create({
+  box: {
+    backgroundColor: "#1e3a8a",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  text: { fontWeight: 700, fontSize: 12, color: "#fff", direction: "rtl" },
+  stats: { fontSize: 8, color: "#dbeafe" },
+});
+
+function startsCoordinatorGroup(sections: ClientCitySection[], i: number) {
+  const c = sections[i].coordinator;
+  return c !== undefined && (i === 0 || sections[i - 1].coordinator !== c);
+}
+
+function CoordinatorHeader({
+  sections,
+  coordinator,
+  first,
+}: {
+  sections: ClientCitySection[];
+  coordinator: string;
+  first: boolean;
+}) {
+  const own = sections.filter((s) => s.coordinator === coordinator);
+  const sum = (f: (s: ClientCitySection) => number) => own.reduce((n, s) => n + f(s), 0);
+  return (
+    <View style={[coordinatorHeaderStyle.box, first ? {} : { marginTop: 20 }]}>
+      <Text style={coordinatorHeaderStyle.text}>{`רכזת: ${coordinator}`}</Text>
+      <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", marginTop: 2 }}>
+        <Text style={[seg, coordinatorHeaderStyle.stats]}>{'סה"כ: '}</Text>
+        <Text style={[seg, coordinatorHeaderStyle.stats]}>{sum((s) => s.total)}</Text>
+        <Text style={[seg, coordinatorHeaderStyle.stats]}>{' | הושלמו: '}</Text>
+        <Text style={[seg, coordinatorHeaderStyle.stats]}>{sum((s) => s.completed)}</Text>
+        <Text style={[seg, coordinatorHeaderStyle.stats]}>{' | בוטלו: '}</Text>
+        <Text style={[seg, coordinatorHeaderStyle.stats]}>{sum((s) => s.cancelled)}</Text>
+      </View>
+    </View>
+  );
+}
 
 export function ClientReportDocument({
   data,
@@ -239,8 +283,18 @@ export function ClientReportDocument({
           // Full mode — lesson table per city
           data.cities.map((cityData, ci) => (
             <View key={ci}>
+              {startsCoordinatorGroup(data.cities, ci) && (
+                <CoordinatorHeader
+                  sections={data.cities}
+                  coordinator={cityData.coordinator!}
+                  first={ci === 0}
+                />
+              )}
               <View
-                style={[cityHeaderStyle.box, ci > 0 ? { marginTop: 14 } : {}]}
+                style={[
+                  cityHeaderStyle.box,
+                  ci > 0 && !startsCoordinatorGroup(data.cities, ci) ? { marginTop: 14 } : {},
+                ]}
               >
                 <Text style={cityHeaderStyle.text}>{cityData.city}</Text>
                 {/* Stats row — row-reverse so each segment positions RTL without mixed bidi strings */}
@@ -363,8 +417,15 @@ export function ClientReportDocument({
               </Text>
             </View>
             {data.cities.map((cityData, i) => (
+              <View key={i}>
+              {startsCoordinatorGroup(data.cities, i) && (
+                <View style={[styles.tableRow, { backgroundColor: "#e0e7ff" }]}>
+                  <Text style={[styles.cell, { width: "100%", fontWeight: 700 }]}>
+                    {`רכזת: ${cityData.coordinator}`}
+                  </Text>
+                </View>
+              )}
               <View
-                key={i}
                 style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}
               >
                 <Text style={[styles.cell, { width: "22%", fontWeight: 700 }]}>
@@ -385,6 +446,7 @@ export function ClientReportDocument({
                 <Text style={[styles.cell, { width: "20%" }]}>
                   {cityData.instructorConfirmed}
                 </Text>
+              </View>
               </View>
             ))}
           </View>
