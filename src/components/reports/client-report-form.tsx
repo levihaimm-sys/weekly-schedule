@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { DAYS_SHORT } from "@/lib/utils/constants";
-import { getClientReportData, ClientReportData } from "@/lib/actions/reports";
+import { getClientReportData, ClientReportData, ClientReportLesson } from "@/lib/actions/reports";
+import { compareCoordinators } from "@/lib/utils/client-report";
 import { Loader2, Download, Printer } from "lucide-react";
 
 const MONTHS = [
@@ -93,17 +94,31 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
     }
   }
 
-  // Group lessons by city
-  const byCity = report
-    ? report.lessons.reduce(
-        (acc, lesson) => {
-          if (!acc[lesson.city]) acc[lesson.city] = [];
-          acc[lesson.city].push(lesson);
-          return acc;
-        },
-        {} as Record<string, typeof report.lessons>
+  // Group lessons by city — or by coordinator, then city, for clients that have coordinators
+  type CityGroup = { coordinator: string | undefined; city: string; lessons: ClientReportLesson[] };
+  const groups: CityGroup[] | null = report
+    ? [
+        ...report.lessons
+          .reduce((acc, lesson) => {
+            const key = `${lesson.coordinator ?? ""}\u0000${lesson.city}`;
+            if (!acc.has(key)) acc.set(key, { coordinator: lesson.coordinator, city: lesson.city, lessons: [] });
+            acc.get(key)!.lessons.push(lesson);
+            return acc;
+          }, new Map<string, CityGroup>())
+          .values(),
+      ].sort(
+        (a, b) =>
+          compareCoordinators(a.coordinator ?? "", b.coordinator ?? "") || a.city.localeCompare(b.city, "he")
       )
     : null;
+  const startsCoordinator = (i: number) =>
+    !!groups &&
+    groups[i].coordinator !== undefined &&
+    (i === 0 || groups[i - 1].coordinator !== groups[i].coordinator);
+  const coordinatorStats = (coordinator: string) => {
+    const own = (groups ?? []).filter((g) => g.coordinator === coordinator).flatMap((g) => g.lessons);
+    return `${own.length} שיעורים | ${own.filter((l) => l.status === "completed").length} הושלמו | ${own.filter((l) => l.status === "cancelled").length} בוטלו`;
+  };
 
   return (
     <div className="space-y-4">
@@ -201,16 +216,20 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
       )}
 
       {/* Report */}
-      {report && byCity && (
+      {report && groups && (
         <div className="space-y-4">
           {/* Total summary cards */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className={`grid grid-cols-2 gap-3 ${showSigs ? "sm:grid-cols-5" : "sm:grid-cols-3"}`}>
             {[
               { label: 'סה"כ שיעורים', value: report.total, color: "text-foreground" },
               { label: "הושלמו", value: report.completed, color: "text-green-600" },
               { label: "בוטלו", value: report.cancelled, color: "text-red-500" },
-              { label: "אישורי גננת", value: report.teacherConfirmed, color: "text-emerald-600" },
-              { label: "אישורי מדריכה", value: report.instructorConfirmed, color: "text-blue-600" },
+              ...(showSigs
+                ? [
+                    { label: "אישורי גננת", value: report.teacherConfirmed, color: "text-emerald-600" },
+                    { label: "אישורי מדריכה", value: report.instructorConfirmed, color: "text-blue-600" },
+                  ]
+                : []),
             ].map((item) => (
               <div key={item.label} className="rounded-xl border border-border bg-muted/30 p-3 text-center">
                 <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
@@ -229,25 +248,35 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
                     <th className="px-4 py-3 text-center">סה"כ</th>
                     <th className="px-4 py-3 text-center">הושלמו</th>
                     <th className="px-4 py-3 text-center">בוטלו</th>
-                    <th className="px-4 py-3 text-center">אישורי גננת</th>
-                    <th className="px-4 py-3 text-center">אישורי מדריכה</th>
+                    {showSigs && <th className="px-4 py-3 text-center">אישורי גננת</th>}
+                    {showSigs && <th className="px-4 py-3 text-center">אישורי מדריכה</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {Object.entries(byCity).map(([city, lessons]) => {
+                  {groups.map(({ coordinator, city, lessons }, gi) => {
                     const cityCompleted = lessons.filter((l) => l.status === "completed").length;
                     const cityCancelled = lessons.filter((l) => l.status === "cancelled").length;
                     const cityTeacher = lessons.filter((l) => l.signerRole === "teacher").length;
                     const cityInstructor = lessons.filter((l) => l.signerRole === "instructor").length;
                     return (
-                      <tr key={city} className="hover:bg-muted/20">
-                        <td className="px-4 py-2.5 font-semibold">{city}</td>
-                        <td className="px-4 py-2.5 text-center">{lessons.length}</td>
-                        <td className="px-4 py-2.5 text-center font-medium text-green-700">{cityCompleted}</td>
-                        <td className="px-4 py-2.5 text-center font-medium text-red-600">{cityCancelled}</td>
-                        <td className="px-4 py-2.5 text-center">{cityTeacher}</td>
-                        <td className="px-4 py-2.5 text-center">{cityInstructor}</td>
-                      </tr>
+                      <Fragment key={`${coordinator ?? ""}-${city}`}>
+                        {startsCoordinator(gi) && (
+                          <tr className="bg-indigo-900 text-white">
+                            <td colSpan={showSigs ? 6 : 4} className="px-4 py-2.5">
+                              <span className="font-bold">רכזת: {coordinator}</span>
+                              <span className="ms-3 text-xs text-indigo-100">{coordinatorStats(coordinator!)}</span>
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="hover:bg-muted/20">
+                          <td className="px-4 py-2.5 font-semibold">{city}</td>
+                          <td className="px-4 py-2.5 text-center">{lessons.length}</td>
+                          <td className="px-4 py-2.5 text-center font-medium text-green-700">{cityCompleted}</td>
+                          <td className="px-4 py-2.5 text-center font-medium text-red-600">{cityCancelled}</td>
+                          {showSigs && <td className="px-4 py-2.5 text-center">{cityTeacher}</td>}
+                          {showSigs && <td className="px-4 py-2.5 text-center">{cityInstructor}</td>}
+                        </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -256,19 +285,27 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
           ) : (
             // Full mode — per-city sections with lesson tables
             <div className="space-y-5">
-              {Object.entries(byCity).map(([city, lessons]) => {
+              {groups.map(({ coordinator, city, lessons }, gi) => {
                 const cityCompleted = lessons.filter((l) => l.status === "completed").length;
                 const cityCancelled = lessons.filter((l) => l.status === "cancelled").length;
                 const cityTeacher = lessons.filter((l) => l.signerRole === "teacher").length;
                 const cityInstructor = lessons.filter((l) => l.signerRole === "instructor").length;
 
                 return (
-                  <div key={city} className="overflow-hidden rounded-xl border border-border bg-background">
+                  <Fragment key={`${coordinator ?? ""}-${city}`}>
+                  {startsCoordinator(gi) && (
+                    <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl bg-indigo-900 px-4 py-3 text-white ${gi > 0 ? "mt-8" : ""}`}>
+                      <span className="text-lg font-bold">רכזת: {coordinator}</span>
+                      <span className="text-xs text-indigo-100">{coordinatorStats(coordinator!)}</span>
+                    </div>
+                  )}
+                  <div className="overflow-hidden rounded-xl border border-border bg-background">
                     {/* City header */}
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-indigo-50 px-4 py-2.5">
                       <span className="font-semibold text-indigo-900">{city}</span>
                       <span className="text-xs text-muted-foreground">
-                        {lessons.length} שיעורים | {cityCompleted} הושלמו | {cityCancelled} בוטלו | {cityTeacher} גננת | {cityInstructor} מדריכה
+                        {lessons.length} שיעורים | {cityCompleted} הושלמו | {cityCancelled} בוטלו
+                        {showSigs && <> | {cityTeacher} גננת | {cityInstructor} מדריכה</>}
                       </span>
                     </div>
                     {/* Lessons table */}
@@ -282,7 +319,7 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
                             <th className="px-3 py-2">גן</th>
                             <th className="px-3 py-2">מדריכה</th>
                             <th className="px-3 py-2">סטטוס</th>
-                            <th className="px-3 py-2">אישור</th>
+                            {showSigs && <th className="px-3 py-2">אישור</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -298,7 +335,7 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
                                   {statusLabel[lesson.status] ?? lesson.status}
                                 </span>
                               </td>
-                              <td className="px-3 py-2">
+                              {showSigs && <td className="px-3 py-2">
                                 {lesson.signerRole === "teacher" ? (
                                   <div className="flex flex-col items-start gap-0.5">
                                     {lesson.signatureUrl && (
@@ -318,13 +355,14 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
                                 ) : (
                                   <span className="text-xs text-muted-foreground/60">—</span>
                                 )}
-                              </td>
+                              </td>}
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
+                  </Fragment>
                 );
               })}
             </div>

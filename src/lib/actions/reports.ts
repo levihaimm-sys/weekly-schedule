@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveLessonClient } from "@/lib/utils/client-name";
+import { coordinatorName, isGroupedByCoordinator } from "@/lib/utils/client-report";
 
 /**
  * The real client for a lesson is whichever recurring_schedule template it was
@@ -33,6 +34,8 @@ export interface ClientReportLesson {
   instructorName: string;
   locationName: string;
   city: string;
+  // Set only for clients whose report is grouped by coordinator (see client-report.ts)
+  coordinator?: string;
   signerRole: "teacher" | "instructor" | null;
   signerName: string | null;
   signatureUrl: string | null;
@@ -59,12 +62,14 @@ export async function getClientReportData(
 
   const { data: recurringRows } = await supabase
     .from("recurring_schedule")
-    .select("id")
+    .select("id, contact_name")
     .eq("client_name", client);
 
   const recurringIds = (recurringRows ?? []).map((r) => r.id);
+  const recurringContact = new Map((recurringRows ?? []).map((r) => [r.id, r.contact_name as string | null]));
+  const groupByCoordinator = isGroupedByCoordinator(client);
 
-  const lessonSelect = `id, lesson_date, start_time, status,
+  const lessonSelect = `id, lesson_date, start_time, status, contact_name, recurring_item_id,
        instructor:instructors!lessons_instructor_id_fkey(full_name),
        location:locations!lessons_location_id_fkey(name, city)`;
 
@@ -126,6 +131,9 @@ export async function getClientReportData(
       instructorName: l.instructor?.full_name ?? "—",
       locationName: l.location?.name ?? "—",
       city: l.location?.city ?? "—",
+      coordinator: groupByCoordinator
+        ? coordinatorName(l.contact_name ?? recurringContact.get(l.recurring_item_id))
+        : undefined,
       signerRole: (sig?.signer_role === "admin" ? "instructor" : sig?.signer_role as "teacher" | "instructor" | null) ?? null,
       signerName: sig?.signer_name ?? null,
       signatureUrl: sig?.signature_url ?? null,
