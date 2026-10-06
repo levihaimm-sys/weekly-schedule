@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MousePointerClick, CheckSquare, Square, X, Plus } from "lucide-react";
 import { DAYS_SHORT, DAYS_HEBREW } from "@/lib/utils/constants";
-import { formatTime, smartSortLessons } from "@/lib/utils/date";
+import { formatTime, lessonGroupKey, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddRecurringLessonDialog, RecurringLessonSeed } from "./add-recurring-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
@@ -533,7 +533,7 @@ export function ScheduleGrid({
             }
             return dayItems.map((item, index) => {
               const prev = index > 0 ? dayItems[index - 1] : null;
-              const showSeparator = prev && prev.instructor?.id !== item.instructor?.id;
+              const showSeparator = prev && lessonGroupKey(prev) !== lessonGroupKey(item);
               const isSelected = selectedIds.has(item.id);
               return (
                 <div key={item.id}>
@@ -589,7 +589,7 @@ export function ScheduleGrid({
                   const sorted = smartSortLessons(byDay[day]);
                   return sorted.map((item, index) => {
                     const prev = index > 0 ? sorted[index - 1] : null;
-                    const showSeparator = prev && prev.instructor?.id !== item.instructor?.id;
+                    const showSeparator = prev && lessonGroupKey(prev) !== lessonGroupKey(item);
                     const isSelected = selectedIds.has(item.id);
                     return (
                       <div key={item.id}>

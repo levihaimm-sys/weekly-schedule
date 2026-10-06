@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { DAYS_SHORT } from "@/lib/utils/constants";
-import { formatTime, smartSortLessons } from "@/lib/utils/date";
+import { formatTime, lessonGroupKey, smartSortLessons } from "@/lib/utils/date";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { X } from "lucide-react";
 
@@ -164,7 +164,7 @@ export function WeeklyOverviewGrid({
                 ) : (
                   dayLessons.map((lesson, index) => {
                     const prevLesson = index > 0 ? dayLessons[index - 1] : null;
-                    const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+                    const showSeparator = prevLesson && lessonGroupKey(prevLesson) !== lessonGroupKey(lesson);
                     return (
                     <div key={lesson.id}>
                       {showSeparator && <div className="border-t-[3px] border-green-500 mb-0.5" />}

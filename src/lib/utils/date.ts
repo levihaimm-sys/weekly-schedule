@@ -114,18 +114,25 @@ export function isHoliday(dateStr: string): boolean {
  * Smart sort: time ascending, group consecutive lessons by the same instructor.
  * For each instructor, their block starts at their earliest lesson time.
  */
+type GroupableLesson = {
+  instructor?: { id: string } | null;
+  location?: { city?: string | null } | null;
+};
+
+/** Group key for a day's lessons: the instructor, or — for unassigned lessons — the city. */
+export function lessonGroupKey(l: GroupableLesson): string {
+  return l.instructor?.id ?? `__none__:${l.location?.city ?? ""}`;
+}
+
 export function smartSortLessons<
-  T extends {
-    start_time: string;
-    instructor?: { id: string } | null;
-  },
+  T extends GroupableLesson & { start_time: string },
 >(lessons: T[]): T[] {
   if (lessons.length <= 1) return lessons;
 
-  // Find earliest time per instructor
+  // Find earliest time per group (instructor, or city when unassigned)
   const earliestByInstructor = new Map<string, string>();
   for (const l of lessons) {
-    const key = l.instructor?.id ?? "__none__";
+    const key = lessonGroupKey(l);
     const current = earliestByInstructor.get(key);
     if (!current || l.start_time < current) {
       earliestByInstructor.set(key, l.start_time);
@@ -133,8 +140,8 @@ export function smartSortLessons<
   }
 
   return [...lessons].sort((a, b) => {
-    const aKey = a.instructor?.id ?? "__none__";
-    const bKey = b.instructor?.id ?? "__none__";
+    const aKey = lessonGroupKey(a);
+    const bKey = lessonGroupKey(b);
     const aGroupTime = earliestByInstructor.get(aKey)!;
     const bGroupTime = earliestByInstructor.get(bKey)!;
 

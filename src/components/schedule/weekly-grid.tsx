@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { DAYS_SHORT, LESSON_STATUS, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
-import { formatTime, smartSortLessons } from "@/lib/utils/date";
+import { formatTime, lessonGroupKey, smartSortLessons } from "@/lib/utils/date";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
@@ -497,7 +497,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                 ) : (
                   dayLessons.map((lesson, index) => {
                     const prevLesson = index > 0 ? dayLessons[index - 1] : null;
-                    const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+                    const showSeparator = prevLesson && lessonGroupKey(prevLesson) !== lessonGroupKey(lesson);
                     const isSelected = selectedIds.has(lesson.id);
                     return (
                       <div key={lesson.id}>
@@ -576,7 +576,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                 ) : (
                   dayLessons.map((lesson, index) => {
                     const prevLesson = index > 0 ? dayLessons[index - 1] : null;
-                    const showSeparator = prevLesson && prevLesson.instructor?.id !== lesson.instructor?.id;
+                    const showSeparator = prevLesson && lessonGroupKey(prevLesson) !== lessonGroupKey(lesson);
                     const isSelected = selectedIds.has(lesson.id);
                     return (
                       <div key={lesson.id}>
