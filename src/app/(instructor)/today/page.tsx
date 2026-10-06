@@ -329,6 +329,7 @@ export default async function TodayPage() {
                     <LessonConfirmButtons
                       lessonId={lesson.id}
                       locationName={lesson.location?.name ?? ""}
+                      locationKey={lesson.location?.id}
                       startTime={lesson.start_time}
                       signature={sigMap[lesson.id] ?? null}
                     />

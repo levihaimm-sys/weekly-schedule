@@ -9,6 +9,7 @@ import { PenLine, Check, CheckCircle, Loader2, XCircle } from "lucide-react";
 interface LessonConfirmButtonsProps {
   lessonId: string;
   locationName: string;
+  locationKey?: string;
   startTime: string;
   signature?: {
     signer_name: string;
@@ -20,6 +21,7 @@ interface LessonConfirmButtonsProps {
 export function LessonConfirmButtons({
   lessonId,
   locationName,
+  locationKey,
   startTime,
   signature,
 }: LessonConfirmButtonsProps) {
@@ -111,6 +113,7 @@ export function LessonConfirmButtons({
       <LessonConfirmDialog
         lessonId={lessonId}
         locationName={locationName}
+        locationKey={locationKey}
         startTime={startTime}
         open={showDialog}
         onClose={() => setShowDialog(false)}

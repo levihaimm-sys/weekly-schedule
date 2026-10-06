@@ -23,7 +23,7 @@ export default async function SignPage({
       `
       id,
       status,
-      location:locations!lessons_location_id_fkey(name, city)
+      location:locations!lessons_location_id_fkey(id, name, city)
     `
     )
     .eq("id", lessonId)
@@ -59,5 +59,11 @@ export default async function SignPage({
 
   const locationName = `${(lesson.location as any)?.name ?? ""} - ${(lesson.location as any)?.city ?? ""}`;
 
-  return <SignaturePad lessonId={lessonId} locationName={locationName} />;
+  return (
+    <SignaturePad
+      lessonId={lessonId}
+      locationName={locationName}
+      locationKey={(lesson.location as any)?.id}
+    />
+  );
 }

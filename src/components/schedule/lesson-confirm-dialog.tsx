@@ -1,13 +1,15 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { uploadSignature } from "@/lib/actions/signatures";
+import { getLastSigner, saveLastSigner } from "@/lib/utils/signer-memory";
 import { Eraser, Check, Loader2, X } from "lucide-react";
 
 interface LessonConfirmDialogProps {
   lessonId: string;
   locationName: string;
+  locationKey?: string;
   startTime: string;
   open: boolean;
   onClose: () => void;
@@ -16,6 +18,7 @@ interface LessonConfirmDialogProps {
 export function LessonConfirmDialog({
   lessonId,
   locationName,
+  locationKey,
   startTime,
   open,
   onClose,
@@ -26,6 +29,12 @@ export function LessonConfirmDialog({
   const [duration, setDuration] = useState(45);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // Prefill the teacher name remembered from the last signature at this location
+  useEffect(() => {
+    if (open && !signerName) setSignerName(getLastSigner(locationKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, locationKey]);
 
   if (!open) return null;
 
@@ -40,8 +49,9 @@ export function LessonConfirmDialog({
     }
 
     setError(null);
+    saveLastSigner(locationKey, signerName);
     const dataUrl = sigRef.current.toDataURL("image/png");
-    
+
     startTransition(async () => {
       const result = await uploadSignature(
         lessonId,

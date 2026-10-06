@@ -1,22 +1,29 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { uploadSignature } from "@/lib/actions/signatures";
+import { getLastSigner, saveLastSigner } from "@/lib/utils/signer-memory";
 import { useRouter } from "next/navigation";
 import { Eraser, Check, Loader2 } from "lucide-react";
 
 interface SignaturePadProps {
   lessonId: string;
   locationName: string;
+  locationKey?: string;
 }
 
-export function SignaturePad({ lessonId, locationName }: SignaturePadProps) {
+export function SignaturePad({ lessonId, locationName, locationKey }: SignaturePadProps) {
   const sigRef = useRef<SignatureCanvas>(null);
   const [signerName, setSignerName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Prefill the teacher name remembered from the last signature at this location
+  useEffect(() => {
+    setSignerName((prev) => prev || getLastSigner(locationKey));
+  }, [locationKey]);
 
   async function handleSave() {
     if (!sigRef.current || sigRef.current.isEmpty()) {
@@ -30,6 +37,7 @@ export function SignaturePad({ lessonId, locationName }: SignaturePadProps) {
 
     setLoading(true);
     setError(null);
+    saveLastSigner(locationKey, signerName);
 
     const dataUrl = sigRef.current.toDataURL("image/png");
     const result = await uploadSignature(lessonId, signerName, dataUrl);
