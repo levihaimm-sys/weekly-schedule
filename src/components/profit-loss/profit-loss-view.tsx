@@ -11,6 +11,7 @@ import {
   updateOfficeWorker,
   setOfficeWorkerHours,
   setInvoiceSent,
+  setInvoiceOverride,
   addFixedExpense,
   deleteFixedExpense,
 } from "@/lib/actions/profit-loss";
@@ -86,6 +87,7 @@ interface Props {
   officeWorkers: OfficeWorker[];
   officeHours: { worker_id: string; hours: number }[];
   invoicesSent: string[];
+  invoiceOverrides: { client_name: string; city: string; activity_count: number }[];
   year: number;
   month: number;
   monthLabel: string;
@@ -189,7 +191,7 @@ const TD_LABEL = "px-3 py-1.5 whitespace-nowrap";
 function computeReport(
   {
     lessons, payRates, payExceptions, bonuses, clientRates, clientExceptions,
-    adjustments, settings, overrides, fixedExpenses, officeWorkers, officeHours,
+    adjustments, settings, overrides, fixedExpenses, officeWorkers, officeHours, invoiceOverrides,
   }: Props,
   f: Filters
 ) {
@@ -401,9 +403,19 @@ function computeReport(
       operatorMap.get(k)!.push(r);
     }
 
+    // Invoice count corrections are per client × city, so they only hold when the view
+    // isn't narrowed down to some of the instructors working there.
+    const invoiceOverridesApply =
+      !f.instructorId && !f.employment && !f.onlyOverridden && !f.onlyMissingRate;
+    const invoiceOverrideMap = new Map(
+      invoiceOverrides.map((o) => [`${o.client_name}__${o.city}`, Number(o.activity_count)])
+    );
+
     const operators = [...operatorMap.entries()].map(([k, rs]) => {
       const rate = clientRateMap.get(k);
-      const activities = rs.reduce((s, r) => s + r.activityCount, 0);
+      const rowActivities = rs.reduce((s, r) => s + r.activityCount, 0);
+      const invoiceOverride = invoiceOverridesApply ? invoiceOverrideMap.get(k) ?? null : null;
+      const activities = invoiceOverride ?? rowActivities;
       let income = 0;
       if (rate?.billing_mode === "fixed_monthly") {
         income = activities > 0 ? Number(rate.fixed_monthly_amount) : 0;
@@ -425,6 +437,8 @@ function computeReport(
         clientName: rs[0].clientName,
         city: rs[0].city,
         rate,
+        rowActivities,
+        invoiceOverride,
         activities,
         income,
         expenses,
@@ -1785,6 +1799,12 @@ function InvoicesTab({
     return `₪${money(Number(c.rate.rate_per_lesson))}`;
   }
 
+  function saveCount(c: Data["operators"][number], v: number | null) {
+    // Typing back the instructor-rows value clears the correction.
+    const count = v === null || v === c.rowActivities ? null : Math.max(0, Math.round(v));
+    run(setInvoiceOverride(c.clientName, c.city, year, month, count));
+  }
+
   function exportInvoice(inv: Data["invoices"][number]) {
     const lines: (string | number)[][] = [
       [`${inv.clientName} - ${monthLabel}`],
@@ -1829,7 +1849,8 @@ function InvoicesTab({
       </div>
       <p className="text-xs text-muted-foreground">
         {`ריכוז לחשבונית לכל לקוח, לפי עיר. הכמויות מבוססות על
-        החתימות כולל תיקונים ידניים; התעריפים מגיעים ממסך תשלום לקוחות. סה"כ כל החשבוניות: ₪${money(grand)}`}
+        החתימות כולל תיקונים ידניים, וניתן לתקן אותן כאן לחשבונית בלבד (ערך מתוקן מסומן בכתום; מחיקה מחזירה לחישוב).
+        התעריפים מגיעים ממסך תשלום לקוחות. סה"כ כל החשבוניות: ₪${money(grand)}`}
       </p>
       {invoices.map((inv) => {
         const isSent = sent.has(inv.clientName);
@@ -1891,7 +1912,27 @@ function InvoicesTab({
               {inv.cities.map((c) => (
                 <tr key={c.key} className="border-b border-border/50">
                   <td className={TD_LABEL}>{c.city || "—"}</td>
-                  <td className={TD}>{c.activities}</td>
+                  <td className={TD}>
+                    <span className="inline-flex items-center gap-1">
+                      <NumberCell
+                        value={c.activities}
+                        width="w-14"
+                        highlight={c.invoiceOverride !== null}
+                        title={`לפי פירוט מדריכים: ${c.rowActivities}`}
+                        onSave={(v) => saveCount(c, v)}
+                      />
+                      {c.invoiceOverride !== null && (
+                        <button
+                          type="button"
+                          title={`חזרה לפירוט מדריכים (${c.rowActivities})`}
+                          onClick={() => saveCount(c, null)}
+                          className="text-muted-foreground hover:text-orange-700"
+                        >
+                          <RotateCcw size={12} />
+                        </button>
+                      )}
+                    </span>
+                  </td>
                   <td className={`${TD} ${!c.rate ? "text-red-600" : ""}`}>{rateLabel(c)}</td>
                   <td className={TD}>₪{money(c.income)}</td>
                 </tr>

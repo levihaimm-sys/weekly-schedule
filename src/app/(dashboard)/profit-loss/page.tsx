@@ -97,6 +97,7 @@ export default async function ProfitLossPage({
     officeWorkersRes,
     officeHoursRes,
     invoiceStatusRes,
+    invoiceOverridesRes,
   ] = await Promise.all([
     loadLessons(),
     (async () => {
@@ -153,6 +154,11 @@ export default async function ProfitLossPage({
     admin
       .from("pl_invoice_status")
       .select("client_name")
+      .eq("year", year)
+      .eq("month", month),
+    admin
+      .from("pl_invoice_overrides")
+      .select("client_name, city, activity_count")
       .eq("year", year)
       .eq("month", month),
   ]);
@@ -215,6 +221,7 @@ export default async function ProfitLossPage({
         officeWorkers={officeWorkersRes.data ?? []}
         officeHours={officeHoursRes.data ?? []}
         invoicesSent={(invoiceStatusRes.data ?? []).map((r) => r.client_name)}
+        invoiceOverrides={invoiceOverridesRes.data ?? []}
         year={year}
         month={month}
         monthLabel={monthLabel}

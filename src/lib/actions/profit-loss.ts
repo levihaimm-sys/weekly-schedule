@@ -158,6 +158,32 @@ export async function setInvoiceSent(
   return { success: true };
 }
 
+// Billed activity count on the client invoice. Pass null to fall back to the instructor rows.
+export async function setInvoiceOverride(
+  clientName: string,
+  city: string,
+  year: number,
+  month: number,
+  activityCount: number | null
+) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const match = { client_name: clientName, city, year, month };
+  const { error } =
+    activityCount === null
+      ? await supabase.from("pl_invoice_overrides").delete().match(match)
+      : await supabase.from("pl_invoice_overrides").upsert(
+          { ...match, activity_count: activityCount, updated_at: new Date().toISOString() },
+          { onConflict: "client_name,city,year,month" }
+        );
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 export async function addFixedExpense(
   label: string,
   amount: number,
