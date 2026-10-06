@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { X, Loader2, Trash2, Copy, Search, ChevronDown, UserMinus } from "lucide-react";
-import { updateLesson, updateRecurringSchedule, applyPermanentChange, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest, createLocation } from "@/lib/actions/schedule";
+import { updateLesson, updateRecurringSchedule, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest, createLocation } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 
@@ -42,15 +42,10 @@ interface LessonEditDialogProps {
   mode: "lesson" | "recurring";
   open: boolean;
   onClose: () => void;
-  // Skips the permanent/temporary chooser in favor of a single one-time-change
-  // confirmation — used by screens that shouldn't be able to touch the recurring master.
-  hideScopeChoice?: boolean;
   // Shows a "duplicate" button that hands the current item back to the caller (which opens an
   // add/duplicate dialog prefilled with it) instead of editing in place.
   onDuplicate?: () => void;
 }
-
-type SaveScope = null | "temporary" | "permanent";
 
 export function LessonEditDialog({
   item,
@@ -59,13 +54,13 @@ export function LessonEditDialog({
   mode,
   open,
   onClose,
-  hideScopeChoice,
   onDuplicate,
 }: LessonEditDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scopeChoice, setScopeChoice] = useState<SaveScope>(null);
+  // Save confirmation: lesson mode is always a one-time change, recurring mode is always permanent.
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAbsenceRemoval, setShowAbsenceRemoval] = useState(false);
   const [showAbsenceReport, setShowAbsenceReport] = useState(false);
@@ -155,7 +150,7 @@ export function LessonEditDialog({
     setLoading(false);
   }
 
-  async function handleSave(scope?: "temporary" | "permanent") {
+  async function handleSave(confirmed = false) {
     // Extended fields (address, coordinator, framework, etc.) are editable for any lesson-mode
     // item, not just ones linked to a recurring template — they live on the recurring_schedule
     // row when linked, or directly on the lesson row for a one-off lesson. Either way, saving
@@ -205,10 +200,10 @@ export function LessonEditDialog({
           status !== (item.status ?? "scheduled") ||
           changeNotes !== (item.change_notes ?? "")));
 
-    // For lesson mode: first click shows scope dialog (only when instructor/time/status/etc.
-    // actually changed), second click saves
-    if (mode === "lesson" && !scope && otherFieldsChanged) {
-      setScopeChoice("temporary"); // show scope chooser
+    // First click shows the confirmation (lesson mode: only when instructor/time/status/etc.
+    // actually changed), the confirm button saves
+    if (!confirmed && (mode === "recurring" || otherFieldsChanged)) {
+      setShowSaveConfirm(true);
       return;
     }
 
@@ -315,22 +310,7 @@ export function LessonEditDialog({
           setLoading(false);
           return;
         }
-      } else if (scope === "permanent") {
-        // Permanent change from weekly view: update recurring + all future lessons
-        const result = await applyPermanentChange(
-          item.recurring_item_id!,
-          item.id,
-          {
-            instructor_id: instructorId || null,
-            start_time: startTime ? `${startTime}:00` : undefined,
-          }
-        );
-        if (result.error) {
-          setError(result.error);
-          setLoading(false);
-          return;
-        }
-      } else if (scope === "temporary" || otherFieldsChanged) {
+      } else if (otherFieldsChanged) {
         // Temporary change: update only this lesson instance
         const result = await updateLesson(item.id, {
           instructor_id: instructorId || null,
@@ -471,21 +451,23 @@ export function LessonEditDialog({
     );
   }
 
-  // One-time-change confirmation (screens that hide the permanent/temporary choice)
-  if (scopeChoice !== null && mode === "lesson" && hideScopeChoice) {
+  // Save confirmation: weekly view = this lesson only, fixed schedule = permanent
+  if (showSaveConfirm) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSaveConfirm(false)}>
         <div className="mx-4 w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <h3 className="text-lg font-bold">שינוי חד פעמי בלבד</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            השינוי יחול רק על השיעור הזה. בשבוע הבא הוא יחזור ללוח הקבוע.
+          <h3 className="text-lg font-bold">{mode === "recurring" ? "שינוי קבוע" : "שינוי זמני"}</h3>
+          <p className={`mt-3 rounded-lg p-3 text-sm font-medium ${mode === "recurring" ? "bg-orange-50 text-orange-800" : "bg-blue-50 text-blue-800"}`}>
+            {mode === "recurring"
+              ? "שינוי זה קבוע ויחול על השיעור הזה ועל שבועות קדימה!"
+              : "שינוי זה חל על השיעור הזה בלבד ואינו קבוע!"}
           </p>
 
           {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
           <div className="mt-4 flex gap-3">
             <button
-              onClick={() => handleSave("temporary")}
+              onClick={() => handleSave(true)}
               disabled={loading}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
@@ -493,67 +475,13 @@ export function LessonEditDialog({
               אישור
             </button>
             <button
-              onClick={() => setScopeChoice(null)}
+              onClick={() => setShowSaveConfirm(false)}
               disabled={loading}
               className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
             >
               ביטול
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Scope chooser dialog (permanent vs temporary)
-  if (scopeChoice !== null && mode === "lesson") {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-        <div className="mx-4 w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <h3 className="text-lg font-bold">סוג השינוי</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            האם לעדכן רק את השיעור הזה או לשנות את הלוח הקבוע?
-          </p>
-
-          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-
-          <div className="mt-4 space-y-3">
-            <button
-              onClick={() => handleSave("temporary")}
-              disabled={loading}
-              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              <div className="font-bold">שינוי זמני</div>
-              <div className="text-xs text-muted-foreground">
-                רק לשבוע הזה. בשבוע הבא יחזור ללוח הקבוע
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleSave("permanent")}
-              disabled={loading || !item.recurring_item_id}
-              className="w-full rounded-lg border-2 border-secondary bg-secondary/5 px-4 py-3 text-sm font-medium transition-colors hover:bg-secondary/10 disabled:opacity-50"
-            >
-              <div className="font-bold text-[#1C1917]">שינוי קבוע</div>
-              <div className="text-xs text-muted-foreground">
-                ישנה את הלוח הקבוע ואת כל השיעורים העתידיים
-              </div>
-            </button>
-          </div>
-
-          <button
-            onClick={() => setScopeChoice(null)}
-            className="mt-3 w-full rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-          >
-            חזור
-          </button>
-
-          {loading && (
-            <div className="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Loader2 size={14} className="animate-spin" />
-              שומר...
-            </div>
-          )}
         </div>
       </div>
     );
