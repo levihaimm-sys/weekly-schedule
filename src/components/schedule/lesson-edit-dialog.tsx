@@ -23,6 +23,7 @@ interface LessonData {
   contact_name?: string | null;
   instructor_absence_request?: boolean;
   instructor_request_type?: string | null;
+  instructor_request_handled?: boolean;
   instructor_notes?: string | null;
   framework?: string | null;
   framework_name?: string | null;
@@ -62,7 +63,6 @@ export function LessonEditDialog({
   // Save confirmation: lesson mode is always a one-time change, recurring mode is always permanent.
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showAbsenceRemoval, setShowAbsenceRemoval] = useState(false);
   const [showAbsenceReport, setShowAbsenceReport] = useState(false);
   const [absenceNote, setAbsenceNote] = useState("");
   const [absenceLoading, setAbsenceLoading] = useState(false);
@@ -326,12 +326,9 @@ export function LessonEditDialog({
         }
       }
 
+      // Saving changes on an absence lesson marks it handled → shows as "השלמת חיסור".
       router.refresh();
-      if (item.instructor_absence_request) {
-        setShowAbsenceRemoval(true);
-      } else {
-        onClose();
-      }
+      onClose();
     } catch {
       setError("שגיאה בשמירה");
     }
@@ -366,43 +363,6 @@ export function LessonEditDialog({
     }
     router.refresh();
     onClose();
-  }
-
-  // Absence removal prompt (shown after saving changes to an absence-tagged lesson)
-  if (showAbsenceRemoval) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="mx-4 w-full max-w-sm rounded-xl bg-background p-6 shadow-2xl">
-          <h3 className="text-lg font-bold text-orange-700">הסרת תגית חיסור</h3>
-          <p className="mt-3 text-sm text-muted-foreground">
-            השיעור עודכן בהצלחה. האם להסיר את תגית החיסור מהשיעור?
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            השיעור יסומן כשינוי במקום חיסור.
-          </p>
-
-          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={handleRemoveAbsence}
-              disabled={loading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
-            >
-              {loading && <Loader2 size={14} className="animate-spin" />}
-              הסר תגית חיסור
-            </button>
-            <button
-              onClick={() => { router.refresh(); onClose(); }}
-              disabled={loading}
-              className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              השאר כחיסור
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   // Delete confirmation dialog
@@ -841,13 +801,25 @@ export function LessonEditDialog({
                   exactly like when the instructor submits it herself from her app. */}
               <div>
                 {item.instructor_absence_request || absenceReported ? (
-                  <div className="rounded-xl bg-warning/10 px-3 py-2">
-                    <span className="text-sm font-bold text-foreground">
-                      📢 {item.instructor_request_type === "absence" || absenceReported ? "חיסור צפוי" : "בקשה"} נשלחה
-                    </span>
-                    {item.instructor_notes && (
-                      <span className="text-sm font-medium text-foreground/80"> - {item.instructor_notes}</span>
-                    )}
+                  <div className="flex items-center gap-2 rounded-xl bg-warning/10 px-3 py-2">
+                    <div className="flex-1">
+                      <span className="text-sm font-bold text-foreground">
+                        {item.instructor_request_handled && item.instructor_request_type !== "lateness" && item.instructor_request_type !== "other"
+                          ? "✅ השלמת חיסור"
+                          : `📢 ${item.instructor_request_type === "absence" || absenceReported ? "חיסור צפוי" : "בקשה"} נשלחה`}
+                      </span>
+                      {item.instructor_notes && (
+                        <span className="text-sm font-medium text-foreground/80"> - {item.instructor_notes}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveAbsence}
+                      disabled={loading}
+                      className="shrink-0 text-xs font-medium text-muted-foreground underline hover:text-foreground disabled:opacity-50"
+                    >
+                      בטל חיסור
+                    </button>
                   </div>
                 ) : !showAbsenceReport ? (
                   <button

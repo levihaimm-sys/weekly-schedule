@@ -720,6 +720,7 @@ export async function submitInstructorRequest(
       instructor_absence_request: true,
       instructor_request_type: requestType,
       instructor_notes: notes || null,
+      instructor_request_handled: false,
     })
     .eq("id", lessonId);
 
@@ -730,6 +731,44 @@ export async function submitInstructorRequest(
   revalidatePath("/dashboard");
   revalidatePath("/my-schedule");
   revalidatePath("/confirm-lessons");
+
+  return { success: true };
+}
+
+/**
+ * Admin marks several lessons as absences at once (from multi-select).
+ */
+export async function bulkMarkAbsence(lessonIds: string[], notes?: string) {
+  const supabase = await createClient();
+
+  const admin = createAdminClient();
+  const before = await captureUndo(admin, { lessonIds });
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      instructor_absence_request: true,
+      instructor_request_type: "absence",
+      instructor_notes: notes?.trim() || null,
+      instructor_request_handled: false,
+    })
+    .in("id", lessonIds);
+
+  if (error) {
+    return { error: "שגיאה בסימון חיסור: " + error.message };
+  }
+
+  await commitUndo(
+    admin,
+    lessonIds.length === 1 ? "סימון חיסור" : `סימון חיסור ל-${lessonIds.length} שיעורים`,
+    before,
+    { lessonIds }
+  );
+
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
 
   return { success: true };
 }
@@ -1440,13 +1479,6 @@ export async function bulkUpdateLessons(
 
   const finalUpdates: Record<string, any> = { ...updates, is_one_time_change: true };
 
-  // Reassigning the instructor or moving the lesson to a different day resolves
-  // a pending absence — clear the flags so it no longer shows as an absence.
-  if (updates.instructor_id !== undefined || updates.lesson_date !== undefined) {
-    finalUpdates.instructor_absence_request = false;
-    finalUpdates.instructor_request_handled = false;
-  }
-
   const admin = createAdminClient();
   const before = await captureUndo(admin, { lessonIds });
 
@@ -1457,6 +1489,16 @@ export async function bulkUpdateLessons(
 
   if (error) {
     return { error: "שגיאה בעדכון שיעורים: " + error.message };
+  }
+
+  // Assigning a substitute or moving the lesson to another day resolves a pending
+  // absence — mark it handled so it shows as a make-up (השלמת חיסור).
+  if (updates.instructor_id || updates.lesson_date) {
+    await supabase
+      .from("lessons")
+      .update({ instructor_request_handled: true })
+      .in("id", lessonIds)
+      .eq("instructor_absence_request", true);
   }
 
   await commitUndo(
@@ -1802,6 +1844,7 @@ export async function clearInstructorRequest(lessonId: string) {
 
   revalidatePath("/dashboard");
   revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
 
   return { success: true };
 }

@@ -9,7 +9,7 @@ import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
-import { bulkUpdateLessons, bulkDeleteLessons, createLocation } from "@/lib/actions/schedule";
+import { bulkUpdateLessons, bulkDeleteLessons, bulkMarkAbsence, createLocation } from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 
 interface WeeklyLesson {
@@ -55,8 +55,26 @@ interface WeeklyGridProps {
   currentFilters?: { cities?: string[]; instructors?: string[]; changesOnly?: boolean };
 }
 
+// An absence that was resolved (substitute assigned / moved) — a make-up lesson.
+function isMakeup(lesson: WeeklyLesson) {
+  return (
+    !!lesson.instructor_absence_request &&
+    !!lesson.instructor_request_handled &&
+    (!lesson.instructor_request_type || lesson.instructor_request_type === "absence")
+  );
+}
+
+function MakeupTag() {
+  return (
+    <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">
+      השלמת חיסור
+    </span>
+  );
+}
+
 function getLessonBorderClass(lesson: WeeklyLesson, selected?: boolean) {
   if (selected) return "border-blue-400 bg-blue-50/60 ring-2 ring-blue-300";
+  if (isMakeup(lesson)) return "border-violet-300 bg-violet-50/40";
   if (lesson.instructor_absence_request && lesson.instructor_request_handled) {
     return "border-yellow-300 bg-yellow-50/50";
   }
@@ -70,7 +88,7 @@ function getLessonBorderClass(lesson: WeeklyLesson, selected?: boolean) {
 }
 
 function RequestBadge({ lesson }: { lesson: WeeklyLesson }) {
-  if (!lesson.instructor_absence_request) return null;
+  if (!lesson.instructor_absence_request || isMakeup(lesson)) return null;
   const reqType = lesson.instructor_request_type as keyof typeof INSTRUCTOR_REQUEST_TYPES | null;
   const handled = lesson.instructor_request_handled;
 
@@ -93,6 +111,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [localInstructors, setLocalInstructors] = usePersistedState<string[]>("weekly-tiles-instructors", currentFilters?.instructors ?? []);
   const [localClients, setLocalClients] = usePersistedState<string[]>("weekly-tiles-clients", []);
   const [localChangesOnly, setLocalChangesOnly] = usePersistedState<boolean>("weekly-tiles-changes-only", currentFilters?.changesOnly ?? false);
+  const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
@@ -110,19 +129,21 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   }, [allLessons, instructors]);
 
   const hasActiveFilters =
-    localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly;
+    localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly || localMakeupsOnly;
 
   function clearFilters() {
     setLocalCities([]);
     setLocalInstructors([]);
     setLocalClients([]);
     setLocalChangesOnly(false);
+    setLocalMakeupsOnly(false);
   }
 
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<"instructor" | "location" | "status" | "time" | "notes" | "date" | "delete" | null>(null);
+  const [bulkAction, setBulkAction] = useState<"absence" | "instructor" | "location" | "status" | "time" | "notes" | "date" | "delete" | null>(null);
+  const [bulkAbsenceNote, setBulkAbsenceNote] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkInstructorId, setBulkInstructorId] = useState("");
   const [bulkLocationId, setBulkLocationId] = useState("");
@@ -181,6 +202,18 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       return;
     }
 
+    if (bulkAction === "absence") {
+      const result = await bulkMarkAbsence(ids, bulkAbsenceNote);
+      setBulkLoading(false);
+      if (!result.error) {
+        setBulkAbsenceNote("");
+        clearSelection();
+        setSelectMode(false);
+        router.refresh();
+      }
+      return;
+    }
+
     let updates: Parameters<typeof bulkUpdateLessons>[1] = {};
     if (bulkAction === "instructor") {
       updates = { instructor_id: bulkInstructorId || null };
@@ -229,13 +262,16 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
         (l) => l.change_notes || l.instructor_absence_request || l.status !== "scheduled"
       );
     }
+    if (localMakeupsOnly) {
+      filtered = filtered.filter(isMakeup);
+    }
     const byDay: Record<string, WeeklyLesson[]> = {};
     for (const dateStr of weekDates) byDay[dateStr] = [];
     for (const lesson of filtered) {
       if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
     }
     return byDay;
-  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly]);
+  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly]);
 
   return (
     <>
@@ -277,6 +313,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           >
             שינויים
           </button>
+          <button
+            type="button"
+            onClick={() => setLocalMakeupsOnly((prev) => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              localMakeupsOnly
+                ? "border-violet-300 bg-violet-50 text-violet-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            השלמות
+          </button>
           {/* Multi-select toggle */}
           <button
             type="button"
@@ -312,6 +359,16 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           <div className="flex flex-wrap gap-2 mr-auto">
             {selectedIds.size > 0 && (
               <>
+                <button
+                  onClick={() => setBulkAction("absence")}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    bulkAction === "absence"
+                      ? "border-orange-400 bg-orange-100 text-orange-700"
+                      : "border-orange-300 bg-background text-orange-600 hover:bg-orange-50"
+                  }`}
+                >
+                  סמן חיסור
+                </button>
                 {(["instructor", "location", "status", "time", "date", "notes"] as const).map((action) => (
                   <button
                     key={action}
@@ -346,6 +403,22 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           </div>
 
           {/* Bulk action controls */}
+          {bulkAction === "absence" && (
+            <div className="flex w-full items-center gap-2 mt-2">
+              <input
+                type="text"
+                value={bulkAbsenceNote}
+                onChange={(e) => setBulkAbsenceNote(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") executeBulkAction(); }}
+                placeholder="סיבה (לא חובה)..."
+                autoFocus
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <BulkApplyButton loading={bulkLoading} onClick={executeBulkAction} />
+              <BulkCancelButton onClick={() => setBulkAction(null)} />
+            </div>
+          )}
+
           {bulkAction === "instructor" && (
             <div className="flex w-full items-center gap-2 mt-2">
               <div className="flex-1">
@@ -604,6 +677,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                               >
                                 {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
                               </span>
+                              {isMakeup(lesson) && <MakeupTag />}
                               {selectMode && (
                                 isSelected
                                   ? <CheckSquare size={14} className="text-blue-600 shrink-0" />
@@ -756,6 +830,7 @@ function MobileLessonCard({
           >
             {LESSON_STATUS[lesson.status as keyof typeof LESSON_STATUS] ?? lesson.status}
           </span>
+          {isMakeup(lesson) && <MakeupTag />}
           {selectMode && (
             selected
               ? <CheckSquare size={18} className="text-blue-600 shrink-0" />
