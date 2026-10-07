@@ -106,6 +106,11 @@ export async function idsWithPastLessons(admin: Admin, recurringIds: string[], t
 export interface UndoScope {
   recurringIds?: string[];
   lessonIds?: string[];
+  /**
+   * Only snapshot lessons of `recurringIds` dated on/after this day. Use it when the change can't
+   * touch earlier lessons — saves fetching a row's whole history on every edit.
+   */
+  since?: string;
 }
 
 export interface UndoSnapshot {
@@ -113,31 +118,41 @@ export interface UndoSnapshot {
   lessons: Row[];
 }
 
-async function fetchScope(admin: Admin, scope: UndoScope): Promise<UndoSnapshot> {
+async function fetchScope(admin: Admin, scope: UndoScope, columns = "*"): Promise<UndoSnapshot> {
   const recurringIds = [...new Set(scope.recurringIds ?? [])];
   const lessonIds = [...new Set(scope.lessonIds ?? [])];
 
-  const recurring: Row[] = [];
-  for (const ids of chunk(recurringIds)) {
-    const { data, error } = await admin.from("recurring_schedule").select("*").in("id", ids);
-    if (error) throw new Error(error.message);
-    recurring.push(...(data ?? []));
-  }
+  const recurringTask = Promise.all(
+    chunk(recurringIds).map(async (ids) => {
+      const { data, error } = await admin.from("recurring_schedule").select(columns).in("id", ids);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as Row[];
+    })
+  );
 
+  const byRecurringTask = Promise.all(
+    chunk(recurringIds).map((ids) =>
+      selectPaged((from, to) => {
+        let q = admin.from("lessons").select(columns).in("recurring_item_id", ids);
+        if (scope.since) q = q.gte("lesson_date", scope.since);
+        return q.order("id").range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: any }>;
+      })
+    )
+  );
+
+  const byIdTask = Promise.all(
+    chunk(lessonIds).map(async (ids) => {
+      const { data, error } = await admin.from("lessons").select(columns).in("id", ids);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as Row[];
+    })
+  );
+
+  const [recurring, byRecurring, byId] = await Promise.all([recurringTask, byRecurringTask, byIdTask]);
   const lessonsById = new Map<string, Row>();
-  for (const ids of chunk(recurringIds)) {
-    const rows = await selectPaged((from, to) =>
-      admin.from("lessons").select("*").in("recurring_item_id", ids).order("id").range(from, to)
-    );
-    for (const r of rows) lessonsById.set(r.id, r);
-  }
-  for (const ids of chunk(lessonIds)) {
-    const { data, error } = await admin.from("lessons").select("*").in("id", ids);
-    if (error) throw new Error(error.message);
-    for (const r of data ?? []) lessonsById.set(r.id, r);
-  }
+  for (const r of [...byRecurring.flat(), ...byId.flat()]) lessonsById.set(r.id, r);
 
-  return { recurring, lessons: [...lessonsById.values()] };
+  return { recurring: recurring.flat(), lessons: [...lessonsById.values()] };
 }
 
 /** Snapshot the rows a change is about to touch. Call before the change. */
@@ -152,20 +167,22 @@ export async function captureUndo(admin: Admin, scope: UndoScope): Promise<UndoS
  */
 export async function commitUndo(admin: Admin, label: string, before: UndoSnapshot, scope: UndoScope) {
   try {
-    const after = await fetchScope(admin, scope);
+    // Only ids are needed here (to spot rows the change created), not full rows.
+    const after = await fetchScope(admin, scope, "id");
     const beforeRecurring = new Set(before.recurring.map((r) => r.id));
     const beforeLessons = new Set(before.lessons.map((r) => r.id));
 
-    await admin.from("schedule_undo_log").insert({
-      label,
-      before_recurring: before.recurring,
-      before_lessons: before.lessons,
-      created_recurring_ids: after.recurring.map((r) => r.id).filter((id) => !beforeRecurring.has(id)),
-      created_lesson_ids: after.lessons.map((r) => r.id).filter((id) => !beforeLessons.has(id)),
-    });
-
     const cutoff = new Date(Date.now() - UNDO_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    await admin.from("schedule_undo_log").delete().lt("created_at", cutoff);
+    await Promise.all([
+      admin.from("schedule_undo_log").insert({
+        label,
+        before_recurring: before.recurring,
+        before_lessons: before.lessons,
+        created_recurring_ids: after.recurring.map((r) => r.id).filter((id) => !beforeRecurring.has(id)),
+        created_lesson_ids: after.lessons.map((r) => r.id).filter((id) => !beforeLessons.has(id)),
+      }),
+      admin.from("schedule_undo_log").delete().lt("created_at", cutoff),
+    ]);
   } catch (e) {
     console.error("commitUndo failed:", e);
   }

@@ -243,10 +243,15 @@ export async function updateRecurringSchedule(
   // Changes apply from today onward only. Past lessons read their name/frame/etc. from this
   // row, so freeze them on an archived copy before changing any of those fields.
   const today = getTodayInIsrael();
-  const before = await captureUndo(supabase, { recurringIds: [recurringId] });
+  const needsArchive = templateChanged(current, cleanUpdates);
+  // Past lessons are only touched when archived (re-pointed), so skip snapshotting them otherwise.
+  const before = await captureUndo(supabase, {
+    recurringIds: [recurringId],
+    since: needsArchive ? undefined : today,
+  });
   let archivedIds: string[] = [];
   try {
-    if (templateChanged(current, cleanUpdates)) {
+    if (needsArchive) {
       archivedIds = await archivePastLessons(supabase, [current], today);
     }
   } catch (e) {
@@ -358,7 +363,10 @@ export async function updateRecurringSchedule(
     }
   }
 
-  await commitUndo(supabase, "עריכת שיעור קבוע", before, { recurringIds: [recurringId, ...archivedIds] });
+  await commitUndo(supabase, "עריכת שיעור קבוע", before, {
+    recurringIds: [recurringId, ...archivedIds],
+    since: today,
+  });
 
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly-table");
@@ -450,7 +458,7 @@ export async function bulkDeleteRecurringScheduleItems(recurringItemIds: string[
   const today = getTodayInIsrael();
   const ids = Array.from(new Set(recurringItemIds));
 
-  const before = await captureUndo(supabase, { recurringIds: ids });
+  const before = await captureUndo(supabase, { recurringIds: ids, since: today });
 
   const { error: deleteLessonsError } = await supabase
     .from("lessons")
@@ -490,7 +498,7 @@ export async function bulkDeleteRecurringScheduleItems(recurringItemIds: string[
     supabase,
     ids.length === 1 ? "מחיקת שיעור קבוע" : `מחיקת ${ids.length} שיעורים קבועים`,
     before,
-    { recurringIds: ids }
+    { recurringIds: ids, since: today }
   );
 
   revalidatePath("/schedule/weekly-table");
@@ -1499,12 +1507,18 @@ export async function bulkApplyPermanentChange(
   }
 
   const today = getTodayInIsrael();
-  const before = await captureUndo(supabase, { recurringIds: uniqueIds });
+  const before = await captureUndo(supabase, { recurringIds: uniqueIds, since: today });
 
   // Freeze past lessons of rows whose history-visible fields (manager) are about to change
   let archivedIds: string[] = [];
   try {
     const changedRows = before.recurring.filter((row) => templateChanged(row, cleanUpdates));
+    if (changedRows.length > 0) {
+      // Those rows' past lessons get re-pointed, so the undo snapshot needs them too.
+      const history = await captureUndo(supabase, { recurringIds: changedRows.map((r) => r.id) });
+      const seen = new Set(before.lessons.map((l) => l.id));
+      before.lessons.push(...history.lessons.filter((l) => !seen.has(l.id)));
+    }
     archivedIds = await archivePastLessons(supabase, changedRows, today);
   } catch (e) {
     return { error: (e as Error).message };
@@ -1619,7 +1633,7 @@ export async function bulkApplyPermanentChange(
     supabase,
     uniqueIds.length === 1 ? "עריכת שיעור קבוע" : `עריכת ${uniqueIds.length} שיעורים קבועים`,
     before,
-    { recurringIds: [...uniqueIds, ...archivedIds] }
+    { recurringIds: [...uniqueIds, ...archivedIds], since: today }
   );
 
   revalidatePath("/schedule");
