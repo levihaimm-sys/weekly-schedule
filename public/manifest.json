@@ -3,7 +3,7 @@
   "short_name": "חיים בתנועה",
   "description": "מערכת ניהול פעילויות ספורט ונוכחות",
   "id": "/",
-  "start_url": "/today",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

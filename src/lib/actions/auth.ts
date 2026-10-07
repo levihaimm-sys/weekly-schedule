@@ -27,6 +27,8 @@ export async function loginWithPassword(formData: FormData) {
     return { error: "אימייל או סיסמה שגויים" };
   }
 
+  // Admin signed in on this device — stop treating it as an instructor's phone
+  (await cookies()).delete(REMEMBER_COOKIE);
   redirect("/dashboard");
 }
 

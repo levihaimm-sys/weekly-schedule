@@ -51,7 +51,9 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/today", request.url));
+    // Device signed in through the instructor login → instructor app; otherwise admin
+    const home = request.cookies.has("remember_instructor") ? "/today" : "/dashboard";
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   return supabaseResponse;
