@@ -47,7 +47,7 @@ export function LessonConfirmButtons({
         <span>
           {isTeacher
             ? `אושר ע"י גננת (${optimisticSignature.signer_name})`
-            : "אושר ע\"י המדריכה"}
+            : "אושר ע\"י המדריך/ה"}
         </span>
       </div>
     );
@@ -57,7 +57,7 @@ export function LessonConfirmButtons({
     startTransition(async () => {
       // Show optimistic update immediately
       setOptimisticSignature({
-        signer_name: "מדריכה",
+        signer_name: "מדריך/ה",
         signer_role: "instructor",
         signature_url: null,
       });
@@ -91,7 +91,7 @@ export function LessonConfirmButtons({
           ) : (
             <Check size={14} className="shrink-0" />
           )}
-          אישור מדריכה
+          אישור מדריך/ה
         </button>
         <button
           onClick={() => {

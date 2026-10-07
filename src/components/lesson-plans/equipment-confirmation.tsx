@@ -110,7 +110,7 @@ export function EquipmentConfirmationList({
     startTransition(async () => {
       const instructorId = confirmations[0]?.instructor_id;
       if (!instructorId) {
-        alert("שגיאה: לא נמצא מזהה מדריכה");
+        alert("שגיאה: לא נמצא מזהה מדריך/ה");
         return;
       }
 
@@ -368,7 +368,7 @@ export function EquipmentConfirmationList({
                   value={extraNotes}
                   onChange={(e) => setExtraNotes(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  placeholder="למשל: נשאר מהמדריכה הקודמת"
+                  placeholder="למשל: נשאר מהמדריך/ה הקודם/ת"
                   rows={2}
                   disabled={isPending}
                 />

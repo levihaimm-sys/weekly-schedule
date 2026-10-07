@@ -123,7 +123,7 @@ export async function confirmByInstructor(lessonId: string) {
     .upsert(
       {
         lesson_id: lessonId,
-        signer_name: profile?.display_name ?? "מדריכה",
+        signer_name: profile?.display_name ?? "מדריך/ה",
         signer_role: "instructor",
         signature_url: null,
         signed_at: new Date().toISOString(),
@@ -191,7 +191,7 @@ export async function bulkConfirmByInstructor(lessonIds: string[]) {
     .eq("id", user.id)
     .single();
 
-  const signerName = profile?.display_name ?? "מדריכה";
+  const signerName = profile?.display_name ?? "מדריך/ה";
   const now = new Date().toISOString();
 
   const records = lessonIds.map((lessonId) => ({
@@ -313,7 +313,7 @@ export async function markLessonDidNotHappen(lessonId: string) {
     .from("lessons")
     .update({
       status: "cancelled",
-      change_notes: "לא התקיים - דווח ע״י המדריכה",
+      change_notes: "לא התקיים - דווח ע״י המדריך/ה",
     })
     .eq("id", lessonId);
 

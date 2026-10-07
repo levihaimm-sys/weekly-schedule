@@ -220,8 +220,8 @@ export function BulkConfirmLessons({ lessons, sigMap }: BulkConfirmLessonsProps)
                               <span className="rounded-xl bg-destructive/20 px-2 py-1 text-[10px] font-bold text-destructive">
                                 בוטל
                               </span>
-                              {lesson.change_notes ===
-                                "לא התקיים - דווח ע״י המדריכה" && (
+                              {(lesson.change_notes === "לא התקיים - דווח ע״י המדריך/ה" ||
+                                lesson.change_notes === "לא התקיים - דווח ע״י המדריכה") && (
                                 <UndoCancellationButton lessonId={lesson.id} />
                               )}
                             </div>
