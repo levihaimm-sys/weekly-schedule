@@ -2,13 +2,22 @@
   "name": "חיים בתנועה - ניהול",
   "short_name": "חיים בתנועה",
   "description": "מערכת ניהול פעילויות ספורט ונוכחות",
-  "start_url": "/",
+  "id": "/",
+  "start_url": "/today",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#A3BA8F",
   "dir": "rtl",
   "lang": "he",
   "icons": [
+    {
+      "src": "/pwa-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/pwa-icon.png",
       "sizes": "512x512",
