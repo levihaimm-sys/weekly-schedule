@@ -10,6 +10,7 @@ interface LessonConfirmDialogProps {
   lessonId: string;
   locationName: string;
   locationKey?: string;
+  instructorName?: string;
   startTime: string;
   open: boolean;
   onClose: () => void;
@@ -19,6 +20,7 @@ export function LessonConfirmDialog({
   lessonId,
   locationName,
   locationKey,
+  instructorName,
   startTime,
   open,
   onClose,
@@ -78,8 +80,13 @@ export function LessonConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
       <div className="max-h-[95vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-background p-5 sm:rounded-2xl">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold">אישור שיעור</h3>
+        <div className="mb-4 flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-lg font-bold">
+              אישור קיום שיעור שבוצע ע&quot;י {instructorName}
+            </h3>
+            <p className="text-sm font-medium">בשעה: {startTime.slice(0, 5)}</p>
+          </div>
           <button
             onClick={onClose}
             className="rounded-lg p-1 text-muted-foreground hover:bg-muted"

@@ -10,6 +10,7 @@ interface LessonConfirmButtonsProps {
   lessonId: string;
   locationName: string;
   locationKey?: string;
+  instructorName?: string;
   startTime: string;
   signature?: {
     signer_name: string;
@@ -22,6 +23,7 @@ export function LessonConfirmButtons({
   lessonId,
   locationName,
   locationKey,
+  instructorName,
   startTime,
   signature,
 }: LessonConfirmButtonsProps) {
@@ -114,6 +116,7 @@ export function LessonConfirmButtons({
         lessonId={lessonId}
         locationName={locationName}
         locationKey={locationKey}
+        instructorName={instructorName}
         startTime={startTime}
         open={showDialog}
         onClose={() => setShowDialog(false)}

@@ -330,6 +330,7 @@ export default async function TodayPage() {
                       lessonId={lesson.id}
                       locationName={lesson.location?.name ?? ""}
                       locationKey={lesson.location?.id}
+                      instructorName={profile.display_name ?? ""}
                       startTime={lesson.start_time}
                       signature={sigMap[lesson.id] ?? null}
                     />
