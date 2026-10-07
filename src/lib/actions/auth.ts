@@ -3,6 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+
+// Remembers the instructor's name + phone on the device so the app can sign
+// them back in automatically if the Supabase session is ever lost.
+// Not httpOnly — the instructor-login page reads it to auto-submit.
+// ("use server" files may only export async functions — keep in sync with instructor-login/page.tsx)
+const REMEMBER_COOKIE = "remember_instructor";
+const REMEMBER_MAX_AGE = 60 * 60 * 24 * 400; // ~400 days (browser max)
 
 export async function loginWithPassword(formData: FormData) {
   const email = formData.get("email") as string;
@@ -44,7 +52,10 @@ export async function sendMagicLink(formData: FormData) {
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  const cookieStore = await cookies();
+  const wasInstructor = cookieStore.has(REMEMBER_COOKIE);
+  cookieStore.delete(REMEMBER_COOKIE);
+  redirect(wasInstructor ? "/instructor-login" : "/login");
 }
 
 /**
@@ -173,6 +184,14 @@ export async function loginAsInstructor(formData: FormData) {
     if (signInError) {
       return { error: "שגיאה בהתחברות: " + signInError.message };
     }
+
+    const cookieStore = await cookies();
+    cookieStore.set(REMEMBER_COOKIE, JSON.stringify({ name: fullName, phone }), {
+      maxAge: REMEMBER_MAX_AGE,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
 
     redirect("/today");
   } catch (e: any) {

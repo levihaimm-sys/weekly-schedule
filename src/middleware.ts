@@ -39,7 +39,15 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // Instructors (or a device that remembers an instructor) go to the
+    // instructor login, which signs them back in automatically
+    const isInstructorEntry =
+      pathname === "/" ||
+      INSTRUCTOR_ROUTES.some((route) => pathname.startsWith(route)) ||
+      request.cookies.has("remember_instructor");
+    return NextResponse.redirect(
+      new URL(isInstructorEntry ? "/instructor-login" : "/login", request.url)
+    );
   }
 
   if (pathname === "/") {

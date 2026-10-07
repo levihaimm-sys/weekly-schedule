@@ -1,8 +1,25 @@
 "use client";
 
 import { loginAsInstructor } from "@/lib/actions/auth";
-import { useActionState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { Phone, User } from "lucide-react";
+
+// Set by loginAsInstructor, cleared by logout (see lib/actions/auth.ts)
+const REMEMBER_COOKIE = "remember_instructor";
+
+function readRemembered(): { name: string; phone: string } | null {
+  const raw = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(REMEMBER_COOKIE + "="))
+    ?.slice(REMEMBER_COOKIE.length + 1);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    return parsed?.name && parsed?.phone ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function InstructorLoginPage() {
   const [state, formAction, isPending] = useActionState(
@@ -11,6 +28,30 @@ export default function InstructorLoginPage() {
     },
     null
   );
+  const [remembered, setRemembered] = useState<{ name: string; phone: string } | null>(null);
+  const autoTried = useRef(false);
+
+  // Device was signed in before — log back in silently
+  useEffect(() => {
+    if (autoTried.current) return;
+    autoTried.current = true;
+    const saved = readRemembered();
+    if (!saved) return;
+    setRemembered(saved);
+    const fd = new FormData();
+    fd.set("name", saved.name);
+    fd.set("phone", saved.phone);
+    startTransition(() => formAction(fd));
+  }, [formAction]);
+
+  if (remembered && !state?.error) {
+    return (
+      <div className="rounded-xl border border-border bg-background p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-bold">חיים בתנועה</h1>
+        <p className="mt-4 text-muted-foreground">מתחבר/ת בתור {remembered.name}...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-border bg-background p-8 shadow-sm">
@@ -34,6 +75,7 @@ export default function InstructorLoginPage() {
               name="name"
               type="text"
               required
+              defaultValue={remembered?.name}
               className="w-full rounded-lg border border-border bg-background ps-10 pe-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="הזן את שמך המלא"
             />
@@ -54,6 +96,7 @@ export default function InstructorLoginPage() {
               name="phone"
               type="tel"
               required
+              defaultValue={remembered?.phone}
               dir="ltr"
               className="w-full rounded-lg border border-border bg-background ps-10 pe-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="050-1234567"
