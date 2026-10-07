@@ -81,7 +81,9 @@ export default async function TodayPage() {
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
     for (const lesson of todayLessons as any[]) {
       const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
-      lesson.framework_name = recurring?.framework_name || recurring?.group_name || lesson.framework_name || null;
+      // Same priority as the admin schedule grid (group_name first) — framework_name can go stale
+      // when the template's location is changed but that secondary field isn't edited.
+      lesson.framework_name = recurring?.group_name || recurring?.framework_name || lesson.framework_name || null;
       lesson.manager_name = recurring?.manager_name ?? lesson.manager_name ?? null;
       lesson.manager_phone = recurring?.manager_phone ?? lesson.manager_phone ?? null;
       lesson.address = recurring?.address ?? lesson.address ?? null;
