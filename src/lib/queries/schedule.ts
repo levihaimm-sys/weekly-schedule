@@ -33,6 +33,7 @@ export async function getRecurringSchedule(filters?: {
       location:locations!recurring_schedule_location_id_fkey(id, name, city, street, age_group)
     `
     )
+    .is("archived_at", null)
     .order("day_of_week")
     .order("start_time");
 

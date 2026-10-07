@@ -8,6 +8,14 @@ import { getTodayInIsrael, isHoliday, addMinutesToTimeString } from "@/lib/utils
 import { CLIENT_CITIES } from "@/lib/utils/constants";
 import { parseLessonCsv } from "@/lib/utils/lesson-import-csv";
 import { nameMatch, parseFreeTextDate } from "@/lib/utils/staffing";
+import {
+  applyUndo,
+  archivePastLessons,
+  captureUndo,
+  commitUndo,
+  idsWithPastLessons,
+  templateChanged,
+} from "@/lib/schedule-history";
 
 
 /**
@@ -57,7 +65,8 @@ export async function replicateWeekSchedule(targetDate?: string) {
   // Fetch master schedule
   const { data: masterSchedule, error: fetchError } = await supabase
     .from("recurring_schedule")
-    .select("id, location_id, instructor_id, day_of_week, start_time, group_name");
+    .select("id, location_id, instructor_id, day_of_week, start_time, group_name")
+    .is("archived_at", null);
 
   if (fetchError || !masterSchedule) {
     return { error: "שגיאה בטעינת הלוח הקבוע: " + fetchError?.message };
@@ -150,6 +159,9 @@ export async function updateLesson(
     finalUpdates.instructor_request_handled = true;
   }
 
+  const admin = createAdminClient();
+  const before = await captureUndo(admin, { lessonIds: [lessonId] });
+
   const { error } = await supabase
     .from("lessons")
     .update(finalUpdates)
@@ -158,6 +170,8 @@ export async function updateLesson(
   if (error) {
     return { error: "שגיאה בעדכון השיעור: " + error.message };
   }
+
+  await commitUndo(admin, "עריכת שיעור", before, { lessonIds: [lessonId] });
 
   revalidatePath("/dashboard");
   revalidatePath("/schedule/weekly");
@@ -216,6 +230,29 @@ export async function updateRecurringSchedule(
     return { error: "אין שינויים לשמור" };
   }
 
+  const { data: current } = await supabase
+    .from("recurring_schedule")
+    .select("*")
+    .eq("id", recurringId)
+    .maybeSingle();
+
+  if (!current) {
+    return { error: "לא נמצא שיעור קבוע עם ID: " + recurringId };
+  }
+
+  // Changes apply from today onward only. Past lessons read their name/frame/etc. from this
+  // row, so freeze them on an archived copy before changing any of those fields.
+  const today = getTodayInIsrael();
+  const before = await captureUndo(supabase, { recurringIds: [recurringId] });
+  let archivedIds: string[] = [];
+  try {
+    if (templateChanged(current, cleanUpdates)) {
+      archivedIds = await archivePastLessons(supabase, [current], today);
+    }
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const { error, data } = await supabase
     .from("recurring_schedule")
     .update(cleanUpdates)
@@ -230,15 +267,10 @@ export async function updateRecurringSchedule(
     return { error: "לא נמצא שיעור קבוע עם ID: " + recurringId };
   }
 
-  // --- Propagate changes to future lesson instances (from next week onward) ---
-  const today = getTodayInIsrael();
-  const nextSunday = format(
-    startOfWeek(addDays(new Date(today), 7), { weekStartsOn: 0 }),
-    "yyyy-MM-dd"
-  );
-
+  // --- Propagate changes to lesson instances from today onward ---
   const updatedItem = data[0];
-  const dayChanged = updates.day_of_week !== undefined;
+  const dayChanged =
+    cleanUpdates.day_of_week !== undefined && cleanUpdates.day_of_week !== current.day_of_week;
 
   if (dayChanged) {
     // Day changed: existing lesson dates are wrong — delete and recreate
@@ -248,7 +280,7 @@ export async function updateRecurringSchedule(
       .from("lessons")
       .select("lesson_date")
       .eq("recurring_item_id", recurringId)
-      .gte("lesson_date", nextSunday)
+      .gte("lesson_date", today)
       .order("lesson_date", { ascending: false })
       .limit(1);
 
@@ -257,7 +289,7 @@ export async function updateRecurringSchedule(
       .from("lessons")
       .delete()
       .eq("recurring_item_id", recurringId)
-      .gte("lesson_date", nextSunday)
+      .gte("lesson_date", today)
       .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
     if (delError) {
@@ -276,17 +308,19 @@ export async function updateRecurringSchedule(
         status: string;
       }> = [];
 
-      let weekStart = startOfWeek(new Date(nextSunday), { weekStartsOn: 0 });
+      let weekStart = startOfWeek(new Date(today), { weekStartsOn: 0 });
       while (weekStart <= horizon) {
-        const lessonDate = addDays(weekStart, updatedItem.day_of_week);
-        newLessons.push({
-          recurring_item_id: updatedItem.id,
-          location_id: updatedItem.location_id,
-          instructor_id: updatedItem.instructor_id,
-          lesson_date: format(lessonDate, "yyyy-MM-dd"),
-          start_time: updatedItem.start_time,
-          status: "scheduled",
-        });
+        const lessonDateStr = format(addDays(weekStart, updatedItem.day_of_week), "yyyy-MM-dd");
+        if (lessonDateStr >= today && !isHoliday(lessonDateStr)) {
+          newLessons.push({
+            recurring_item_id: updatedItem.id,
+            location_id: updatedItem.location_id,
+            instructor_id: updatedItem.instructor_id,
+            lesson_date: lessonDateStr,
+            start_time: updatedItem.start_time,
+            status: "scheduled",
+          });
+        }
         weekStart = addDays(weekStart, 7);
       }
 
@@ -315,7 +349,7 @@ export async function updateRecurringSchedule(
         .from("lessons")
         .update(lessonUpdates)
         .eq("recurring_item_id", recurringId)
-        .gte("lesson_date", nextSunday)
+        .gte("lesson_date", today)
         .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
       if (lessonsError) {
@@ -324,7 +358,10 @@ export async function updateRecurringSchedule(
     }
   }
 
+  await commitUndo(supabase, "עריכת שיעור קבוע", before, { recurringIds: [recurringId, ...archivedIds] });
+
   revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly-table");
   revalidatePath("/schedule/weekly");
   revalidatePath("/dashboard");
   revalidatePath("/my-schedule");
@@ -399,68 +436,64 @@ export async function applyPermanentChange(
  * Use deleteLesson() for one-time changes to a single lesson.
  */
 export async function deleteRecurringScheduleItem(recurringItemId: string) {
-  const supabase = createAdminClient();
-  const today = getTodayInIsrael();
-
-  // Delete all future lessons created from this recurring item
-  const { error: deleteLessonsError } = await supabase
-    .from("lessons")
-    .delete()
-    .eq("recurring_item_id", recurringItemId)
-    .gte("lesson_date", today);
-
-  if (deleteLessonsError) {
-    return {
-      error: "שגיאה במחיקת שיעורים עתידיים: " + deleteLessonsError.message,
-    };
-  }
-
-  // Delete the recurring schedule item
-  const { error: deleteRecurringError } = await supabase
-    .from("recurring_schedule")
-    .delete()
-    .eq("id", recurringItemId);
-
-  if (deleteRecurringError) {
-    return {
-      error: "שגיאה במחיקת לוח קבוע: " + deleteRecurringError.message,
-    };
-  }
-
-  revalidatePath("/schedule");
-  revalidatePath("/schedule/weekly");
-  revalidatePath("/dashboard");
-  revalidatePath("/my-schedule");
-
-  return { success: true };
+  return bulkDeleteRecurringScheduleItems([recurringItemId]);
 }
 
 /**
  * Delete multiple recurring schedule items and all their future lessons at once
  * (multi-select bulk delete on the fixed-schedule screen).
+ * Lessons before today are history and are kept: a row that has any is archived
+ * (hidden, no new lessons) instead of deleted, so those lessons keep their name/frame.
  */
 export async function bulkDeleteRecurringScheduleItems(recurringItemIds: string[]) {
   const supabase = createAdminClient();
   const today = getTodayInIsrael();
+  const ids = Array.from(new Set(recurringItemIds));
+
+  const before = await captureUndo(supabase, { recurringIds: ids });
 
   const { error: deleteLessonsError } = await supabase
     .from("lessons")
     .delete()
-    .in("recurring_item_id", recurringItemIds)
+    .in("recurring_item_id", ids)
     .gte("lesson_date", today);
 
   if (deleteLessonsError) {
     return { error: "שגיאה במחיקת שיעורים עתידיים: " + deleteLessonsError.message };
   }
 
-  const { error: deleteRecurringError } = await supabase
-    .from("recurring_schedule")
-    .delete()
-    .in("id", recurringItemIds);
+  const withHistory = await idsWithPastLessons(supabase, ids, today);
+  const toArchive = ids.filter((id) => withHistory.has(id));
+  const toDelete = ids.filter((id) => !withHistory.has(id));
 
-  if (deleteRecurringError) {
-    return { error: "שגיאה במחיקת לוח קבוע: " + deleteRecurringError.message };
+  if (toArchive.length > 0) {
+    const { error: archiveError } = await supabase
+      .from("recurring_schedule")
+      .update({ archived_at: today })
+      .in("id", toArchive);
+    if (archiveError) {
+      return { error: "שגיאה במחיקת לוח קבוע: " + archiveError.message };
+    }
   }
+
+  if (toDelete.length > 0) {
+    const { error: deleteRecurringError } = await supabase
+      .from("recurring_schedule")
+      .delete()
+      .in("id", toDelete);
+    if (deleteRecurringError) {
+      return { error: "שגיאה במחיקת לוח קבוע: " + deleteRecurringError.message };
+    }
+  }
+
+  await commitUndo(
+    supabase,
+    ids.length === 1 ? "מחיקת שיעור קבוע" : `מחיקת ${ids.length} שיעורים קבועים`,
+    before,
+    { recurringIds: ids }
+  );
+
+  revalidatePath("/schedule/weekly-table");
 
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");
@@ -629,7 +662,8 @@ export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) 
 
     const { data: masterSchedule } = await supabase
       .from("recurring_schedule")
-      .select("id, location_id, instructor_id, day_of_week, start_time");
+      .select("id, location_id, instructor_id, day_of_week, start_time")
+      .is("archived_at", null);
 
     if (!masterSchedule || masterSchedule.length === 0) continue;
 
@@ -715,7 +749,7 @@ export async function createManualLesson(data: {
 }) {
   const supabase = await createClient();
 
-  const { error } = await supabase.from("lessons").insert({
+  const { data: inserted, error } = await supabase.from("lessons").insert({
     instructor_id: data.instructor_id || null,
     location_id: data.location_id,
     lesson_date: data.lesson_date,
@@ -734,11 +768,16 @@ export async function createManualLesson(data: {
     lessons_count: data.lessons_count ?? null,
     is_one_time_change: true,
     recurring_item_id: null,
-  });
+  }).select("id").single();
 
   if (error) {
     return { error: "שגיאה ביצירת השיעור: " + error.message };
   }
+
+  if (inserted) {
+    await commitUndo(createAdminClient(), "הוספת שיעור", { recurring: [], lessons: [] }, { lessonIds: [inserted.id] });
+  }
+  revalidatePath("/schedule/weekly-table");
 
   revalidatePath("/schedule/weekly");
   revalidatePath("/schedule/weekly-overview");
@@ -1021,7 +1060,8 @@ export async function createRecurringScheduleItem(data: {
     .select("id")
     .eq("location_id", data.location_id)
     .eq("day_of_week", data.day_of_week)
-    .eq("start_time", startTime);
+    .eq("start_time", startTime)
+    .is("archived_at", null);
   dupQuery = instructorId ? dupQuery.eq("instructor_id", instructorId) : dupQuery.is("instructor_id", null);
   const { data: existing } = await dupQuery.limit(1);
   if (existing && existing.length > 0) {
@@ -1093,6 +1133,8 @@ export async function createRecurringScheduleItem(data: {
       .upsert(batch, { onConflict: "instructor_id,location_id,lesson_date,start_time", ignoreDuplicates: true });
   }
 
+  await commitUndo(supabase, "הוספת שיעור קבוע", { recurring: [], lessons: [] }, { recurringIds: [recurringRow.id] });
+
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");
   revalidatePath("/schedule/weekly-table");
@@ -1122,7 +1164,7 @@ export async function bulkImportRecurringSchedule(csvText: string) {
   const [{ data: instructorRows }, { data: locationRows }, { data: recurringRows }] = await Promise.all([
     supabase.from("instructors").select("id, full_name").in("status", ["active", "substitute"]),
     supabase.from("locations").select("id, name, city"),
-    supabase.from("recurring_schedule").select("instructor_id, location_id, day_of_week, start_time"),
+    supabase.from("recurring_schedule").select("instructor_id, location_id, day_of_week, start_time").is("archived_at", null),
   ]);
 
   const instructorList = instructorRows ?? [];
@@ -1351,6 +1393,8 @@ export async function unmarkChangeAsSeen(lessonId: string) {
  */
 export async function bulkDeleteLessons(lessonIds: string[]) {
   const supabase = await createClient();
+  const admin = createAdminClient();
+  const before = await captureUndo(admin, { lessonIds });
 
   const { error } = await supabase.from("lessons").delete().in("id", lessonIds);
 
@@ -1358,6 +1402,14 @@ export async function bulkDeleteLessons(lessonIds: string[]) {
     return { error: "שגיאה במחיקת שיעורים: " + error.message };
   }
 
+  await commitUndo(
+    admin,
+    lessonIds.length === 1 ? "מחיקת שיעור" : `מחיקת ${lessonIds.length} שיעורים`,
+    before,
+    { lessonIds }
+  );
+
+  revalidatePath("/schedule/weekly-table");
   revalidatePath("/dashboard");
   revalidatePath("/schedule/weekly");
   revalidatePath("/my-schedule");
@@ -1387,6 +1439,9 @@ export async function bulkUpdateLessons(
     finalUpdates.instructor_request_handled = false;
   }
 
+  const admin = createAdminClient();
+  const before = await captureUndo(admin, { lessonIds });
+
   const { error } = await supabase
     .from("lessons")
     .update(finalUpdates)
@@ -1396,6 +1451,14 @@ export async function bulkUpdateLessons(
     return { error: "שגיאה בעדכון שיעורים: " + error.message };
   }
 
+  await commitUndo(
+    admin,
+    lessonIds.length === 1 ? "עריכת שיעור" : `עריכת ${lessonIds.length} שיעורים`,
+    before,
+    { lessonIds }
+  );
+
+  revalidatePath("/schedule/weekly-table");
   revalidatePath("/dashboard");
   revalidatePath("/schedule/weekly");
   revalidatePath("/my-schedule");
@@ -1435,6 +1498,18 @@ export async function bulkApplyPermanentChange(
     return { error: "אין שינויים לשמור" };
   }
 
+  const today = getTodayInIsrael();
+  const before = await captureUndo(supabase, { recurringIds: uniqueIds });
+
+  // Freeze past lessons of rows whose history-visible fields (manager) are about to change
+  let archivedIds: string[] = [];
+  try {
+    const changedRows = before.recurring.filter((row) => templateChanged(row, cleanUpdates));
+    archivedIds = await archivePastLessons(supabase, changedRows, today);
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
   const { error: recurringError } = await supabase
     .from("recurring_schedule")
     .update(cleanUpdates)
@@ -1443,8 +1518,6 @@ export async function bulkApplyPermanentChange(
   if (recurringError) {
     return { error: "שגיאה בעדכון הלוח הקבוע: " + recurringError.message };
   }
-
-  const today = getTodayInIsrael();
 
   if (updates.day_of_week !== undefined) {
     // Day changed: existing future lesson dates fall on the old day of week, so — same as the
@@ -1542,7 +1615,15 @@ export async function bulkApplyPermanentChange(
       .eq("instructor_absence_request", true);
   }
 
+  await commitUndo(
+    supabase,
+    uniqueIds.length === 1 ? "עריכת שיעור קבוע" : `עריכת ${uniqueIds.length} שיעורים קבועים`,
+    before,
+    { recurringIds: [...uniqueIds, ...archivedIds] }
+  );
+
   revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly-table");
   revalidatePath("/schedule/weekly");
   revalidatePath("/dashboard");
   revalidatePath("/my-schedule");
@@ -1617,10 +1698,13 @@ export async function duplicateRecurringItemsToWeek(recurringItemIds: string[], 
   const skipped = newRows.length - rowsToInsert.length;
 
   if (rowsToInsert.length > 0) {
-    const { error: insertError } = await supabase.from("lessons").insert(rowsToInsert);
+    const { data: insertedRows, error: insertError } = await supabase.from("lessons").insert(rowsToInsert).select("id");
     if (insertError) {
       return { error: "שגיאה ביצירת השיעורים: " + insertError.message };
     }
+    await commitUndo(supabase, "שכפול שיעורים לשבוע", { recurring: [], lessons: [] }, {
+      lessonIds: (insertedRows ?? []).map((r) => r.id),
+    });
   }
 
   revalidatePath("/schedule/weekly");
@@ -1630,6 +1714,56 @@ export async function duplicateRecurringItemsToWeek(recurringItemIds: string[], 
   revalidatePath("/my-schedule");
 
   return { success: true, inserted: rowsToInsert.length, skipped };
+}
+
+/**
+ * Latest undoable change on the fixed/weekly boards (shared stack), for the "בטל" button.
+ */
+export async function getLastScheduleUndo(): Promise<{ label: string; created_at: string } | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("schedule_undo_log")
+    .select("label, created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/**
+ * Undo the latest change made on the fixed or weekly board — one step back per call.
+ */
+export async function undoLastScheduleChange() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "יש להתחבר מחדש" };
+
+  const admin = createAdminClient();
+  const { data: entry } = await admin
+    .from("schedule_undo_log")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!entry) return { error: "אין שינויים לביטול" };
+
+  try {
+    await applyUndo(admin, entry);
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+
+  await admin.from("schedule_undo_log").delete().eq("id", entry.id);
+
+  revalidatePath("/schedule");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
+  revalidatePath("/schedule/weekly-overview");
+  revalidatePath("/dashboard");
+  revalidatePath("/my-schedule");
+
+  return { success: true, label: entry.label as string };
 }
 
 /**

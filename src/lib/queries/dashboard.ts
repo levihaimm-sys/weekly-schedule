@@ -23,7 +23,8 @@ export async function getDashboardStats() {
     supabase.from("locations").select("*", { count: "exact", head: true }),
     supabase
       .from("recurring_schedule")
-      .select("*", { count: "exact", head: true }),
+      .select("*", { count: "exact", head: true })
+      .is("archived_at", null),
   ]);
 
   return {

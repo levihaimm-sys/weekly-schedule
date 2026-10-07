@@ -22,7 +22,8 @@ export default async function InstructorsPage() {
       supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
       supabase
         .from("recurring_schedule")
-        .select("instructor_id, client_name, location:locations!recurring_schedule_location_id_fkey(city)"),
+        .select("instructor_id, client_name, location:locations!recurring_schedule_location_id_fkey(city)")
+        .is("archived_at", null),
     ]);
 
   // Build map: instructor_id → last_sign_in_at

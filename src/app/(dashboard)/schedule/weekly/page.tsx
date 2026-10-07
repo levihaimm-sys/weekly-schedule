@@ -1,5 +1,6 @@
 import { getWeekLessons, getAllInstructors, getAllCities, getAllLocations } from "@/lib/queries/schedule";
-import { ensureFutureWeeks } from "@/lib/actions/schedule";
+import { ensureFutureWeeks, getLastScheduleUndo } from "@/lib/actions/schedule";
+import { UndoButton } from "@/components/schedule/undo-button";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyGrid } from "@/components/schedule/weekly-grid";
@@ -28,11 +29,12 @@ export default async function WeeklySchedulePage({
   const selectedInstructors = params.instructor ? params.instructor.split(",") : [];
   const changesOnly = params.changes === "1";
 
-  const [lessons, instructors, cities, locations] = await Promise.all([
+  const [lessons, instructors, cities, locations, lastUndo] = await Promise.all([
     getWeekLessons(weekStartStr, weekEndStr),
     getAllInstructors(),
     getAllCities(),
     getAllLocations(),
+    getLastScheduleUndo(),
   ]);
 
   // Build 5-day date list (Sun-Thu)
@@ -46,6 +48,7 @@ export default async function WeeklySchedulePage({
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח שבועי - אריחים</h2>
           <div className="flex items-center gap-2">
+            <UndoButton lastLabel={lastUndo?.label ?? null} />
             <Link
               href="/schedule/import"
               className="rounded-lg border border-border bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 md:px-4 md:py-2 md:text-sm"
@@ -64,6 +67,8 @@ export default async function WeeklySchedulePage({
           weekStartStr={weekStartStr}
           weekEndStr={weekEndStr}
           basePath="/schedule/weekly"
+          persistKey="schedule-week"
+          hasExplicitWeek={!!params.week}
         />
       </div>
 

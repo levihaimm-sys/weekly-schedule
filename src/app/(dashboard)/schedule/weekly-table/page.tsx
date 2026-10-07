@@ -1,5 +1,6 @@
 import { getWeekLessons, getAllInstructors, getAllLocations } from "@/lib/queries/schedule";
-import { ensureFutureWeeks } from "@/lib/actions/schedule";
+import { ensureFutureWeeks, getLastScheduleUndo } from "@/lib/actions/schedule";
+import { UndoButton } from "@/components/schedule/undo-button";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyScheduleTable } from "@/components/schedule/weekly-schedule-table";
@@ -23,10 +24,11 @@ export default async function WeeklyScheduleTablePage({
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
-  const [lessons, instructors, locations] = await Promise.all([
+  const [lessons, instructors, locations, lastUndo] = await Promise.all([
     getWeekLessons(weekStartStr, weekEndStr),
     getAllInstructors(),
     getAllLocations(),
+    getLastScheduleUndo(),
   ]);
 
   return (
@@ -35,6 +37,7 @@ export default async function WeeklyScheduleTablePage({
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח שבועי - טבלה</h2>
           <div className="flex items-center gap-2">
+            <UndoButton lastLabel={lastUndo?.label ?? null} />
             <Link
               href="/schedule/import"
               className="rounded-lg border border-border bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 md:px-4 md:py-2 md:text-sm"
@@ -49,7 +52,13 @@ export default async function WeeklyScheduleTablePage({
             </Link>
           </div>
         </div>
-        <WeekNavigator weekStartStr={weekStartStr} weekEndStr={weekEndStr} basePath="/schedule/weekly-table" />
+        <WeekNavigator
+          weekStartStr={weekStartStr}
+          weekEndStr={weekEndStr}
+          basePath="/schedule/weekly-table"
+          persistKey="schedule-week"
+          hasExplicitWeek={!!params.week}
+        />
       </div>
       <WeeklyScheduleTable lessons={lessons as any[]} instructors={instructors} locations={locations} />
     </div>

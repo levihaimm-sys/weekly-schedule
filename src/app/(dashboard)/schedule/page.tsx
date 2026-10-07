@@ -1,5 +1,7 @@
 import { getRecurringSchedule, getAllCities, getAllInstructors, getAllLocations } from "@/lib/queries/schedule";
 import { ScheduleGrid } from "@/components/schedule/schedule-grid";
+import { UndoButton } from "@/components/schedule/undo-button";
+import { getLastScheduleUndo } from "@/lib/actions/schedule";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,25 +16,29 @@ export default async function SchedulePage({
   const selectedCities = params.city ? params.city.split(",") : [];
   const selectedInstructors = params.instructor ? params.instructor.split(",") : [];
 
-  const [schedule, cities, instructors, locations] = await Promise.all([
+  const [schedule, cities, instructors, locations, lastUndo] = await Promise.all([
     getRecurringSchedule({
       dayOfWeek: params.day ? parseInt(params.day) : undefined,
     }),
     getAllCities(),
     getAllInstructors(),
     getAllLocations(),
+    getLastScheduleUndo(),
   ]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">לוח קבוע</h2>
-        <Link
-          href="/schedule/import-recurring"
-          className="rounded-lg border border-border bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 md:px-4 md:py-2 md:text-sm"
-        >
-          ייבוא שיעורים
-        </Link>
+        <div className="flex items-center gap-2">
+          <UndoButton lastLabel={lastUndo?.label ?? null} />
+          <Link
+            href="/schedule/import-recurring"
+            className="rounded-lg border border-border bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 md:px-4 md:py-2 md:text-sm"
+          >
+            ייבוא שיעורים
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-lg border-2 border-orange-300 bg-orange-50 p-4 text-center">
