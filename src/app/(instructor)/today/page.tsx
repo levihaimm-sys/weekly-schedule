@@ -22,9 +22,12 @@ export default async function TodayPage() {
   // Get instructor profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("instructor_id, display_name")
+    .select("instructor_id, display_name, role")
     .eq("id", user.id)
     .single();
+
+  // Admins land here from an app installed with an older start_url
+  if (profile?.role === "admin") redirect("/dashboard");
 
   if (!profile?.instructor_id) {
     return (

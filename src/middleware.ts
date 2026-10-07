@@ -42,9 +42,9 @@ export async function middleware(request: NextRequest) {
     // Instructors (or a device that remembers an instructor) go to the
     // instructor login, which signs them back in automatically
     const isInstructorEntry =
-      pathname === "/" ||
-      INSTRUCTOR_ROUTES.some((route) => pathname.startsWith(route)) ||
-      request.cookies.has("remember_instructor");
+      request.cookies.has("remember_instructor") ||
+      (!request.cookies.has("admin_device") &&
+        (pathname === "/" || INSTRUCTOR_ROUTES.some((route) => pathname.startsWith(route))));
     return NextResponse.redirect(
       new URL(isInstructorEntry ? "/instructor-login" : "/login", request.url)
     );

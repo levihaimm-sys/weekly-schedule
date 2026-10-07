@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 // Not httpOnly — the instructor-login page reads it to auto-submit.
 // ("use server" files may only export async functions — keep in sync with instructor-login/page.tsx)
 const REMEMBER_COOKIE = "remember_instructor";
+const ADMIN_DEVICE_COOKIE = "admin_device"; // keep in sync with middleware.ts
 const REMEMBER_MAX_AGE = 60 * 60 * 24 * 400; // ~400 days (browser max)
 
 export async function loginWithPassword(formData: FormData) {
@@ -27,8 +28,16 @@ export async function loginWithPassword(formData: FormData) {
     return { error: "אימייל או סיסמה שגויים" };
   }
 
-  // Admin signed in on this device — stop treating it as an instructor's phone
-  (await cookies()).delete(REMEMBER_COOKIE);
+  // Admin signed in on this device — stop treating it as an instructor's phone,
+  // and send it to the admin login if the session is ever lost
+  const cookieStore = await cookies();
+  cookieStore.delete(REMEMBER_COOKIE);
+  cookieStore.set(ADMIN_DEVICE_COOKIE, "1", {
+    maxAge: REMEMBER_MAX_AGE,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
   redirect("/dashboard");
 }
 
@@ -188,6 +197,7 @@ export async function loginAsInstructor(formData: FormData) {
     }
 
     const cookieStore = await cookies();
+    cookieStore.delete(ADMIN_DEVICE_COOKIE);
     cookieStore.set(REMEMBER_COOKIE, JSON.stringify({ name: fullName, phone }), {
       maxAge: REMEMBER_MAX_AGE,
       path: "/",
