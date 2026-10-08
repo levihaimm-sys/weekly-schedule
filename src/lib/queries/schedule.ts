@@ -117,13 +117,23 @@ export async function getWeekLessons(
   if (data && data.length > 0) {
     const recurringIds = [...new Set(data.map((l: any) => l.recurring_item_id).filter(Boolean))];
     const recurringById = new Map<string, any>();
-    if (recurringIds.length > 0) {
-      const { data: recurringRows } = await supabase
-        .from("recurring_schedule")
-        .select(
-          "id, group_name, address, client_name, contact_name, manager_name, manager_phone, framework, framework_name, field, lesson_duration, lessons_count, notes"
-        )
-        .in("id", recurringIds);
+    // Chunked: a full week has ~200 recurring ids, which puts a single `id=in.(...)` URL right at
+    // the ~8KB request limit — over it the request fails and every card loses its framework name.
+    const ID_CHUNK = 80;
+    const chunks: string[][] = [];
+    for (let i = 0; i < recurringIds.length; i += ID_CHUNK) chunks.push(recurringIds.slice(i, i + ID_CHUNK));
+    const results = await Promise.all(
+      chunks.map((ids) =>
+        supabase
+          .from("recurring_schedule")
+          .select(
+            "id, group_name, address, client_name, contact_name, manager_name, manager_phone, framework, framework_name, field, lesson_duration, lessons_count, notes"
+          )
+          .in("id", ids)
+      )
+    );
+    for (const { data: recurringRows, error } of results) {
+      if (error) console.error("getWeekLessons: recurring_schedule lookup failed:", error.message);
       for (const r of recurringRows ?? []) recurringById.set(r.id, r);
     }
     for (const lesson of data as any[]) {

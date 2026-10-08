@@ -691,7 +691,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             )}
                           </p>
                           <p className="mt-1 text-sm leading-tight">
-                            {lesson.group_name ?? lesson.framework_name ?? "—"}
+                            {frameworkLabel(lesson)}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
@@ -784,6 +784,13 @@ function BulkCancelButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// Framework name for the card; falls back to the location's name (blank strings included) so a
+// card never shows just "—" when the location itself is named.
+function frameworkLabel(lesson: WeeklyLesson): string {
+  const candidates = [lesson.group_name, lesson.framework_name, lesson.location?.name];
+  return candidates.find((v) => v && v.trim() && v.trim() !== "אין")?.trim() ?? "—";
+}
+
 function MobileLessonCard({
   lesson,
   onEdit,
@@ -811,7 +818,7 @@ function MobileLessonCard({
             )}
           </p>
           <p className="mt-1 text-base leading-tight">
-            {lesson.group_name ?? lesson.framework_name ?? "—"}
+            {frameworkLabel(lesson)}
           </p>
           <p className="text-base text-muted-foreground">
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
