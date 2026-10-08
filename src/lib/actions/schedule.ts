@@ -590,7 +590,21 @@ export async function syncFutureWeeksWithRecurring() {
   // 4a. Fix lessons on the wrong day: delete and recreate with correct date
   if (wrongDayLessons.length > 0) {
     const wrongIds = wrongDayLessons.map((l) => l.id);
-    await admin.from("lessons").delete().in("id", wrongIds);
+    const { error: wrongDeleteError } = await admin.from("lessons").delete().in("id", wrongIds);
+    // If the old copies weren't removed, recreating would leave the same slot twice in that week.
+    if (wrongDeleteError) return;
+
+    // A slot may already have a lesson on its correct date (e.g. restored by undo, or a
+    // concurrent sync run). The unique index doesn't catch it when instructor_id is null,
+    // so skip those dates explicitly instead of inserting a duplicate.
+    const { data: existingCorrect } = await admin
+      .from("lessons")
+      .select("recurring_item_id, lesson_date")
+      .in("recurring_item_id", [...new Set(wrongDayLessons.map((l) => l.recurring_item_id))])
+      .gte("lesson_date", nextSunday);
+    const existingKeys = new Set(
+      (existingCorrect ?? []).map((l) => `${l.recurring_item_id}|${l.lesson_date}`)
+    );
 
     // Recreate each lesson with the correct date (same week, correct day_of_week)
     const recreated = wrongDayLessons
@@ -607,7 +621,13 @@ export async function syncFutureWeeksWithRecurring() {
           status: "scheduled",
         };
       })
-      .filter((lesson) => !isHoliday(lesson.lesson_date));
+      .filter((lesson) => {
+        if (isHoliday(lesson.lesson_date)) return false;
+        const key = `${lesson.recurring_item_id}|${lesson.lesson_date}`;
+        if (existingKeys.has(key)) return false;
+        existingKeys.add(key);
+        return true;
+      });
 
     if (recreated.length > 0) {
       await admin.from("lessons").insert(recreated);
