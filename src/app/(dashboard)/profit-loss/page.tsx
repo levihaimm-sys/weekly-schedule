@@ -98,6 +98,9 @@ export default async function ProfitLossPage({
     officeHoursRes,
     invoiceStatusRes,
     invoiceOverridesRes,
+    manualLessonsRes,
+    paidRes,
+    instructorsRes,
   ] = await Promise.all([
     loadLessons(),
     (async () => {
@@ -116,7 +119,7 @@ export default async function ProfitLossPage({
       .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day"),
     admin
       .from("instructor_pay_bonuses")
-      .select("instructor_id, amount")
+      .select("id, instructor_id, label, amount")
       .eq("year", year)
       .eq("month", month),
     admin
@@ -161,6 +164,23 @@ export default async function ProfitLossPage({
       .select("client_name, city, activity_count")
       .eq("year", year)
       .eq("month", month),
+    admin
+      .from("pl_manual_lessons")
+      .select("id, instructor_id, client_name, city, lesson_count, work_days, note")
+      .eq("year", year)
+      .eq("month", month)
+      .order("created_at"),
+    admin
+      .from("pl_payee_paid")
+      .select("payee_id")
+      .eq("year", year)
+      .eq("month", month),
+    // For adding manual lessons to an instructor who has no lessons this month.
+    admin
+      .from("instructors")
+      .select("id, full_name")
+      .eq("is_active", true)
+      .order("full_name"),
   ]);
 
   if (!profileRes.data?.is_owner) {
@@ -222,6 +242,9 @@ export default async function ProfitLossPage({
         officeHours={officeHoursRes.data ?? []}
         invoicesSent={(invoiceStatusRes.data ?? []).map((r) => r.client_name)}
         invoiceOverrides={invoiceOverridesRes.data ?? []}
+        manualLessons={manualLessonsRes.data ?? []}
+        paid={(paidRes.data ?? []).map((r) => r.payee_id)}
+        allInstructors={instructorsRes.data ?? []}
         year={year}
         month={month}
         monthLabel={monthLabel}

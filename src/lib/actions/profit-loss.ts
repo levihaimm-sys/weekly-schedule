@@ -184,6 +184,71 @@ export async function setInvoiceOverride(
   return { success: true };
 }
 
+// Lessons entered by hand. instructorId null = billed to the client only (no instructor pay).
+export async function addManualLessons(data: {
+  instructorId: string | null;
+  clientName: string;
+  city: string;
+  year: number;
+  month: number;
+  lessonCount: number;
+  workDays: number;
+  note: string;
+}) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const clientName = data.clientName.trim();
+  if (!clientName) return { error: "יש לבחור לקוח" };
+  if (!(data.lessonCount > 0)) return { error: "יש להזין מספר שיעורים" };
+
+  const { error } = await supabase.from("pl_manual_lessons").insert({
+    instructor_id: data.instructorId,
+    client_name: clientName,
+    city: data.city.trim(),
+    year: data.year,
+    month: data.month,
+    lesson_count: Math.round(data.lessonCount),
+    work_days: Math.max(0, Math.round(data.workDays)),
+    note: data.note.trim(),
+  });
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+export async function deleteManualLessons(id: string) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const { error } = await supabase.from("pl_manual_lessons").delete().eq("id", id);
+
+  if (error) return { error: "שגיאה במחיקה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
+// payeeId: instructor id, or "office__<worker id>" for office workers.
+export async function setPayeePaid(payeeId: string, year: number, month: number, paid: boolean) {
+  const { supabase, error: authError } = await requireOwner();
+  if (!supabase) return { error: authError };
+
+  const match = { payee_id: payeeId, year, month };
+  const { error } = paid
+    ? await supabase
+        .from("pl_payee_paid")
+        .upsert({ ...match, paid_at: new Date().toISOString() }, { onConflict: "payee_id,year,month" })
+    : await supabase.from("pl_payee_paid").delete().match(match);
+
+  if (error) return { error: "שגיאה בשמירה: " + error.message };
+
+  revalidatePath(PATH);
+  return { success: true };
+}
+
 export async function addFixedExpense(
   label: string,
   amount: number,

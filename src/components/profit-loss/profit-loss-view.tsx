@@ -2,9 +2,12 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Download, Filter, Plus, RotateCcw, Trash2, X, XCircle } from "lucide-react";
-import { updatePayRate } from "@/lib/actions/payroll";
+import { AlertTriangle, CheckCircle2, Download, Filter, Hand, Plus, RotateCcw, Trash2, X, XCircle } from "lucide-react";
+import { updatePayRate, addPayBonus, deletePayBonus } from "@/lib/actions/payroll";
 import {
+  addManualLessons,
+  deleteManualLessons,
+  setPayeePaid,
   updateEmploymentSettings,
   setActivityOverride,
   addOfficeWorker,
@@ -73,11 +76,29 @@ interface FixedExpense {
   month: number | null;
 }
 
+// Lessons added by hand. instructor_id null = billed to the client only.
+interface ManualLesson {
+  id: string;
+  instructor_id: string | null;
+  client_name: string;
+  city: string;
+  lesson_count: number;
+  work_days: number;
+  note: string;
+}
+
+interface Bonus {
+  id: string;
+  instructor_id: string;
+  label: string;
+  amount: number;
+}
+
 interface Props {
   lessons: LessonData[];
   payRates: PayRate[];
   payExceptions: { lesson_id: string; amount: number }[];
-  bonuses: { instructor_id: string; amount: number }[];
+  bonuses: Bonus[];
   clientRates: ClientRate[];
   clientExceptions: { lesson_id: string; amount: number }[];
   adjustments: { client_name: string; label: string; amount: number }[];
@@ -88,6 +109,9 @@ interface Props {
   officeHours: { worker_id: string; hours: number }[];
   invoicesSent: string[];
   invoiceOverrides: { client_name: string; city: string; activity_count: number }[];
+  manualLessons: ManualLesson[];
+  paid: string[];
+  allInstructors: { id: string; full_name: string }[];
   year: number;
   month: number;
   monthLabel: string;
@@ -192,6 +216,7 @@ function computeReport(
   {
     lessons, payRates, payExceptions, bonuses, clientRates, clientExceptions,
     adjustments, settings, overrides, fixedExpenses, officeWorkers, officeHours, invoiceOverrides,
+    manualLessons, paid, allInstructors,
   }: Props,
   f: Filters
 ) {
@@ -210,9 +235,29 @@ function computeReport(
       rowLessons.get(k)!.push(l);
     }
 
+    // Manual lessons: with an instructor they add to that row (creating it if needed);
+    // without one they're billed to the client only (see operators below).
+    const manualByRow = new Map<string, ManualLesson[]>();
+    const clientManual = new Map<string, ManualLesson[]>();
+    for (const m of manualLessons) {
+      const map = m.instructor_id ? manualByRow : clientManual;
+      const k = m.instructor_id
+        ? key3(m.instructor_id, m.client_name, m.city)
+        : `${m.client_name}__${m.city}`;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(m);
+    }
+    for (const k of manualByRow.keys()) {
+      if (!rowLessons.has(k)) rowLessons.set(k, []);
+    }
+    const instructorNames = new Map(allInstructors.map((i) => [i.id, i.full_name]));
+
     const allRows = [...rowLessons.entries()].map(([k, ls]) => {
-      const first = ls[0];
-      const s = settingsMap.get(first.instructor_id);
+      const manual = manualByRow.get(k) ?? [];
+      const src = ls[0] ?? null;
+      const m0 = manual[0];
+      const instructorId = src?.instructor_id ?? m0.instructor_id!;
+      const s = settingsMap.get(instructorId);
       const employmentType = s?.employment_type ?? "freelance";
       const employerPct = s ? Number(s.employer_cost_pct) : DEFAULT_EMPLOYER_PCT;
       const isOffice = s?.is_office ?? false;
@@ -228,8 +273,10 @@ function computeReport(
       const ov = overrideMap.get(k);
       const countOverride = ov?.activity_count ?? null;
       const daysOverride = ov?.work_days ?? null;
-      const activityCount = countOverride ?? signedCount;
-      const workDays = daysOverride ?? signedDays;
+      const manualCount = manual.reduce((s, m) => s + Number(m.lesson_count), 0);
+      const manualDays = manual.reduce((s, m) => s + Number(m.work_days), 0);
+      const activityCount = (countOverride ?? signedCount) + manualCount;
+      const workDays = (daysOverride ?? signedDays) + manualDays;
 
       // Per-lesson exceptions from שכר מדריכים shift the total by their delta from the rate.
       let exceptionDelta = 0;
@@ -245,10 +292,10 @@ function computeReport(
       return {
         key: k,
         kind: "lesson" as RowKind,
-        instructorId: first.instructor_id,
-        instructorName: first.instructor_name,
-        clientName: first.client_name,
-        city: first.city,
+        instructorId,
+        instructorName: src?.instructor_name ?? instructorNames.get(instructorId) ?? "לא ידוע",
+        clientName: src?.client_name ?? m0.client_name,
+        city: src?.city ?? m0.city,
         employmentType,
         employerPct,
         isOffice,
@@ -262,6 +309,9 @@ function computeReport(
         daysOverride,
         activityCount,
         workDays,
+        manualCount,
+        manualDays,
+        manualLessons: manual,
         signedLessons: signed,
         pay,
         travel,
@@ -299,6 +349,9 @@ function computeReport(
         daysOverride: null,
         activityCount: hours,
         workDays: 0,
+        manualCount: 0,
+        manualDays: 0,
+        manualLessons: [] as ManualLesson[],
         signedLessons: [],
         pay,
         travel: 0,
@@ -341,7 +394,8 @@ function computeReport(
       if (f.employment === "office" && !r.isOffice) return false;
       if ((f.employment === "freelance" || f.employment === "employee") &&
           (r.isOffice || r.employmentType !== f.employment)) return false;
-      if (f.onlyOverridden && r.countOverride === null && r.daysOverride === null) return false;
+      if (f.onlyOverridden && r.countOverride === null && r.daysOverride === null && r.manualCount === 0)
+        return false;
       if (f.onlyMissingRate && r.hasRate) return false;
       return true;
     });
@@ -352,10 +406,12 @@ function computeReport(
       !f.instructorId && !f.city && !f.employment && !f.onlyOverridden && !f.onlyMissingRate;
 
     // Instructors
-    const bonusByInstructor = new Map<string, number>();
+    const bonusByInstructor = new Map<string, Bonus[]>();
     for (const b of bonuses) {
-      bonusByInstructor.set(b.instructor_id, (bonusByInstructor.get(b.instructor_id) ?? 0) + Number(b.amount));
+      if (!bonusByInstructor.has(b.instructor_id)) bonusByInstructor.set(b.instructor_id, []);
+      bonusByInstructor.get(b.instructor_id)!.push(b);
     }
+    const paidSet = new Set(paid);
 
     const instructorMap = new Map<string, typeof rows>();
     for (const r of rows) {
@@ -365,7 +421,8 @@ function computeReport(
 
     const instructors = [...instructorMap.entries()].map(([id, rs]) => {
       const f = rs[0];
-      const bonus = bonusByInstructor.get(id) ?? 0;
+      const bonusItems = bonusByInstructor.get(id) ?? [];
+      const bonus = bonusItems.reduce((s, b) => s + Number(b.amount), 0);
       const pay = rs.reduce((s, r) => s + r.pay, 0);
       const travel = rs.reduce((s, r) => s + r.travel, 0);
       const employerCost = rs.reduce((s, r) => s + r.employerCost, 0);
@@ -387,6 +444,8 @@ function computeReport(
         pay,
         travel,
         bonus,
+        bonusItems,
+        paid: paidSet.has(id),
         deposit,
         employerCost,
         total,
@@ -396,11 +455,11 @@ function computeReport(
     instructors.sort((a, b) => a.name.localeCompare(b.name, "he"));
 
     // Operators: client × city
-    const operatorMap = new Map<string, typeof rows>();
+    const operatorMap = new Map<string, { clientName: string; city: string; rows: typeof rows }>();
     for (const r of rows.filter((r) => r.kind === "lesson")) {
       const k = `${r.clientName}__${r.city}`;
-      if (!operatorMap.has(k)) operatorMap.set(k, []);
-      operatorMap.get(k)!.push(r);
+      if (!operatorMap.has(k)) operatorMap.set(k, { clientName: r.clientName, city: r.city, rows: [] });
+      operatorMap.get(k)!.rows.push(r);
     }
 
     // Invoice count corrections are per client × city, so they only hold when the view
@@ -411,9 +470,21 @@ function computeReport(
       invoiceOverrides.map((o) => [`${o.client_name}__${o.city}`, Number(o.activity_count)])
     );
 
-    const operators = [...operatorMap.entries()].map(([k, rs]) => {
+    // Client-only manual lessons follow the same rule, plus the client/city filters.
+    if (invoiceOverridesApply) {
+      for (const [k, ms] of clientManual) {
+        const { client_name, city } = ms[0];
+        if ((f.client && client_name !== f.client) || (f.city && city !== f.city)) continue;
+        if (!operatorMap.has(k)) operatorMap.set(k, { clientName: client_name, city, rows: [] });
+      }
+    }
+
+    const operators = [...operatorMap.entries()].map(([k, { clientName, city, rows: rs }]) => {
       const rate = clientRateMap.get(k);
-      const rowActivities = rs.reduce((s, r) => s + r.activityCount, 0);
+      const manual = invoiceOverridesApply ? clientManual.get(k) ?? [] : [];
+      const manualCount = manual.reduce((s, m) => s + Number(m.lesson_count), 0);
+      // What the invoice would show without a correction: instructor rows + client-only manual.
+      const rowActivities = rs.reduce((s, r) => s + r.activityCount, 0) + manualCount;
       const invoiceOverride = invoiceOverridesApply ? invoiceOverrideMap.get(k) ?? null : null;
       const activities = invoiceOverride ?? rowActivities;
       let income = 0;
@@ -434,9 +505,12 @@ function computeReport(
 
       return {
         key: k,
-        clientName: rs[0].clientName,
-        city: rs[0].city,
+        clientName,
+        city,
         rate,
+        manualLessons: manual,
+        manualCount,
+        instructorManualCount: rs.reduce((s, r) => s + r.manualCount, 0),
         rowActivities,
         invoiceOverride,
         activities,
@@ -540,6 +614,18 @@ export function ProfitLossView(props: Props) {
     };
   }, [data.allRows]);
 
+  // Client/city suggestions for manual lessons: everything seen this month plus every priced client.
+  const pickOptions = useMemo(() => {
+    const clients = new Set(options.clients.filter((c) => c !== OFFICE_CLIENT));
+    const cities = new Set(options.cities);
+    for (const r of props.clientRates) {
+      clients.add(r.client_name);
+      if (r.city) cities.add(r.city);
+    }
+    const he = (a: string, b: string) => a.localeCompare(b, "he");
+    return { clients: [...clients].sort(he), cities: [...cities].sort(he) };
+  }, [options, props.clientRates]);
+
   // Theme by position in the unfiltered list so an instructor keeps its color when filtering.
   const themeByInstructor = useMemo(() => {
     const m = new Map<string, (typeof THEMES)[number]>();
@@ -559,24 +645,24 @@ export function ProfitLossView(props: Props) {
     lines.push([`רווח והפסד - ${monthLabel}${data.isFiltered ? " (מסונן)" : ""}`]);
     lines.push([]);
     lines.push(["פירוט מדריכים"]);
-    lines.push(["העסקה", "מדריך", "לקוח", "עיר", "תשלום לפעילות", "נסיעות ליום", "ימי עבודה", "פעילויות", 'סה"כ פעילויות', "נסיעות", "הוצאות העסקה", 'סה"כ']);
+    lines.push(["העסקה", "מדריך", "לקוח", "עיר", "תשלום לפעילות", "נסיעות ליום", "ימי עבודה", "פעילויות", "מתוכן ידני", 'סה"כ פעילויות', "נסיעות", "הוצאות העסקה", 'סה"כ']);
     for (const r of data.rows) {
       lines.push([
         r.isOffice ? "משרד" : r.employmentType === "employee" ? "שכיר/ה" : "עצמאי/ת",
         r.instructorName, r.clientName, r.city, r.ratePerLesson, r.travelPerDay,
-        r.workDays, r.activityCount, Math.round(r.pay), Math.round(r.travel),
+        r.workDays, r.activityCount, r.manualCount || "", Math.round(r.pay), Math.round(r.travel),
         Math.round(r.employerCost), Math.round(r.total),
       ]);
     }
     lines.push([]);
     lines.push(["ריכוז שכר"]);
-    lines.push(["העסקה", "מדריך", "ימי עבודה", "פעילויות", "תשלום על פעילויות", "נסיעות", "תיקונים/תוספות", 'סה"כ להפקדה', "הוצאות העסקה", 'סה"כ עלות', "ממוצע לפעילות"]);
+    lines.push(["העסקה", "מדריך", "ימי עבודה", "פעילויות", "תשלום על פעילויות", "נסיעות", "תיקונים/תוספות", 'סה"כ להפקדה', "הוצאות העסקה", 'סה"כ עלות', "ממוצע לפעילות", "שולם"]);
     for (const i of data.instructors) {
       lines.push([
         i.isOffice ? "משרד" : i.employmentType === "employee" ? "שכיר/ה" : "עצמאי/ת",
         i.name, i.workDays, i.activities, Math.round(i.pay), Math.round(i.travel),
         Math.round(i.bonus), Math.round(i.deposit), Math.round(i.employerCost),
-        Math.round(i.total), Math.round(i.average),
+        Math.round(i.total), Math.round(i.average), i.paid ? "כן" : "",
       ]);
     }
     lines.push([]);
@@ -704,18 +790,29 @@ export function ProfitLossView(props: Props) {
           <OfficeWorkerAdder run={run} />
         </div>
       )}
+      {tab === "detail" && (
+        <ManualLessonAdder
+          instructors={props.allInstructors}
+          clients={pickOptions.clients}
+          cities={pickOptions.cities}
+          year={year}
+          month={month}
+          run={run}
+        />
+      )}
       {data.rows.length > 0 && tab === "detail" && (
         <DetailTable
           rows={data.rows.filter((r) => r.kind === "lesson")}
           instructors={data.instructors.filter((i) => !i.isOfficeWorker)}
           themeByInstructor={themeByInstructor}
+          pickOptions={pickOptions}
           year={year}
           month={month}
           run={run}
         />
       )}
       {data.rows.length > 0 && tab === "payroll" && (
-        <PayrollTable instructors={data.instructors} run={run} />
+        <PayrollTable instructors={data.instructors} year={year} month={month} run={run} />
       )}
       {tab === "operators" && (
         <div className="space-y-4">
@@ -735,7 +832,16 @@ export function ProfitLossView(props: Props) {
           />
         </div>
       )}
-      {data.rows.length > 0 && tab === "invoices" && (
+      {tab === "invoices" && (
+        <ManualLessonAdder
+          clients={pickOptions.clients}
+          cities={pickOptions.cities}
+          year={year}
+          month={month}
+          run={run}
+        />
+      )}
+      {data.invoices.length > 0 && tab === "invoices" && (
         <InvoicesTab
           invoices={data.invoices}
           monthLabel={monthLabel}
@@ -1165,6 +1271,7 @@ function DetailTable({
   rows,
   instructors,
   themeByInstructor,
+  pickOptions,
   year,
   month,
   run,
@@ -1172,6 +1279,7 @@ function DetailTable({
   rows: Data["rows"];
   instructors: Data["instructors"];
   themeByInstructor: Map<string, (typeof THEMES)[number]>;
+  pickOptions: { clients: string[]; cities: string[] };
   year: number;
   month: number;
   run: Run;
@@ -1186,9 +1294,13 @@ function DetailTable({
   }
 
   function saveOverride(r: Data["rows"][number], field: "count" | "days", v: number | null) {
+    // The cell shows override + manual lessons, so the override is what's left after the manual part.
     // Typing back the signature-based value clears the override.
-    const count = field === "count" ? (v === r.signedCount ? null : v) : r.countOverride;
-    const days = field === "days" ? (v === r.signedDays ? null : v) : r.daysOverride;
+    const base = (manual: number) => (v === null ? null : Math.max(0, v - manual));
+    const c = base(r.manualCount);
+    const d = base(r.manualDays);
+    const count = field === "count" ? (c === r.signedCount ? null : c) : r.countOverride;
+    const days = field === "days" ? (d === r.signedDays ? null : d) : r.daysOverride;
     run(
       setActivityOverride(r.instructorId, r.clientName, r.city, year, month, {
         activity_count: count,
@@ -1208,12 +1320,15 @@ function DetailTable({
     }),
     { workDays: 0, activities: 0, pay: 0, travel: 0, employerCost: 0, total: 0 }
   );
+  const bonusTotal = instructors.reduce((s, i) => s + i.bonus, 0);
+  const paidCount = instructors.filter((i) => i.paid).length;
 
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
         פעילויות וימי עבודה מחושבים מהחתימות. ניתן לתקן ידנית - ערך מתוקן מסומן בכתום; מחיקת
-        הערך מחזירה לחישוב מהחתימות. תעריפים נשמרים ועוברים לחודשים הבאים.
+        הערך מחזירה לחישוב מהחתימות. שיעורים שהוספו ידנית מסומנים בסגול ונכללים גם בחשבונית
+        ללקוח. תעריפים נשמרים ועוברים לחודשים הבאים. שולם ל-{paidCount} מתוך {instructors.length} מדריכים.
       </p>
       <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
@@ -1242,11 +1357,15 @@ function DetailTable({
                   </tr>
                 </tbody>
               )}
-              {/* Thin black frame around each instructor's block */}
-              <tbody className="border border-black">
+              {/* Black frame around each instructor's block */}
+              <tbody className="border-2 border-black">
                 <tr className={`${theme.header} border-b border-black/30 font-bold`}>
                   <td className={`${TD_LABEL} ${theme.text}`} colSpan={3}>
                     <span className="flex items-center gap-2">
+                      <PaidToggle
+                        paid={ins.paid}
+                        onChange={(p) => run(setPayeePaid(ins.id, year, month, p))}
+                      />
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: theme.accent }}
@@ -1263,7 +1382,7 @@ function DetailTable({
                       </span>
                       {ins.bonus !== 0 && (
                         <span className="text-[11px] font-normal text-muted-foreground">
-                          + תוספות ₪{money(ins.bonus)}
+                          כולל תוספות ₪{money(ins.bonus)}
                         </span>
                       )}
                     </span>
@@ -1273,16 +1392,24 @@ function DetailTable({
                   <td className={TD}>{money(ins.pay)}</td>
                   <td className={TD}>{money(ins.travel)}</td>
                   <td className={TD}>{money(ins.employerCost)}</td>
-                  <td className={`${TD} ${theme.text}`}>₪{money(ins.total - ins.bonus)}</td>
+                  <td className={`${TD} ${theme.text}`}>₪{money(ins.total)}</td>
                 </tr>
             {insRows.map((r) => (
               <tr
                 key={r.key}
-                className={`border-b border-border/50 last:border-b-0 ${!r.hasRate ? "bg-red-50/60" : ""}`}
+                className={`border-b border-border/50 ${!r.hasRate ? "bg-red-50/60" : ""}`}
               >
                 <td className={`${TD_LABEL} ps-8`}>
                   {r.clientName}
                   {r.city && <span className="ms-1 text-xs text-muted-foreground">{r.city}</span>}
+                  {r.manualCount > 0 && (
+                    <ManualBadge
+                      count={r.manualCount}
+                      title={r.manualLessons
+                        .map((m) => `+${m.lesson_count}${m.note ? ` - ${m.note}` : ""}`)
+                        .join("\n")}
+                    />
+                  )}
                   {!r.hasRate && (
                     <span className="ms-2 text-[11px] font-bold text-red-600">ללא תעריף</span>
                   )}
@@ -1298,7 +1425,7 @@ function DetailTable({
                     value={r.workDays}
                     width="w-14"
                     highlight={r.daysOverride !== null}
-                    title={`מהחתימות: ${r.signedDays}`}
+                    title={`מהחתימות: ${r.signedDays}${r.manualDays ? ` + ידני ${r.manualDays}` : ""}`}
                     onSave={(v) => saveOverride(r, "days", v)}
                   />
                 </td>
@@ -1308,7 +1435,7 @@ function DetailTable({
                       value={r.activityCount}
                       width="w-14"
                       highlight={r.countOverride !== null}
-                      title={`מהחתימות: ${r.signedCount}`}
+                      title={`מהחתימות: ${r.signedCount}${r.manualCount ? ` + ידני ${r.manualCount}` : ""}`}
                       onSave={(v) => saveOverride(r, "count", v)}
                     />
                     {r.countOverride !== null && (
@@ -1329,19 +1456,34 @@ function DetailTable({
                 <td className={`${TD} font-semibold`}>{money(r.total)}</td>
               </tr>
             ))}
+                <InstructorExtrasRow
+                  instructor={ins}
+                  rows={insRows}
+                  pickOptions={pickOptions}
+                  year={year}
+                  month={month}
+                  run={run}
+                />
               </tbody>
               </Fragment>
             );
           })}
           <tfoot>
             <tr className="border-t-2 border-border bg-muted/40 font-bold">
-              <td className={TD_LABEL} colSpan={3}>{'סה"כ (ללא תוספות)'}</td>
+              <td className={TD_LABEL} colSpan={3}>
+                {'סה"כ'}
+                {bonusTotal !== 0 && (
+                  <span className="ms-2 text-xs font-normal text-muted-foreground">
+                    כולל תוספות ₪{money(bonusTotal)}
+                  </span>
+                )}
+              </td>
               <td className={TD}>{totals.workDays}</td>
               <td className={TD}>{totals.activities}</td>
               <td className={TD}>{money(totals.pay)}</td>
               <td className={TD}>{money(totals.travel)}</td>
               <td className={TD}>{money(totals.employerCost)}</td>
-              <td className={TD}>{money(totals.total)}</td>
+              <td className={TD}>{money(totals.total + bonusTotal)}</td>
             </tr>
           </tfoot>
         </table>
@@ -1350,7 +1492,357 @@ function DetailTable({
   );
 }
 
-function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; run: Run }) {
+function PaidToggle({ paid, onChange }: { paid: boolean; onChange: (paid: boolean) => void }) {
+  return (
+    <label
+      title={paid ? "סמן כלא שולם" : "סמן ששולם"}
+      className={`flex shrink-0 cursor-pointer items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
+        paid
+          ? "border-emerald-400 bg-emerald-100 text-emerald-800"
+          : "border-border bg-white/70 text-muted-foreground"
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={paid}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-3.5 w-3.5 accent-emerald-600"
+      />
+      {paid ? "שולם" : "לא שולם"}
+    </label>
+  );
+}
+
+function ManualBadge({ count, title }: { count: number; title?: string }) {
+  return (
+    <span
+      title={title}
+      className="ms-2 inline-flex items-center gap-0.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-[11px] font-semibold text-purple-800"
+    >
+      <Hand size={10} />
+      ידני +{count}
+    </span>
+  );
+}
+
+const CHIP = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium";
+
+// Bottom row of each instructor block: manually added lessons, special additions, and the add forms.
+function InstructorExtrasRow({
+  instructor,
+  rows,
+  pickOptions,
+  year,
+  month,
+  run,
+}: {
+  instructor: Data["instructors"][number];
+  rows: Data["rows"];
+  pickOptions: { clients: string[]; cities: string[] };
+  year: number;
+  month: number;
+  run: Run;
+}) {
+  const [open, setOpen] = useState<"" | "lessons" | "bonus">("");
+  const manual = rows.flatMap((r) => r.manualLessons);
+
+  return (
+    <tr className="bg-white">
+      <td colSpan={8} className="px-3 py-1.5 ps-8">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-semibold text-muted-foreground">תוספת מיוחדת:</span>
+          {manual.map((m) => (
+            <span key={m.id} className={`${CHIP} bg-purple-100 text-purple-800`}>
+              <Hand size={10} />
+              {m.client_name}
+              {m.city && ` ${m.city}`} +{m.lesson_count} שיעורים
+              {m.work_days > 0 && ` · ${m.work_days} ימים`}
+              {m.note && <span className="text-purple-600">({m.note})</span>}
+              <button
+                type="button"
+                title="מחיקת השיעורים הידניים"
+                onClick={() => confirm("למחוק את השיעורים שהוספו ידנית?") && run(deleteManualLessons(m.id))}
+                className="hover:text-red-600"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+          {instructor.bonusItems.map((b) => (
+            <span key={b.id} className={`${CHIP} bg-amber-100 text-amber-800`}>
+              {b.label} ₪{money(Number(b.amount))}
+              <button
+                type="button"
+                title="מחיקת התוספת"
+                onClick={() => confirm(`למחוק את התוספת "${b.label}"?`) && run(deletePayBonus(b.id))}
+                className="hover:text-red-600"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={() => setOpen(open === "bonus" ? "" : "bonus")}
+            className="flex items-center gap-0.5 text-xs text-blue-600 hover:underline"
+          >
+            <Plus size={12} />
+            תוספת
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(open === "lessons" ? "" : "lessons")}
+            className="flex items-center gap-0.5 text-xs text-purple-700 hover:underline"
+          >
+            <Plus size={12} />
+            שיעורים ידנית
+          </button>
+        </div>
+        {open === "bonus" && (
+          <BonusAdder
+            onAdd={(label, amount) => run(addPayBonus(instructor.id, year, month, label, amount))}
+            onClose={() => setOpen("")}
+          />
+        )}
+        {open === "lessons" && (
+          <ManualLessonAdder
+            presetInstructorId={instructor.id}
+            clients={pickOptions.clients}
+            cities={pickOptions.cities}
+            year={year}
+            month={month}
+            run={run}
+            startOpen
+            onClose={() => setOpen("")}
+          />
+        )}
+      </td>
+      <td className={`${TD} text-amber-800`}>{instructor.bonus !== 0 ? money(instructor.bonus) : ""}</td>
+    </tr>
+  );
+}
+
+function BonusAdder({
+  onAdd,
+  onClose,
+}: {
+  onAdd: (label: string, amount: number) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [label, setLabel] = useState("");
+  const [amount, setAmount] = useState("");
+
+  async function add() {
+    const amt = Number(amount);
+    if (!label.trim() || !amount || Number.isNaN(amt)) return;
+    await onAdd(label, amt);
+    onClose();
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
+      <input
+        autoFocus
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="תיאור (למשל: בונוס, החזר חניה)"
+        className="min-w-[12rem] rounded-md border border-border bg-background px-2 py-1"
+      />
+      <input
+        type="number"
+        dir="ltr"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && add()}
+        placeholder="סכום"
+        className="w-24 rounded-md border border-border bg-background px-2 py-1 text-right"
+      />
+      <button
+        type="button"
+        onClick={add}
+        className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+      >
+        הוסף
+      </button>
+      <button type="button" onClick={onClose} className="text-xs text-muted-foreground">
+        ביטול
+      </button>
+    </div>
+  );
+}
+
+// Adds lessons by hand. With `instructors` (or a preset instructor) they count for the instructor's
+// pay and the client's invoice; without, they're billed to the client only.
+function ManualLessonAdder({
+  instructors,
+  presetInstructorId,
+  clients,
+  cities,
+  year,
+  month,
+  run,
+  startOpen,
+  onClose,
+}: {
+  instructors?: { id: string; full_name: string }[];
+  presetInstructorId?: string;
+  clients: string[];
+  cities: string[];
+  year: number;
+  month: number;
+  run: Run;
+  startOpen?: boolean;
+  onClose?: () => void;
+}) {
+  const forInstructor = !!instructors || !!presetInstructorId;
+  const [open, setOpen] = useState(!!startOpen);
+  const [instructorId, setInstructorId] = useState(presetInstructorId ?? "");
+  const [client, setClient] = useState("");
+  const [city, setCity] = useState("");
+  const [count, setCount] = useState("");
+  const [days, setDays] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const INPUT = "rounded-md border border-border bg-background px-2 py-1";
+  const listId = `ml-${presetInstructorId ?? (forInstructor ? "ins" : "client")}`;
+
+  function close() {
+    setOpen(false);
+    onClose?.();
+  }
+
+  async function add() {
+    const n = Number(count);
+    if ((forInstructor && !instructorId) || !client.trim() || !(n > 0)) return;
+    setSaving(true);
+    await run(
+      addManualLessons({
+        instructorId: forInstructor ? instructorId : null,
+        clientName: client,
+        city,
+        year,
+        month,
+        lessonCount: n,
+        workDays: Number(days) || 0,
+        note,
+      })
+    );
+    setSaving(false);
+    setClient("");
+    setCity("");
+    setCount("");
+    setDays("");
+    setNote("");
+    close();
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1 text-sm font-medium text-purple-700 hover:underline"
+      >
+        <Hand size={14} />
+        {forInstructor ? "הוספת שיעורים ידנית למדריך" : "הוספת שיעורים ידנית ללקוח (לחשבונית בלבד)"}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-2 text-sm ${
+        startOpen ? "mt-1.5" : "rounded-xl border border-dashed border-purple-300 bg-purple-50/50 p-3"
+      }`}
+    >
+      {instructors && !presetInstructorId && (
+        <select value={instructorId} onChange={(e) => setInstructorId(e.target.value)} className={INPUT}>
+          <option value="">בחירת מדריך</option>
+          {instructors.map((i) => (
+            <option key={i.id} value={i.id}>{i.full_name}</option>
+          ))}
+        </select>
+      )}
+      <input
+        list={`${listId}-clients`}
+        value={client}
+        onChange={(e) => setClient(e.target.value)}
+        placeholder="לקוח"
+        className={`${INPUT} w-36`}
+      />
+      <datalist id={`${listId}-clients`}>
+        {clients.map((c) => <option key={c} value={c} />)}
+      </datalist>
+      <input
+        list={`${listId}-cities`}
+        value={city}
+        onChange={(e) => setCity(e.target.value)}
+        placeholder="עיר"
+        className={`${INPUT} w-28`}
+      />
+      <datalist id={`${listId}-cities`}>
+        {cities.map((c) => <option key={c} value={c} />)}
+      </datalist>
+      <input
+        type="number"
+        min={1}
+        dir="ltr"
+        value={count}
+        onChange={(e) => setCount(e.target.value)}
+        placeholder="שיעורים"
+        className={`${INPUT} w-20 text-right`}
+      />
+      {forInstructor && (
+        <input
+          type="number"
+          min={0}
+          dir="ltr"
+          value={days}
+          onChange={(e) => setDays(e.target.value)}
+          placeholder="ימי עבודה"
+          title="ימי עבודה נוספים לחישוב נסיעות (לא חובה)"
+          className={`${INPUT} w-24 text-right`}
+        />
+      )}
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="הערה (לא חובה)"
+        className={`${INPUT} min-w-[8rem] flex-1`}
+      />
+      <button
+        type="button"
+        onClick={add}
+        disabled={saving}
+        className="rounded-md bg-purple-600 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+      >
+        הוסף
+      </button>
+      <button type="button" onClick={close} className="text-xs text-muted-foreground">
+        ביטול
+      </button>
+      {!startOpen && (
+        <span className="w-full text-xs text-muted-foreground">
+          {forInstructor
+            ? "השיעורים יתווספו לשכר המדריך לפי התעריף שלו בלקוח/עיר, וייכללו גם בחשבונית ללקוח. יסומנו בסגול כ'ידני'."
+            : "השיעורים יתווספו לחשבונית של הלקוח בלבד (ללא שכר מדריך). יסומנו בסגול כ'ידני'."}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PayrollTable({
+  instructors,
+  year,
+  month,
+  run,
+}: {
+  instructors: Data["instructors"];
+  year: number;
+  month: number;
+  run: Run;
+}) {
   const groups = [
     { label: "עצמאי/ת", items: instructors.filter((i) => !i.isOffice && i.employmentType === "freelance") },
     { label: "שכיר/ה", items: instructors.filter((i) => !i.isOffice && i.employmentType === "employee") },
@@ -1479,7 +1971,15 @@ function PayrollTable({ instructors, run }: { instructors: Data["instructors"]; 
                           <span className="text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className={`${TD_LABEL} font-medium`}>{i.name}</td>
+                      <td className={`${TD_LABEL} font-medium`}>
+                        <span className="flex items-center gap-2">
+                          <PaidToggle
+                            paid={i.paid}
+                            onChange={(p) => run(setPayeePaid(i.id, year, month, p))}
+                          />
+                          {i.name}
+                        </span>
+                      </td>
                       <td className={TD}>{i.workDays}</td>
                       <td className={TD}>{i.activities}</td>
                       <td className={TD}>{money(i.pay)}</td>
@@ -1911,20 +2411,45 @@ function InvoicesTab({
             <tbody>
               {inv.cities.map((c) => (
                 <tr key={c.key} className="border-b border-border/50">
-                  <td className={TD_LABEL}>{c.city || "—"}</td>
+                  <td className={TD_LABEL}>
+                    {c.city || "—"}
+                    {c.instructorManualCount + c.manualCount > 0 && (
+                      <ManualBadge
+                        count={c.instructorManualCount + c.manualCount}
+                        title={[
+                          c.instructorManualCount > 0 && `${c.instructorManualCount} דרך מדריכים`,
+                          c.manualCount > 0 && `${c.manualCount} ללקוח בלבד`,
+                        ].filter(Boolean).join("\n")}
+                      />
+                    )}
+                    {c.manualLessons.map((m) => (
+                      <span key={m.id} className={`${CHIP} ms-1 bg-purple-50 text-purple-700`}>
+                        +{m.lesson_count}
+                        {m.note && ` ${m.note}`}
+                        <button
+                          type="button"
+                          title="מחיקת השיעורים הידניים"
+                          onClick={() => confirm("למחוק את השיעורים שהוספו ידנית?") && run(deleteManualLessons(m.id))}
+                          className="hover:text-red-600"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </td>
                   <td className={TD}>
                     <span className="inline-flex items-center gap-1">
                       <NumberCell
                         value={c.activities}
                         width="w-14"
                         highlight={c.invoiceOverride !== null}
-                        title={`לפי פירוט מדריכים: ${c.rowActivities}`}
+                        title={`לפי פירוט מדריכים${c.manualCount ? " + ידני" : ""}: ${c.rowActivities}`}
                         onSave={(v) => saveCount(c, v)}
                       />
                       {c.invoiceOverride !== null && (
                         <button
                           type="button"
-                          title={`חזרה לפירוט מדריכים (${c.rowActivities})`}
+                          title={`חזרה לחישוב (${c.rowActivities})`}
                           onClick={() => saveCount(c, null)}
                           className="text-muted-foreground hover:text-orange-700"
                         >
