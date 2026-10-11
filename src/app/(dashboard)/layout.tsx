@@ -1,6 +1,7 @@
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { AdminTopbar } from "@/components/layout/admin-topbar";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
@@ -14,9 +15,12 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_owner")
+    .select("role, is_owner")
     .eq("id", session?.user?.id ?? "")
     .single();
+
+  if (!session) redirect("/login");
+  if (profile?.role !== "admin") redirect("/today");
 
   return (
     <div className="min-h-screen bg-background">
