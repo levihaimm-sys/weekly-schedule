@@ -737,15 +737,24 @@ export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) 
       }
     }
 
+    const upsertOpts = {
+      onConflict: "instructor_id,location_id,lesson_date,start_time",
+      ignoreDuplicates: true,
+    };
     for (let b = 0; b < lessons.length; b += 100) {
-      const { data } = await admin
-        .from("lessons")
-        .upsert(lessons.slice(b, b + 100), {
-          onConflict: "instructor_id,location_id,lesson_date,start_time",
-          ignoreDuplicates: true,
-        })
-        .select("id");
-      created += data?.length ?? 0;
+      const batch = lessons.slice(b, b + 100);
+      const { data, error } = await admin.from("lessons").upsert(batch, upsertOpts).select("id");
+      if (!error) {
+        created += data?.length ?? 0;
+        continue;
+      }
+      // One conflicting row (e.g. a concurrent page load already created it, caught by the
+      // recurring_item_id+lesson_date unique index) fails the whole batch — retry row by row
+      // so the other 99 still get created.
+      for (const row of batch) {
+        const { data: one } = await admin.from("lessons").upsert(row, upsertOpts).select("id");
+        created += one?.length ?? 0;
+      }
     }
   }
 

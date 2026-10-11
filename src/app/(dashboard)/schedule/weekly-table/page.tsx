@@ -15,8 +15,8 @@ export default async function WeeklyScheduleTablePage({
 }) {
   const params = await searchParams;
 
-  // Create missing weeks and sync in background (non-blocking) — same as /schedule/weekly
-  ensureFutureWeeks(8, true);
+  // Create missing lessons before reading the week — same as /schedule/weekly
+  await ensureFutureWeeks(8, true);
 
   const baseDate = params.week ? new Date(params.week) : new Date();
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });

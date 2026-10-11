@@ -15,8 +15,9 @@ export default async function WeeklySchedulePage({
 }) {
   const params = await searchParams;
 
-  // Create missing weeks and sync in background (non-blocking)
-  ensureFutureWeeks(8, true);
+  // Create missing lessons before reading the week — fire-and-forget let the page render
+  // first, so newly filled lessons only showed up on the next refresh.
+  await ensureFutureWeeks(8, true);
 
   // Parse week from query or use current week
   const baseDate = params.week ? new Date(params.week) : new Date();
