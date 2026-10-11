@@ -11,6 +11,7 @@ import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
 import { bulkUpdateLessons, bulkDeleteLessons, bulkMarkAbsence, createLocation } from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { resolveFrameworkName } from "@/lib/utils/framework-label";
 
 interface WeeklyLesson {
   id: string;
@@ -263,7 +264,10 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       );
     }
     if (localMakeupsOnly) {
-      filtered = filtered.filter(isMakeup);
+      // Pending absences (need a make-up) and resolved ones (make-up arranged).
+      filtered = filtered.filter(
+        (l) => !!l.instructor_absence_request && (!l.instructor_request_type || l.instructor_request_type === "absence")
+      );
     }
     const byDay: Record<string, WeeklyLesson[]> = {};
     for (const dateStr of weekDates) byDay[dateStr] = [];
@@ -733,7 +737,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
               manager_name: editingLesson.manager_name,
               manager_phone: editingLesson.manager_phone,
               framework: editingLesson.framework,
-              framework_name: editingLesson.framework_name,
+              framework_name: editingLesson.group_name || editingLesson.framework_name,
               field: editingLesson.field,
               lesson_duration: editingLesson.lesson_duration,
               lessons_count: editingLesson.lessons_count,
@@ -784,11 +788,8 @@ function BulkCancelButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-// Framework name for the card; falls back to the location's name (blank strings included) so a
-// card never shows just "—" when the location itself is named.
 function frameworkLabel(lesson: WeeklyLesson): string {
-  const candidates = [lesson.group_name, lesson.framework_name, lesson.location?.name];
-  return candidates.find((v) => v && v.trim() && v.trim() !== "אין")?.trim() ?? "—";
+  return resolveFrameworkName(lesson) || "—";
 }
 
 function MobileLessonCard({

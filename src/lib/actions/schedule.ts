@@ -147,7 +147,7 @@ export async function updateLesson(
   // If this lesson had a pending instructor request, mark it as handled
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("instructor_absence_request, instructor_request_handled")
+    .select("instructor_absence_request, instructor_request_handled, lesson_date, instructor_id")
     .eq("id", lessonId)
     .single();
 
@@ -155,8 +155,14 @@ export async function updateLesson(
   if (finalUpdates.location_id === undefined) delete finalUpdates.location_id;
   // Mark as one-time change so the sync mechanism won't reset this lesson
   finalUpdates.is_one_time_change = true;
-  if (lesson?.instructor_absence_request && !lesson.instructor_request_handled) {
+  // Moving a pending absence to another date or assigning another instructor arranges a
+  // make-up: mark it handled (→ "השלמת חיסור") and scheduled.
+  const dateMoved = !!updates.lesson_date && updates.lesson_date !== lesson?.lesson_date;
+  const instructorChanged =
+    updates.instructor_id !== undefined && (updates.instructor_id ?? null) !== (lesson?.instructor_id ?? null);
+  if (lesson?.instructor_absence_request && !lesson.instructor_request_handled && (dateMoved || instructorChanged)) {
     finalUpdates.instructor_request_handled = true;
+    finalUpdates.status = "scheduled";
   }
 
   const admin = createAdminClient();
@@ -1516,9 +1522,10 @@ export async function bulkUpdateLessons(
   if (updates.instructor_id || updates.lesson_date) {
     await supabase
       .from("lessons")
-      .update({ instructor_request_handled: true })
+      .update({ instructor_request_handled: true, status: "scheduled" })
       .in("id", lessonIds)
-      .eq("instructor_absence_request", true);
+      .eq("instructor_absence_request", true)
+      .eq("instructor_request_handled", false);
   }
 
   await commitUndo(
