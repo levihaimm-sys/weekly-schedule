@@ -661,6 +661,9 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                           }}
                           className={`cursor-pointer rounded-lg border p-3 transition-shadow hover:shadow-md hover:border-secondary/30 ${getLessonBorderClass(lesson, isSelected)}`}
                         >
+                          <p className="mb-1 text-base font-extrabold leading-tight text-[#1C1917]">
+                            {frameworkLabel(lesson)}
+                          </p>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-bold text-[#1C1917]">
                               {formatTime(lesson.start_time)}
@@ -689,9 +692,6 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             {lesson.instructor?.full_name ?? (
                               <span className="text-red-600 font-medium">ללא מדריך</span>
                             )}
-                          </p>
-                          <p className="mt-1 text-sm leading-tight">
-                            {frameworkLabel(lesson)}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
@@ -809,6 +809,9 @@ function MobileLessonCard({
     >
       <div className="flex items-center justify-between">
         <div>
+          <p className="mb-1 text-lg font-extrabold leading-tight text-[#1C1917]">
+            {frameworkLabel(lesson)}
+          </p>
           <p className="text-sm font-bold text-[#1C1917]">
             {formatTime(lesson.start_time)}
           </p>
@@ -816,9 +819,6 @@ function MobileLessonCard({
             {lesson.instructor?.full_name ?? (
               <span className="font-medium text-red-600">ללא מדריך</span>
             )}
-          </p>
-          <p className="mt-1 text-base leading-tight">
-            {frameworkLabel(lesson)}
           </p>
           <p className="text-base text-muted-foreground">
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}

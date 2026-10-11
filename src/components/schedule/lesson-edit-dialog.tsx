@@ -619,20 +619,18 @@ export function LessonEditDialog({
             </>
           ) : (
             <>
-              {/* Framework name — only when this lesson instance is linked to a recurring
-                  template (editing it here always updates the template directly) */}
-              {hasRecurringLink && item.group_name !== undefined && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
-                  <input
-                    type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="שם המסגרת / חוג"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-                  />
-                </div>
-              )}
+              {/* Framework name — linked lessons edit the recurring template's group_name;
+                  one-off lessons edit framework_name on the lesson row itself. */}
+              <div>
+                <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
+                <input
+                  type="text"
+                  value={hasRecurringLink ? groupName : frameworkName}
+                  onChange={(e) => (hasRecurringLink ? setGroupName(e.target.value) : setFrameworkName(e.target.value))}
+                  placeholder={item.location?.name && item.location.name !== "אין" ? item.location.name : "שם המסגרת / חוג"}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-semibold"
+                />
+              </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium">עיר</label>
