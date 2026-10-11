@@ -122,6 +122,17 @@ export function AddLessonDialog({
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
         <div className="mt-4 space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium">שם המסגרת</label>
+            <input
+              type="text"
+              value={frameworkName}
+              onChange={(e) => setFrameworkName(e.target.value)}
+              placeholder="שם המסגרת / חוג"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-semibold"
+            />
+          </div>
+
           {/* Instructor */}
           <InstructorSearchSelect
             instructors={instructors}
@@ -230,7 +241,7 @@ export function AddLessonDialog({
 
           {/* Framework */}
           <div>
-            <label className="mb-1 block text-sm font-medium">מסגרת</label>
+            <label className="mb-1 block text-sm font-medium">סוג מסגרת (גנים / בי&quot;ס)</label>
             <input
               type="text"
               value={framework}
@@ -239,15 +250,6 @@ export function AddLessonDialog({
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">שם מסגרת</label>
-            <input
-              type="text"
-              value={frameworkName}
-              onChange={(e) => setFrameworkName(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
-            />
-          </div>
 
           <div className="flex gap-3">
             <div className="flex-1">

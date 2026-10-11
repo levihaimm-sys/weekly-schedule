@@ -5,6 +5,7 @@ import { X, Loader2, Trash2, Copy, Search, ChevronDown, UserMinus } from "lucide
 import { updateLesson, updateRecurringSchedule, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest, createLocation } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
+import { resolveFrameworkName } from "@/lib/utils/framework-label";
 
 interface LessonData {
   id: string;
@@ -79,10 +80,9 @@ export function LessonEditDialog({
   // location name) so it's never blank. Change detection compares against these same initial
   // values, so an untouched field never writes the fallback back to the DB.
   const isLinkedLesson = mode === "lesson" && !!item.recurring_item_id;
-  const locationFallback = item.location?.name && item.location.name.trim() !== "אין" ? item.location.name : "";
-  const initialGroupName = item.group_name || (isLinkedLesson ? item.framework_name || locationFallback : "") || "";
-  const initialFrameworkName =
-    item.framework_name || (mode === "lesson" && !isLinkedLesson ? locationFallback : "") || "";
+  const displayedName = mode === "lesson" ? resolveFrameworkName(item) : "";
+  const initialGroupName = item.group_name || (isLinkedLesson ? displayedName : "") || "";
+  const initialFrameworkName = item.framework_name || (mode === "lesson" && !isLinkedLesson ? displayedName : "") || "";
   const [groupName, setGroupName] = useState(initialGroupName);
   const [address, setAddress] = useState(item.address ?? "");
   const [clientName, setClientName] = useState(item.client_name ?? "");
@@ -563,7 +563,7 @@ export function LessonEditDialog({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">מסגרת</label>
+                <label className="mb-1 block text-sm font-medium">סוג מסגרת (גנים / בי&quot;ס)</label>
                 <input
                   type="text"
                   value={framework}
@@ -636,7 +636,7 @@ export function LessonEditDialog({
                   type="text"
                   value={hasRecurringLink ? groupName : frameworkName}
                   onChange={(e) => (hasRecurringLink ? setGroupName(e.target.value) : setFrameworkName(e.target.value))}
-                  placeholder={item.location?.name && item.location.name !== "אין" ? item.location.name : "שם המסגרת / חוג"}
+                  placeholder="שם המסגרת / חוג"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-semibold"
                 />
               </div>
@@ -712,7 +712,7 @@ export function LessonEditDialog({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">מסגרת</label>
+                <label className="mb-1 block text-sm font-medium">סוג מסגרת (גנים / בי&quot;ס)</label>
                 <input
                   type="text"
                   value={framework}

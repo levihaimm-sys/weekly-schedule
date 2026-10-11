@@ -11,6 +11,7 @@ import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { resolveFrameworkName } from "@/lib/utils/framework-label";
 import { bulkUpdateLessons, bulkDeleteLessons, bulkApplyPermanentChange } from "@/lib/actions/schedule";
 
 interface WeeklyLessonRow {
@@ -50,7 +51,7 @@ interface Props {
 const sortHe = (a: string, b: string) => a.localeCompare(b, "he");
 
 function frameworkLabel(r: WeeklyLessonRow): string {
-  return r.group_name || r.framework_name || "—";
+  return resolveFrameworkName(r) || "—";
 }
 
 function dateOf(r: WeeklyLessonRow): Date {
