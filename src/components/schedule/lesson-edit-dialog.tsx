@@ -75,14 +75,22 @@ export function LessonEditDialog({
   const [lessonDate, setLessonDate] = useState(item.lesson_date ?? "");
   const [status, setStatus] = useState(item.status ?? "scheduled");
   const [changeNotes, setChangeNotes] = useState(item.change_notes ?? "");
-  const [groupName, setGroupName] = useState(item.group_name ?? "");
+  // Pre-fill the framework-name field with what the weekly card shows (falling back to the
+  // location name) so it's never blank. Change detection compares against these same initial
+  // values, so an untouched field never writes the fallback back to the DB.
+  const isLinkedLesson = mode === "lesson" && !!item.recurring_item_id;
+  const locationFallback = item.location?.name && item.location.name.trim() !== "אין" ? item.location.name : "";
+  const initialGroupName = item.group_name || (isLinkedLesson ? item.framework_name || locationFallback : "") || "";
+  const initialFrameworkName =
+    item.framework_name || (mode === "lesson" && !isLinkedLesson ? locationFallback : "") || "";
+  const [groupName, setGroupName] = useState(initialGroupName);
   const [address, setAddress] = useState(item.address ?? "");
   const [clientName, setClientName] = useState(item.client_name ?? "");
   const [contactName, setContactName] = useState(item.contact_name ?? "");
   const [managerName, setManagerName] = useState(item.manager_name ?? "");
   const [managerPhone, setManagerPhone] = useState(item.manager_phone ?? "");
   const [framework, setFramework] = useState(item.framework ?? "");
-  const [frameworkName, setFrameworkName] = useState(item.framework_name ?? "");
+  const [frameworkName, setFrameworkName] = useState(initialFrameworkName);
   const [field, setField] = useState(item.field ?? "");
   const [lessonDuration, setLessonDuration] = useState(
     item.lesson_duration != null ? String(item.lesson_duration) : ""
@@ -158,7 +166,7 @@ export function LessonEditDialog({
     // group_name and notes only exist as columns on recurring_schedule, so they only apply when
     // there's a recurring template to write to.
     const isLessonMode = mode === "lesson";
-    const groupNameChanged = hasRecurringLink && groupName.trim() !== (item.group_name ?? "").trim();
+    const groupNameChanged = hasRecurringLink && groupName.trim() !== initialGroupName.trim();
     const addressChanged = isLessonMode && address.trim() !== (item.address ?? "").trim();
     const clientNameChanged = isLessonMode && clientName.trim() !== (item.client_name ?? "").trim();
     const contactNameChanged = isLessonMode && contactName.trim() !== (item.contact_name ?? "").trim();
@@ -166,7 +174,7 @@ export function LessonEditDialog({
     const managerPhoneChanged = isLessonMode && managerPhone.trim() !== (item.manager_phone ?? "").trim();
     const fieldChanged = isLessonMode && field.trim() !== (item.field ?? "").trim();
     const frameworkChanged = isLessonMode && framework.trim() !== (item.framework ?? "").trim();
-    const frameworkNameChanged = isLessonMode && frameworkName.trim() !== (item.framework_name ?? "").trim();
+    const frameworkNameChanged = isLessonMode && frameworkName.trim() !== initialFrameworkName.trim();
     const lessonDurationChanged =
       isLessonMode &&
       lessonDuration.trim() !== (item.lesson_duration != null ? String(item.lesson_duration) : "");
@@ -227,7 +235,8 @@ export function LessonEditDialog({
           // Linked to a recurring template — these fields live on that row, so update it directly.
           const masterResult = await updateRecurringSchedule(item.recurring_item_id!, {
             location_id: locationId,
-            group_name: groupName.trim() || null,
+            // Only when edited — otherwise the pre-filled fallback would overwrite an empty group_name.
+            group_name: groupNameChanged ? groupName.trim() || null : undefined,
             address: address.trim() || null,
             client_name: clientName.trim() || null,
             contact_name: contactName.trim() || null,
@@ -257,7 +266,7 @@ export function LessonEditDialog({
             manager_phone: managerPhone.trim() || null,
             field: field.trim() || null,
             framework: framework.trim() || null,
-            framework_name: frameworkName.trim() || null,
+            framework_name: frameworkNameChanged ? frameworkName.trim() || null : undefined,
             lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
             lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
           });
