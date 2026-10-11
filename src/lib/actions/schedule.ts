@@ -674,48 +674,79 @@ export async function syncFutureWeeksWithRecurring() {
  * temporary changes don't persist beyond their intended week.
  */
 export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) {
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const now = new Date();
+  const today = getTodayInIsrael();
+  const thisWeekStart = startOfWeek(new Date(today + "T00:00:00"), { weekStartsOn: 0 });
+  const thisWeekStartStr = format(thisWeekStart, "yyyy-MM-dd");
   let created = 0;
 
-  for (let w = 0; w < weeksAhead; w++) {
-    const targetDate = addDays(now, w * 7);
-    const wkStart = startOfWeek(targetDate, { weekStartsOn: 0 });
-    const wkEnd = addDays(wkStart, 5);
-    const wkStartStr = format(wkStart, "yyyy-MM-dd");
-    const wkEndStr = format(wkEnd, "yyyy-MM-dd");
+  const { data: masterSchedule } = await admin
+    .from("recurring_schedule")
+    .select("id, location_id, instructor_id, day_of_week, start_time")
+    .is("archived_at", null);
 
-    const { count } = await supabase
-      .from("lessons")
-      .select("*", { count: "exact", head: true })
-      .gte("lesson_date", wkStartStr)
-      .lte("lesson_date", wkEndStr);
+  if (masterSchedule && masterSchedule.length > 0) {
+    // Gap-fill per recurring item, not per week. The old "only fill completely empty weeks"
+    // rule skipped any week that already had a single lesson in it (e.g. lessons spawned by
+    // creating/editing one fixed item, or a one-off lesson), so every other fixed item silently
+    // never got generated for that week. Here each item is extended forward from its own latest
+    // existing lesson — weeks before that are left alone, so a lesson an admin deliberately
+    // deleted from a single week is not resurrected.
+    const lastDateByItem = new Map<string, string>();
+    const weeksWithLesson = new Set<string>();
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data: rows, error } = await admin
+        .from("lessons")
+        .select("recurring_item_id, lesson_date")
+        .not("recurring_item_id", "is", null)
+        .gte("lesson_date", thisWeekStartStr)
+        .order("id")
+        .range(from, from + pageSize - 1);
+      // Bail out rather than gap-fill from a partial picture (would create duplicates).
+      if (error) return { error: error.message, created: 0 };
+      for (const r of rows ?? []) {
+        const rid = r.recurring_item_id as string;
+        const prev = lastDateByItem.get(rid);
+        if (!prev || r.lesson_date > prev) lastDateByItem.set(rid, r.lesson_date);
+        const wk = format(startOfWeek(new Date(r.lesson_date + "T00:00:00"), { weekStartsOn: 0 }), "yyyy-MM-dd");
+        weeksWithLesson.add(`${rid}|${wk}`);
+      }
+      if (!rows || rows.length < pageSize) break;
+    }
 
-    if (count && count > 0) continue;
+    const lessons = [];
+    for (const entry of masterSchedule) {
+      const lastDate = lastDateByItem.get(entry.id);
+      for (let w = 0; w < weeksAhead; w++) {
+        const wkStart = addDays(thisWeekStart, w * 7);
+        const lessonDate = format(addDays(wkStart, entry.day_of_week), "yyyy-MM-dd");
+        if (lessonDate < today) continue;
+        if (lastDate && lessonDate <= lastDate) continue;
+        if (weeksWithLesson.has(`${entry.id}|${format(wkStart, "yyyy-MM-dd")}`)) continue;
+        if (isHoliday(lessonDate)) continue;
+        lessons.push({
+          recurring_item_id: entry.id,
+          location_id: entry.location_id,
+          instructor_id: entry.instructor_id,
+          lesson_date: lessonDate,
+          start_time: entry.start_time,
+          status: "scheduled",
+        });
+      }
+    }
 
-    const { data: masterSchedule } = await supabase
-      .from("recurring_schedule")
-      .select("id, location_id, instructor_id, day_of_week, start_time")
-      .is("archived_at", null);
-
-    if (!masterSchedule || masterSchedule.length === 0) continue;
-
-    const lessons = masterSchedule
-      .map((entry) => ({
-        recurring_item_id: entry.id,
-        location_id: entry.location_id,
-        instructor_id: entry.instructor_id,
-        lesson_date: format(addDays(wkStart, entry.day_of_week), "yyyy-MM-dd"),
-        start_time: entry.start_time,
-        status: "scheduled",
-      }))
-      .filter((lesson) => !isHoliday(lesson.lesson_date));
-
-    if (lessons.length === 0) continue;
-
-    const { data } = await supabase.from("lessons").insert(lessons).select();
-    created += data?.length ?? 0;
+    for (let b = 0; b < lessons.length; b += 100) {
+      const { data } = await admin
+        .from("lessons")
+        .upsert(lessons.slice(b, b + 100), {
+          onConflict: "instructor_id,location_id,lesson_date,start_time",
+          ignoreDuplicates: true,
+        })
+        .select("id");
+      created += data?.length ?? 0;
+    }
   }
 
   // Sync future weeks with recurring schedule (reset drifted lessons)
