@@ -113,6 +113,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [localClients, setLocalClients] = usePersistedState<string[]>("weekly-tiles-clients", []);
   const [localChangesOnly, setLocalChangesOnly] = usePersistedState<boolean>("weekly-tiles-changes-only", currentFilters?.changesOnly ?? false);
   const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);
+  const [showClient, setShowClient] = usePersistedState<boolean>("weekly-tiles-show-client", false);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
@@ -306,6 +307,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             onChange={setLocalClients}
             placeholder="כל הלקוחות"
           />
+          <button
+            type="button"
+            onClick={() => setShowClient((prev) => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              showClient
+                ? "border-teal-300 bg-teal-50 text-teal-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            הצג לקוח
+          </button>
           <button
             type="button"
             onClick={() => setLocalChangesOnly((prev) => !prev)}
@@ -587,6 +599,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                           }}
                           selectMode={selectMode}
                           selected={isSelected}
+                          showClient={showClient}
                         />
                       </div>
                     );
@@ -701,6 +714,9 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
                             {lesson.location?.city}
                           </p>
+                          {showClient && lesson.client_name && (
+                            <p className="mt-1 text-sm font-medium text-teal-700">{lesson.client_name}</p>
+                          )}
                           <RequestBadge lesson={lesson} />
                           {lesson.change_notes && (
                             <p className="mt-1 text-xs text-orange-600">
@@ -797,11 +813,13 @@ function MobileLessonCard({
   onEdit,
   selectMode,
   selected,
+  showClient,
 }: {
   lesson: WeeklyLesson;
   onEdit: () => void;
   selectMode?: boolean;
   selected?: boolean;
+  showClient?: boolean;
 }) {
   return (
     <div
@@ -825,6 +843,9 @@ function MobileLessonCard({
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
             {lesson.location?.city}
           </p>
+          {showClient && lesson.client_name && (
+            <p className="mt-1 text-base font-medium text-teal-700">{lesson.client_name}</p>
+          )}
         </div>
         <div className="flex items-center gap-2 self-start">
           <span

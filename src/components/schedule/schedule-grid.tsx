@@ -71,6 +71,7 @@ export function ScheduleGrid({
   const [localCities, setLocalCities] = usePersistedState<string[]>(`${filterKey}-cities`, currentFilters.cities ?? []);
   const [localInstructors, setLocalInstructors] = usePersistedState<string[]>(`${filterKey}-instructors`, currentFilters.instructors ?? []);
   const [localClients, setLocalClients] = usePersistedState<string[]>(`${filterKey}-clients`, []);
+  const [showClient, setShowClient] = usePersistedState<boolean>(`${filterKey}-show-client`, false);
 
   // Multi-select state — every write here is inherently permanent (this screen edits
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
@@ -249,6 +250,17 @@ export function ScheduleGrid({
           onChange={setLocalClients}
           placeholder="כל הלקוחות"
         />
+        <button
+          type="button"
+          onClick={() => setShowClient((prev) => !prev)}
+          className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            showClient
+              ? "border-teal-300 bg-teal-50 text-teal-700"
+              : "border-border bg-background hover:bg-muted"
+          }`}
+        >
+          הצג לקוח
+        </button>
         <button
           type="button"
           onClick={toggleSelectMode}
@@ -585,6 +597,9 @@ export function ScheduleGrid({
                       {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                       {item.location?.city}
                     </p>
+                    {showClient && item.client_name && (
+                      <p className="mt-1 text-base font-medium text-teal-700">{item.client_name}</p>
+                    )}
                   </div>
                 </div>
               );
@@ -641,6 +656,9 @@ export function ScheduleGrid({
                             {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                             {item.location?.city}
                           </p>
+                          {showClient && item.client_name && (
+                            <p className="mt-1 text-sm font-medium text-teal-700">{item.client_name}</p>
+                          )}
                         </div>
                       </div>
                     );
