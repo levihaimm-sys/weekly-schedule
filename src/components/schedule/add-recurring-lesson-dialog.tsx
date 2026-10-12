@@ -5,6 +5,7 @@ import { X, Loader2, Search, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createRecurringScheduleItem, createLocation } from "@/lib/actions/schedule";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
+import { SandboxHandlers, sandboxInstructor, sandboxLocation } from "./sandbox";
 
 export interface RecurringLessonSeed {
   day_of_week: number;
@@ -33,6 +34,8 @@ interface AddRecurringLessonDialogProps {
   // When present, the form is prefilled from an existing lesson (the "duplicate" flow).
   seed?: RecurringLessonSeed | null;
   defaultDayOfWeek?: number;
+  // Sandbox board: the new lesson is added to the local copy only, never to the DB.
+  sandbox?: SandboxHandlers;
 }
 
 export function AddRecurringLessonDialog({
@@ -42,6 +45,7 @@ export function AddRecurringLessonDialog({
   locations,
   seed,
   defaultDayOfWeek,
+  sandbox,
 }: AddRecurringLessonDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -114,6 +118,28 @@ export function AddRecurringLessonDialog({
     }
     if (!startTime) {
       setError("יש להזין שעה");
+      return;
+    }
+    if (sandbox) {
+      sandbox.add({
+        instructor: sandboxInstructor(instructors, instructorId),
+        location: sandboxLocation(locations, trimmedName, trimmedCity),
+        day_of_week: dayOfWeek,
+        start_time: `${startTime}:00`,
+        group_name: groupName.trim() || null,
+        client_name: clientName.trim() || null,
+        address: address.trim() || null,
+        manager_name: managerName.trim() || null,
+        manager_phone: managerPhone.trim() || null,
+        contact_name: contactName.trim() || null,
+        framework: framework.trim() || null,
+        framework_name: frameworkName.trim() || null,
+        field: field.trim() || null,
+        lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+        lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
+        notes: notes.trim() || null,
+      });
+      onClose();
       return;
     }
     setLoading(true);

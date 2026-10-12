@@ -25,6 +25,7 @@ import {
   Banknote,
   Wallet,
   TrendingUp,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -90,6 +91,7 @@ export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
             { href: "/payroll", label: "שכר מדריכים", icon: Banknote },
             { href: "/client-payments", label: "תשלום לקוחות", icon: Wallet },
             { href: "/profit-loss", label: "רווח והפסד", icon: TrendingUp },
+            { href: "/sandbox", label: "סנדבוקס", icon: FlaskConical },
           ],
         },
       ]

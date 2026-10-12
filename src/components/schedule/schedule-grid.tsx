@@ -14,6 +14,7 @@ import {
   duplicateRecurringItemsToWeek,
 } from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { SandboxHandlers, sandboxInstructor } from "./sandbox";
 
 interface ScheduleItem {
   id: string;
@@ -47,6 +48,8 @@ interface ScheduleGridProps {
   instructors: { id: string; full_name: string }[];
   locations: { id: string; name: string; city: string; street: string | null }[];
   currentFilters: { cities?: string[]; instructors?: string[]; day?: string };
+  // Sandbox board: all edits go to a local copy only (see ./sandbox.ts), never to the DB.
+  sandbox?: SandboxHandlers;
 }
 
 const NO_INSTRUCTOR = "__no_instructor__";
@@ -57,15 +60,17 @@ export function ScheduleGrid({
   instructors,
   locations,
   currentFilters,
+  sandbox,
 }: ScheduleGridProps) {
   const router = useRouter();
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [duplicateSeed, setDuplicateSeed] = useState<RecurringLessonSeed | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [localCities, setLocalCities] = usePersistedState<string[]>("fixed-schedule-cities", currentFilters.cities ?? []);
-  const [localInstructors, setLocalInstructors] = usePersistedState<string[]>("fixed-schedule-instructors", currentFilters.instructors ?? []);
-  const [localClients, setLocalClients] = usePersistedState<string[]>("fixed-schedule-clients", []);
+  const filterKey = sandbox ? "sandbox-schedule" : "fixed-schedule";
+  const [localCities, setLocalCities] = usePersistedState<string[]>(`${filterKey}-cities`, currentFilters.cities ?? []);
+  const [localInstructors, setLocalInstructors] = usePersistedState<string[]>(`${filterKey}-instructors`, currentFilters.instructors ?? []);
+  const [localClients, setLocalClients] = usePersistedState<string[]>(`${filterKey}-clients`, []);
 
   // Multi-select state — every write here is inherently permanent (this screen edits
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
@@ -115,6 +120,18 @@ export function ScheduleGrid({
     if (bulkAction === "duplicate-week" && !bulkTargetWeekDate) return;
     setBulkLoading(true);
     const ids = Array.from(selectedIds);
+
+    if (sandbox) {
+      if (bulkAction === "delete") sandbox.remove(ids);
+      else if (bulkAction === "instructor") sandbox.update(ids, { instructor: sandboxInstructor(instructors, bulkInstructorId) });
+      else if (bulkAction === "time") sandbox.update(ids, { start_time: `${bulkTime}:00` });
+      else if (bulkAction === "manager") sandbox.update(ids, { manager_name: bulkManagerName.trim() || null });
+      else if (bulkAction === "day") sandbox.update(ids, { day_of_week: bulkDayOfWeek });
+      clearSelection();
+      setSelectMode(false);
+      setBulkLoading(false);
+      return;
+    }
 
     // The writes may land in the DB even when the action reports an error or the response
     // fails in transit, so always refresh — and close the bulk bar — instead of leaving the
@@ -311,16 +328,18 @@ export function ScheduleGrid({
                 >
                   שנה יום
                 </button>
-                <button
-                  onClick={() => setBulkAction("duplicate-week")}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    bulkAction === "duplicate-week"
-                      ? "border-blue-400 bg-blue-100 text-blue-700"
-                      : "border-border bg-background hover:bg-muted"
-                  }`}
-                >
-                  שכפל לשבוע
-                </button>
+                {!sandbox && (
+                  <button
+                    onClick={() => setBulkAction("duplicate-week")}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      bulkAction === "duplicate-week"
+                        ? "border-blue-400 bg-blue-100 text-blue-700"
+                        : "border-border bg-background hover:bg-muted"
+                    }`}
+                  >
+                    שכפל לשבוע
+                  </button>
+                )}
                 <button
                   onClick={() => setBulkAction("delete")}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -480,7 +499,9 @@ export function ScheduleGrid({
           {bulkAction === "delete" && (
             <div className="flex w-full items-center gap-2 mt-2">
               <span className="flex-1 text-sm text-red-700">
-                האם למחוק {selectedIds.size} שיעורים קבועים? כל השיעורים העתידיים שנוצרו מהם יימחקו גם הם. פעולה זו בלתי הפיכה.
+                {sandbox
+                  ? `האם למחוק ${selectedIds.size} שיעורים מהסנדבוקס?`
+                  : `האם למחוק ${selectedIds.size} שיעורים קבועים? כל השיעורים העתידיים שנוצרו מהם יימחקו גם הם. פעולה זו בלתי הפיכה.`}
               </span>
               <button
                 onClick={executeBulkAction}
@@ -642,6 +663,7 @@ export function ScheduleGrid({
           instructors={instructors}
           locations={locations}
           mode="recurring"
+          sandbox={sandbox}
           open={!!editingItem}
           onClose={() => setEditingItem(null)}
           onDuplicate={() => {
@@ -679,6 +701,7 @@ export function ScheduleGrid({
         locations={locations}
         seed={duplicateSeed}
         defaultDayOfWeek={selectedDay}
+        sandbox={sandbox}
       />
     </div>
   );

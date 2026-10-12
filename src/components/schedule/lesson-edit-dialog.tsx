@@ -6,6 +6,7 @@ import { updateLesson, updateRecurringSchedule, deleteRecurringScheduleItem, bul
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 import { resolveFrameworkName } from "@/lib/utils/framework-label";
+import { SandboxHandlers, sandboxInstructor, sandboxLocation } from "./sandbox";
 
 interface LessonData {
   id: string;
@@ -47,6 +48,8 @@ interface LessonEditDialogProps {
   // Shows a "duplicate" button that hands the current item back to the caller (which opens an
   // add/duplicate dialog prefilled with it) instead of editing in place.
   onDuplicate?: () => void;
+  // Sandbox board: edits are applied to the local copy only, never to the DB.
+  sandbox?: SandboxHandlers;
 }
 
 export function LessonEditDialog({
@@ -57,6 +60,7 @@ export function LessonEditDialog({
   open,
   onClose,
   onDuplicate,
+  sandbox,
 }: LessonEditDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -136,6 +140,11 @@ export function LessonEditDialog({
   }
 
   async function handleDelete() {
+    if (sandbox) {
+      sandbox.remove([item.id]);
+      onClose();
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -210,6 +219,33 @@ export function LessonEditDialog({
 
     // First click shows the confirmation (lesson mode: only when instructor/time/status/etc.
     // actually changed), the confirm button saves
+    if (sandbox) {
+      if (!locationName.trim() || !locationCity.trim()) {
+        setError("יש להזין שם גן/מסגרת ועיר");
+        return;
+      }
+      sandbox.update([item.id], {
+        location: sandboxLocation(locations, locationName, locationCity),
+        instructor: sandboxInstructor(instructors, instructorId),
+        start_time: startTime ? `${startTime}:00` : item.start_time,
+        day_of_week: dayOfWeek,
+        group_name: groupName.trim() || null,
+        address: address.trim() || null,
+        client_name: clientName.trim() || null,
+        contact_name: contactName.trim() || null,
+        manager_name: managerName.trim() || null,
+        manager_phone: managerPhone.trim() || null,
+        framework: framework.trim() || null,
+        framework_name: frameworkName.trim() || null,
+        field: field.trim() || null,
+        lesson_duration: lessonDuration.trim() ? Number(lessonDuration) : null,
+        lessons_count: lessonsCount.trim() ? Number(lessonsCount) : null,
+        notes: notes.trim() || null,
+      });
+      onClose();
+      return;
+    }
+
     if (!confirmed && (mode === "recurring" || otherFieldsChanged)) {
       setShowSaveConfirm(true);
       return;
@@ -387,7 +423,7 @@ export function LessonEditDialog({
               ? "האם אתה בטוח שברצונך למחוק את השיעור הזה מהלוח הקבוע?"
               : "האם אתה בטוח שברצונך למחוק את השיעור הזה?"}
           </p>
-          {mode === "recurring" && (
+          {mode === "recurring" && !sandbox && (
             <div className="mt-2 rounded-lg bg-destructive/10 p-3">
               <p className="text-sm font-medium text-destructive">
                 ⚠️ פעולה זו תמחק גם את כל השיעורים העתידיים שנוצרו מהשיעור הקבוע הזה!
