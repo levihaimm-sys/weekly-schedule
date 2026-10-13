@@ -770,6 +770,31 @@ export async function ensureFutureWeeks(weeksAhead = 8, skipRevalidate = false) 
   return { success: true, created };
 }
 
+// ensureFutureWeeks scans every future lesson (twice, with the sync) — running it on each render
+// made every board action and week switch slow, since revalidatePath re-renders the page. Gap-fill
+// only needs to happen occasionally, so page renders run it at most once per interval per server
+// instance, and concurrent renders share the same in-flight run.
+const ENSURE_INTERVAL_MS = 10 * 60 * 1000;
+let lastEnsureAt = 0;
+let ensureInFlight: Promise<unknown> | null = null;
+
+export async function ensureFutureWeeksThrottled() {
+  if (ensureInFlight) {
+    await ensureInFlight;
+    return;
+  }
+  if (Date.now() - lastEnsureAt < ENSURE_INTERVAL_MS) return;
+  ensureInFlight = ensureFutureWeeks(8, true)
+    .then((result) => {
+      if (!(result as { error?: string }).error) lastEnsureAt = Date.now();
+    })
+    .catch((e) => console.error("ensureFutureWeeks failed:", e))
+    .finally(() => {
+      ensureInFlight = null;
+    });
+  await ensureInFlight;
+}
+
 /**
  * Instructor submits a request (absence, lateness, or other message).
  */

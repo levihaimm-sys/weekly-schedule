@@ -1,5 +1,5 @@
 import { getWeekLessons, getAllInstructors, getAllCities, getAllLocations } from "@/lib/queries/schedule";
-import { ensureFutureWeeks, getLastScheduleUndo } from "@/lib/actions/schedule";
+import { ensureFutureWeeksThrottled, getLastScheduleUndo } from "@/lib/actions/schedule";
 import { UndoButton } from "@/components/schedule/undo-button";
 import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
@@ -17,7 +17,7 @@ export default async function WeeklySchedulePage({
 
   // Create missing lessons before reading the week — fire-and-forget let the page render
   // first, so newly filled lessons only showed up on the next refresh.
-  await ensureFutureWeeks(8, true);
+  await ensureFutureWeeksThrottled();
 
   // Parse week from query or use current week
   const baseDate = params.week ? new Date(params.week) : new Date();
