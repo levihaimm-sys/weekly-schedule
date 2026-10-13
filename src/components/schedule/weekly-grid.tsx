@@ -12,6 +12,7 @@ import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, Chec
 import { bulkUpdateLessons, bulkDeleteLessons, bulkMarkAbsence, createLocation } from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { resolveFrameworkName } from "@/lib/utils/framework-label";
+import { ClientInfo } from "./client-info";
 
 interface WeeklyLesson {
   id: string;
@@ -714,9 +715,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
                             {lesson.location?.city}
                           </p>
-                          {showClient && lesson.client_name && (
-                            <p className="mt-1 text-sm font-medium text-teal-700">{lesson.client_name}</p>
-                          )}
+                          {showClient && <ClientInfo item={lesson} />}
                           <RequestBadge lesson={lesson} />
                           {lesson.change_notes && (
                             <p className="mt-1 text-xs text-orange-600">
@@ -843,9 +842,7 @@ function MobileLessonCard({
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
             {lesson.location?.city}
           </p>
-          {showClient && lesson.client_name && (
-            <p className="mt-1 text-base font-medium text-teal-700">{lesson.client_name}</p>
-          )}
+          {showClient && <ClientInfo item={lesson} size="base" />}
         </div>
         <div className="flex items-center gap-2 self-start">
           <span

@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { SandboxHandlers, sandboxInstructor } from "./sandbox";
+import { ClientInfo } from "./client-info";
 
 interface ScheduleItem {
   id: string;
@@ -597,9 +598,7 @@ export function ScheduleGrid({
                       {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                       {item.location?.city}
                     </p>
-                    {showClient && item.client_name && (
-                      <p className="mt-1 text-base font-medium text-teal-700">{item.client_name}</p>
-                    )}
+                    {showClient && <ClientInfo item={item} size="base" />}
                   </div>
                 </div>
               );
@@ -656,9 +655,7 @@ export function ScheduleGrid({
                             {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                             {item.location?.city}
                           </p>
-                          {showClient && item.client_name && (
-                            <p className="mt-1 text-sm font-medium text-teal-700">{item.client_name}</p>
-                          )}
+                          {showClient && <ClientInfo item={item} />}
                         </div>
                       </div>
                     );
