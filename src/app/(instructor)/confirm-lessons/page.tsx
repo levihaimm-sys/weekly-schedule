@@ -62,10 +62,6 @@ export default async function ConfirmLessonsPage({
       lesson_date,
       start_time,
       status,
-      change_notes,
-      instructor_absence_request,
-      instructor_request_type,
-      instructor_notes,
       location:locations!lessons_location_id_fkey(id, name, city, street)
     `
     )

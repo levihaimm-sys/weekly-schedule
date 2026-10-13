@@ -50,14 +50,13 @@ export default async function TodayPage() {
       lesson_date,
       start_time,
       status,
-      change_notes,
       framework_name,
       manager_name,
       manager_phone,
       address,
       instructor_absence_request,
+      instructor_request_handled,
       instructor_request_type,
-      instructor_notes,
       recurring_item_id,
       location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
     `
@@ -197,7 +196,10 @@ export default async function TodayPage() {
         ) : (
           <div className="space-y-3">
             {todayLessons.map((lesson: any) => {
-              const hasRequest = lesson.instructor_absence_request;
+              // Only the instructor's own still-pending request. A handled request means the
+              // lesson became a make-up (possibly reassigned to this instructor as a substitute) —
+              // that history is admin-only.
+              const hasRequest = lesson.instructor_absence_request && !lesson.instructor_request_handled;
               const isScheduled = lesson.status === "scheduled";
               const isConfirmed = !!sigMap[lesson.id];
 
@@ -281,14 +283,6 @@ export default async function TodayPage() {
                       </span>
                     </div>
 
-                    {lesson.change_notes && (
-                      <div className="mt-3 rounded-xl bg-warning/10 px-3 py-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          ⚠️ {lesson.change_notes}
-                        </p>
-                      </div>
-                    )}
-
                     {hasRequest && (
                       <div className="mt-3 rounded-xl bg-warning/10 px-3 py-2">
                         <span className="text-sm font-bold text-foreground">
@@ -299,11 +293,6 @@ export default async function TodayPage() {
                               : "הודעה"}{" "}
                           נשלחה
                         </span>
-                        {lesson.instructor_notes && (
-                          <span className="text-sm font-medium text-foreground/80">
-                            {" "}- {lesson.instructor_notes}
-                          </span>
-                        )}
                       </div>
                     )}
                   </div>

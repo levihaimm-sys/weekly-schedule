@@ -35,7 +35,6 @@ export default async function LessonDetailPage({
       lesson_date,
       start_time,
       status,
-      change_notes,
       address,
       recurring_item_id,
       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
@@ -131,12 +130,6 @@ export default async function LessonDetailPage({
             </div>
           )}
         </div>
-
-        {lesson.change_notes && (
-          <div className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-700">
-            {lesson.change_notes}
-          </div>
-        )}
       </div>
 
       {/* Waze Navigation */}

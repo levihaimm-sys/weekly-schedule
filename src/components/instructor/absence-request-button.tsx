@@ -9,10 +9,9 @@ interface Props {
   lessonId: string;
   hasRequest: boolean;
   requestType: string | null;
-  notes: string | null;
 }
 
-export function AbsenceRequestButton({ lessonId, hasRequest, requestType, notes }: Props) {
+export function AbsenceRequestButton({ lessonId, hasRequest, requestType }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -26,9 +25,6 @@ export function AbsenceRequestButton({ lessonId, hasRequest, requestType, notes 
         <span className="text-sm font-bold text-foreground">
           📢 {requestType === "absence" ? "חיסור צפוי" : "בקשה"} נשלחה
         </span>
-        {notes && (
-          <span className="text-sm font-medium text-foreground/80"> - {notes}</span>
-        )}
       </div>
     );
   }
