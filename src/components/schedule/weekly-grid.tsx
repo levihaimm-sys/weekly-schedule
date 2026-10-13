@@ -266,9 +266,13 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       );
     }
     if (localMakeupsOnly) {
-      // Pending absences (need a make-up) and resolved ones (make-up arranged).
+      // Only pending absences that still need a make-up — resolved ones already carry the
+      // "השלמת חיסור" tag on the board, so they're left out here.
       filtered = filtered.filter(
-        (l) => !!l.instructor_absence_request && (!l.instructor_request_type || l.instructor_request_type === "absence")
+        (l) =>
+          !!l.instructor_absence_request &&
+          !l.instructor_request_handled &&
+          (!l.instructor_request_type || l.instructor_request_type === "absence")
       );
     }
     const byDay: Record<string, WeeklyLesson[]> = {};
