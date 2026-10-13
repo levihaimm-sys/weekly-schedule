@@ -115,6 +115,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [localChangesOnly, setLocalChangesOnly] = usePersistedState<boolean>("weekly-tiles-changes-only", currentFilters?.changesOnly ?? false);
   const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);
   const [showClient, setShowClient] = usePersistedState<boolean>("weekly-tiles-show-client", false);
+  const [hideInstructor, setHideInstructor] = usePersistedState<boolean>("weekly-tiles-hide-instructor", false);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
@@ -322,6 +323,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             }`}
           >
             הצג לקוח
+          </button>
+          <button
+            type="button"
+            onClick={() => setHideInstructor((prev) => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              hideInstructor
+                ? "border-slate-400 bg-slate-100 text-slate-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            הסתר מדריך
           </button>
           <button
             type="button"
@@ -605,6 +617,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                           selectMode={selectMode}
                           selected={isSelected}
                           showClient={showClient}
+                          hideInstructor={hideInstructor}
                         />
                       </div>
                     );
@@ -707,11 +720,13 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                               )}
                             </div>
                           </div>
-                          <p className="mt-1 text-base font-extrabold text-[#1C1917]">
-                            {lesson.instructor?.full_name ?? (
-                              <span className="text-red-600 font-medium">ללא מדריך</span>
-                            )}
-                          </p>
+                          {!(hideInstructor && lesson.instructor) && (
+                            <p className="mt-1 text-base font-extrabold text-[#1C1917]">
+                              {lesson.instructor?.full_name ?? (
+                                <span className="text-red-600 font-medium">ללא מדריך</span>
+                              )}
+                            </p>
+                          )}
                           <p className="mt-1 text-sm leading-tight">
                             {frameworkLabel(lesson)}
                           </p>
@@ -817,12 +832,14 @@ function MobileLessonCard({
   selectMode,
   selected,
   showClient,
+  hideInstructor,
 }: {
   lesson: WeeklyLesson;
   onEdit: () => void;
   selectMode?: boolean;
   selected?: boolean;
   showClient?: boolean;
+  hideInstructor?: boolean;
 }) {
   return (
     <div
@@ -834,11 +851,13 @@ function MobileLessonCard({
           <p className="text-sm font-bold text-[#1C1917]">
             {formatTime(lesson.start_time)}
           </p>
-          <p className="mt-1 text-lg font-extrabold text-[#1C1917]">
-            {lesson.instructor?.full_name ?? (
-              <span className="font-medium text-red-600">ללא מדריך</span>
-            )}
-          </p>
+          {!(hideInstructor && lesson.instructor) && (
+            <p className="mt-1 text-lg font-extrabold text-[#1C1917]">
+              {lesson.instructor?.full_name ?? (
+                <span className="font-medium text-red-600">ללא מדריך</span>
+              )}
+            </p>
+          )}
           <p className="mt-1 text-base leading-tight">
             {frameworkLabel(lesson)}
           </p>

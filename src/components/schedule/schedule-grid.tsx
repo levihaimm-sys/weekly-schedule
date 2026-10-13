@@ -73,6 +73,7 @@ export function ScheduleGrid({
   const [localInstructors, setLocalInstructors] = usePersistedState<string[]>(`${filterKey}-instructors`, currentFilters.instructors ?? []);
   const [localClients, setLocalClients] = usePersistedState<string[]>(`${filterKey}-clients`, []);
   const [showClient, setShowClient] = usePersistedState<boolean>(`${filterKey}-show-client`, false);
+  const [hideInstructor, setHideInstructor] = usePersistedState<boolean>(`${filterKey}-hide-instructor`, false);
 
   // Multi-select state — every write here is inherently permanent (this screen edits
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
@@ -261,6 +262,17 @@ export function ScheduleGrid({
           }`}
         >
           הצג לקוח
+        </button>
+        <button
+          type="button"
+          onClick={() => setHideInstructor((prev) => !prev)}
+          className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            hideInstructor
+              ? "border-slate-400 bg-slate-100 text-slate-700"
+              : "border-border bg-background hover:bg-muted"
+          }`}
+        >
+          הסתר מדריך
         </button>
         <button
           type="button"
@@ -588,9 +600,11 @@ export function ScheduleGrid({
                           : <Square size={18} className="text-muted-foreground shrink-0" />
                       )}
                     </div>
-                    <p className="mt-1 text-base font-bold text-[#1C1917]">
-                      {item.instructor?.full_name ?? <span className="text-red-600">ללא מדריך</span>}
-                    </p>
+                    {!(hideInstructor && item.instructor) && (
+                      <p className="mt-1 text-base font-bold text-[#1C1917]">
+                        {item.instructor?.full_name ?? <span className="text-red-600">ללא מדריך</span>}
+                      </p>
+                    )}
                     <p className="mt-1 text-base leading-tight">
                       {item.group_name ?? item.framework_name ?? "—"}
                     </p>
@@ -645,9 +659,11 @@ export function ScheduleGrid({
                                 : <Square size={14} className="text-muted-foreground shrink-0" />
                             )}
                           </div>
-                          <p className="mt-1 text-sm font-bold text-[#1C1917]">
-                            {item.instructor?.full_name ?? <span className="text-red-600 font-medium">ללא מדריך</span>}
-                          </p>
+                          {!(hideInstructor && item.instructor) && (
+                            <p className="mt-1 text-sm font-bold text-[#1C1917]">
+                              {item.instructor?.full_name ?? <span className="text-red-600 font-medium">ללא מדריך</span>}
+                            </p>
+                          )}
                           <p className="mt-1 text-sm leading-tight">
                             {item.group_name ?? item.framework_name ?? "—"}
                           </p>
