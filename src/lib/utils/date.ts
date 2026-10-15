@@ -117,11 +117,12 @@ export function isHoliday(dateStr: string): boolean {
 type GroupableLesson = {
   instructor?: { id: string } | null;
   location?: { city?: string | null } | null;
+  client_name?: string | null;
 };
 
-/** Group key for a day's lessons: the instructor, or — for unassigned lessons — the city. */
+/** Group key for a day's lessons: the instructor, or — for unassigned lessons — the city + client. */
 export function lessonGroupKey(l: GroupableLesson): string {
-  return l.instructor?.id ?? `__none__:${l.location?.city ?? ""}`;
+  return l.instructor?.id ?? `__none__:${l.location?.city ?? ""}:${l.client_name ?? ""}`;
 }
 
 export function smartSortLessons<
