@@ -268,12 +268,14 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     }
     if (localMakeupsOnly) {
       // Only pending absences that still need a make-up — resolved ones already carry the
-      // "השלמת חיסור" tag on the board, so they're left out here.
+      // "השלמת חיסור" tag on the board, so they're left out here. A lesson with no instructor
+      // is treated like an absent one: nobody is teaching it, so it also needs covering.
       filtered = filtered.filter(
         (l) =>
-          !!l.instructor_absence_request &&
-          !l.instructor_request_handled &&
-          (!l.instructor_request_type || l.instructor_request_type === "absence")
+          !l.instructor ||
+          (!!l.instructor_absence_request &&
+            !l.instructor_request_handled &&
+            (!l.instructor_request_type || l.instructor_request_type === "absence"))
       );
     }
     const byDay: Record<string, WeeklyLesson[]> = {};
@@ -720,7 +722,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                               )}
                             </div>
                           </div>
-                          {!(hideInstructor && lesson.instructor) && (
+                          {!hideInstructor && (
                             <p className="mt-1 text-base font-extrabold text-[#1C1917]">
                               {lesson.instructor?.full_name ?? (
                                 <span className="text-red-600 font-medium">ללא מדריך</span>
@@ -851,7 +853,7 @@ function MobileLessonCard({
           <p className="text-sm font-bold text-[#1C1917]">
             {formatTime(lesson.start_time)}
           </p>
-          {!(hideInstructor && lesson.instructor) && (
+          {!hideInstructor && (
             <p className="mt-1 text-lg font-extrabold text-[#1C1917]">
               {lesson.instructor?.full_name ?? (
                 <span className="font-medium text-red-600">ללא מדריך</span>

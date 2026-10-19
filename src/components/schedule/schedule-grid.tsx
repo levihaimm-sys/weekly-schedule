@@ -600,7 +600,7 @@ export function ScheduleGrid({
                           : <Square size={18} className="text-muted-foreground shrink-0" />
                       )}
                     </div>
-                    {!(hideInstructor && item.instructor) && (
+                    {!hideInstructor && (
                       <p className="mt-1 text-base font-bold text-[#1C1917]">
                         {item.instructor?.full_name ?? <span className="text-red-600">ללא מדריך</span>}
                       </p>
@@ -659,7 +659,7 @@ export function ScheduleGrid({
                                 : <Square size={14} className="text-muted-foreground shrink-0" />
                             )}
                           </div>
-                          {!(hideInstructor && item.instructor) && (
+                          {!hideInstructor && (
                             <p className="mt-1 text-sm font-bold text-[#1C1917]">
                               {item.instructor?.full_name ?? <span className="text-red-600 font-medium">ללא מדריך</span>}
                             </p>
