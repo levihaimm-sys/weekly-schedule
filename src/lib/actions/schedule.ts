@@ -1927,6 +1927,7 @@ export async function clearInstructorRequest(lessonId: string) {
       instructor_request_type: null,
       instructor_notes: null,
       instructor_request_handled: false,
+      client_notified: false,
     })
     .eq("id", lessonId);
 
@@ -1935,6 +1936,25 @@ export async function clearInstructorRequest(lessonId: string) {
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/schedule/weekly");
+  revalidatePath("/schedule/weekly-table");
+
+  return { success: true };
+}
+
+/** Mark whether the client was told about an absence on this lesson. */
+export async function setClientNotified(lessonId: string, notified: boolean) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({ client_notified: notified })
+    .eq("id", lessonId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון: " + error.message };
+  }
+
   revalidatePath("/schedule/weekly");
   revalidatePath("/schedule/weekly-table");
 

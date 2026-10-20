@@ -37,6 +37,7 @@ interface WeeklyLesson {
   instructor_request_handled?: boolean;
   instructor_request_type?: string | null;
   instructor_notes?: string | null;
+  client_notified?: boolean;
   instructor: { id: string; full_name: string } | null;
   substitute_instructor?: { id: string; full_name: string } | null;
   location: {

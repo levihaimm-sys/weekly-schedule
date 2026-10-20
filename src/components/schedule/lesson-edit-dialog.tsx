@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { X, Loader2, Trash2, Copy, Search, ChevronDown, UserMinus } from "lucide-react";
-import { updateLesson, updateRecurringSchedule, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest, createLocation } from "@/lib/actions/schedule";
+import { updateLesson, updateRecurringSchedule, deleteRecurringScheduleItem, bulkDeleteLessons, clearInstructorRequest, submitInstructorRequest, createLocation, setClientNotified } from "@/lib/actions/schedule";
 import { useRouter } from "next/navigation";
 import { DAYS_HEBREW } from "@/lib/utils/constants";
 import { resolveFrameworkName } from "@/lib/utils/framework-label";
@@ -27,6 +27,7 @@ interface LessonData {
   instructor_request_type?: string | null;
   instructor_request_handled?: boolean;
   instructor_notes?: string | null;
+  client_notified?: boolean;
   framework?: string | null;
   framework_name?: string | null;
   field?: string | null;
@@ -73,6 +74,8 @@ export function LessonEditDialog({
   const [absenceLoading, setAbsenceLoading] = useState(false);
   const [absenceError, setAbsenceError] = useState<string | null>(null);
   const [absenceReported, setAbsenceReported] = useState(false);
+  const [clientNotified, setClientNotifiedState] = useState(!!item.client_notified);
+  const [clientNotifiedLoading, setClientNotifiedLoading] = useState(false);
 
   const [instructorId, setInstructorId] = useState(item.instructor?.id ?? "");
   const [startTime, setStartTime] = useState(item.start_time?.slice(0, 5) ?? "");
@@ -395,6 +398,19 @@ export function LessonEditDialog({
     }
     setShowAbsenceReport(false);
     setAbsenceReported(true);
+    router.refresh();
+  }
+
+  async function handleToggleClientNotified(next: boolean) {
+    setClientNotifiedState(next);
+    setClientNotifiedLoading(true);
+    const result = await setClientNotified(item.id, next);
+    setClientNotifiedLoading(false);
+    if (result.error) {
+      setClientNotifiedState(!next);
+      setError(result.error);
+      return;
+    }
     router.refresh();
   }
 
@@ -844,7 +860,8 @@ export function LessonEditDialog({
                   exactly like when the instructor submits it herself from her app. */}
               <div>
                 {item.instructor_absence_request || absenceReported ? (
-                  <div className="flex items-center gap-2 rounded-xl bg-warning/10 px-3 py-2">
+                  <div className="space-y-2 rounded-xl bg-warning/10 px-3 py-2">
+                  <div className="flex items-center gap-2">
                     <div className="flex-1">
                       <span className="text-sm font-bold text-foreground">
                         {item.instructor_request_handled && item.instructor_request_type !== "lateness" && item.instructor_request_type !== "other"
@@ -863,6 +880,20 @@ export function LessonEditDialog({
                     >
                       בטל חיסור
                     </button>
+                  </div>
+                  {!sandbox && (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={clientNotified}
+                        disabled={clientNotifiedLoading}
+                        onChange={(e) => handleToggleClientNotified(e.target.checked)}
+                        className="h-4 w-4 accent-green-600"
+                      />
+                      לקוח קיבל עדכון
+                      {clientNotifiedLoading && <Loader2 size={12} className="animate-spin" />}
+                    </label>
+                  )}
                   </div>
                 ) : !showAbsenceReport ? (
                   <button

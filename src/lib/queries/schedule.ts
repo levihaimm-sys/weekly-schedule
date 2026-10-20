@@ -88,6 +88,7 @@ export async function getWeekLessons(
       instructor_request_handled,
       instructor_request_type,
       instructor_notes,
+      client_notified,
       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
       substitute_instructor:instructors!lessons_substitute_instructor_id_fkey(id, full_name),
       location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
