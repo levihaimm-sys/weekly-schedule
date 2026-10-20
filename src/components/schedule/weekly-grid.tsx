@@ -9,7 +9,7 @@ import { LessonEditDialog } from "./lesson-edit-dialog";
 import { AddLessonDialog, type WeeklyLessonSeed } from "./add-lesson-dialog";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { AlertTriangle, CheckCircle, Plus, X, Loader2, Search, ChevronDown, CheckSquare, Square, MousePointerClick } from "lucide-react";
-import { bulkUpdateLessons, bulkDeleteLessons, bulkMarkAbsence, createLocation } from "@/lib/actions/schedule";
+import { bulkUpdateLessons, bulkDeleteLessons, bulkMarkAbsence, createLocation, setClientNotified } from "@/lib/actions/schedule";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { resolveFrameworkName } from "@/lib/utils/framework-label";
 import { ClientInfo } from "./client-info";
@@ -101,6 +101,49 @@ function RequestBadge({ lesson }: { lesson: WeeklyLesson }) {
       {reqType ? INSTRUCTOR_REQUEST_TYPES[reqType] : "בקשה"}
       {handled && " - טופל"}
     </div>
+  );
+}
+
+// Checkbox on an absence tile: did the client/manager get told? Toggles in place without
+// opening the edit dialog.
+function ClientNotifiedToggle({ lesson }: { lesson: WeeklyLesson }) {
+  const router = useRouter();
+  const [checked, setChecked] = useState(!!lesson.client_notified);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => setChecked(!!lesson.client_notified), [lesson.client_notified]);
+
+  if (!lesson.instructor_absence_request) return null;
+
+  async function toggle(next: boolean) {
+    setChecked(next);
+    setSaving(true);
+    const result = await setClientNotified(lesson.id, next);
+    setSaving(false);
+    if (result.error) {
+      setChecked(!next);
+      return;
+    }
+    router.refresh();
+  }
+
+  return (
+    <label
+      onClick={(e) => e.stopPropagation()}
+      className={`mt-1 flex w-fit cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium ${
+        checked ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={saving}
+        onChange={(e) => toggle(e.target.checked)}
+        className="h-3.5 w-3.5 accent-green-600"
+      />
+      לקוח קיבל עדכון
+      {saving && <Loader2 size={10} className="animate-spin" />}
+    </label>
   );
 }
 
@@ -743,6 +786,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                           </p>
                           {showClient && <ClientInfo item={lesson} />}
                           <RequestBadge lesson={lesson} />
+                          {!selectMode && <ClientNotifiedToggle lesson={lesson} />}
                           {lesson.change_notes && (
                             <p className="mt-1 text-xs text-orange-600">
                               {lesson.change_notes}
@@ -895,6 +939,7 @@ function MobileLessonCard({
         </div>
       </div>
       <RequestBadge lesson={lesson} />
+      {!selectMode && <ClientNotifiedToggle lesson={lesson} />}
       {lesson.change_notes && (
         <p className="mt-1 text-xs text-orange-600">{lesson.change_notes}</p>
       )}
