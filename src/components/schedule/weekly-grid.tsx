@@ -114,9 +114,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [localInstructors, setLocalInstructors] = usePersistedState<string[]>("weekly-tiles-instructors", currentFilters?.instructors ?? []);
   const [localClients, setLocalClients] = usePersistedState<string[]>("weekly-tiles-clients", []);
   const [localChangesOnly, setLocalChangesOnly] = usePersistedState<boolean>("weekly-tiles-changes-only", currentFilters?.changesOnly ?? false);
-  const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);
-  const [localScheduledMakeupsOnly, setLocalScheduledMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-scheduled-makeups-only", false);
-  const [showClient, setShowClient] = usePersistedState<boolean>("weekly-tiles-show-client", false);
+  const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);  const [showClient, setShowClient] = usePersistedState<boolean>("weekly-tiles-show-client", false);
   const [hideInstructor, setHideInstructor] = usePersistedState<boolean>("weekly-tiles-hide-instructor", false);
 
   const clientOptions = useMemo(
@@ -135,7 +133,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   }, [allLessons, instructors]);
 
   const hasActiveFilters =
-    localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly || localMakeupsOnly || localScheduledMakeupsOnly;
+    localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly || localMakeupsOnly;
 
   function clearFilters() {
     setLocalCities([]);
@@ -143,7 +141,6 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     setLocalClients([]);
     setLocalChangesOnly(false);
     setLocalMakeupsOnly(false);
-    setLocalScheduledMakeupsOnly(false);
   }
 
   // Multi-select state
@@ -281,21 +278,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             (!l.instructor_request_type || l.instructor_request_type === "absence"))
       );
     }
-    if (localScheduledMakeupsOnly) {
-      // Make-ups already arranged (absence handled — substitute assigned / moved).
-      filtered = filtered.filter(isMakeup);
-    }
     const byDay: Record<string, WeeklyLesson[]> = {};
     for (const dateStr of weekDates) byDay[dateStr] = [];
     for (const lesson of filtered) {
       if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
     }
     return byDay;
-  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly, localScheduledMakeupsOnly]);
+  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly]);
 
   return (
     <>
-      {/* Filters — kept to one horizontally-scrolling row instead of wrapping */}
+      {/* Dropdown filters — first row */}
       {cities && cities.length > 0 && (
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
           <MultiSelectFilter
@@ -322,6 +315,11 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             onChange={setLocalClients}
             placeholder="כל הלקוחות"
           />
+        </div>
+      )}
+      {/* Toggle buttons — second row, below the dropdown filters */}
+      {cities && cities.length > 0 && (
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
           <button
             type="button"
             onClick={() => setShowClient((prev) => !prev)}
@@ -357,31 +355,14 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           </button>
           <button
             type="button"
-            onClick={() => {
-              setLocalMakeupsOnly((prev) => !prev);
-              setLocalScheduledMakeupsOnly(false);
-            }}
+            onClick={() => setLocalMakeupsOnly((prev) => !prev)}
             className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
               localMakeupsOnly
                 ? "border-violet-300 bg-violet-50 text-violet-700"
                 : "border-border bg-background hover:bg-muted"
             }`}
           >
-            השלמות חסר
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setLocalScheduledMakeupsOnly((prev) => !prev);
-              setLocalMakeupsOnly(false);
-            }}
-            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              localScheduledMakeupsOnly
-                ? "border-violet-300 bg-violet-50 text-violet-700"
-                : "border-border bg-background hover:bg-muted"
-            }`}
-          >
-            השלמות מתקיים
+            השלמות
           </button>
           {/* Multi-select toggle */}
           <button
