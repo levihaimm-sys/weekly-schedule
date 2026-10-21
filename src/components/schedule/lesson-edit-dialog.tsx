@@ -863,7 +863,6 @@ export function LessonEditDialog({
                       בטל חיסור
                     </button>
                   </div>
-                  </div>
                 ) : !showAbsenceReport ? (
                   <button
                     type="button"
