@@ -304,21 +304,23 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     if (localClients.length > 0) {
       filtered = filtered.filter((l) => localClients.includes(l.client_name ?? ""));
     }
-    if (localChangesOnly) {
+    // "שינויים" and "השלמות" are additive layers: each one alone shows only its own lessons
+    // (never the regular ones), and turning on both shows the union.
+    if (localChangesOnly || localMakeupsOnly) {
+      // Pending absences that still need a make-up — resolved ones already carry the
+      // "השלמת חיסור" tag on the board. A lesson with no instructor is treated like an
+      // absent one: nobody is teaching it, so it also needs covering.
+      const isMissing = (l: WeeklyLesson) =>
+        !l.instructor ||
+        (!!l.instructor_absence_request &&
+          !l.instructor_request_handled &&
+          (!l.instructor_request_type || l.instructor_request_type === "absence"));
+      // A lesson that changed this week — excluding open absences, which belong to "השלמות".
+      const isChanged = (l: WeeklyLesson) =>
+        !(l.instructor_absence_request && !l.instructor_request_handled) &&
+        (!!l.change_notes || !!l.instructor_absence_request || l.status !== "scheduled");
       filtered = filtered.filter(
-        (l) => l.change_notes || l.instructor_absence_request || l.status !== "scheduled"
-      );
-    }
-    if (localMakeupsOnly) {
-      // Only pending absences that still need a make-up — resolved ones already carry the
-      // "השלמת חיסור" tag on the board, so they're left out here. A lesson with no instructor
-      // is treated like an absent one: nobody is teaching it, so it also needs covering.
-      filtered = filtered.filter(
-        (l) =>
-          !l.instructor ||
-          (!!l.instructor_absence_request &&
-            !l.instructor_request_handled &&
-            (!l.instructor_request_type || l.instructor_request_type === "absence"))
+        (l) => (localChangesOnly && isChanged(l)) || (localMakeupsOnly && isMissing(l))
       );
     }
     const byDay: Record<string, WeeklyLesson[]> = {};
