@@ -307,6 +307,16 @@ export async function updateRecurringSchedule(
       return { error: "שגיאה במחיקת שיעורים עתידיים: " + delError.message };
     }
 
+    // Weeks that still hold a kept one-time lesson already have this group — don't add a second
+    const { data: keptLessons } = await supabase
+      .from("lessons")
+      .select("lesson_date")
+      .eq("recurring_item_id", recurringId)
+      .gte("lesson_date", today);
+    const keptWeeks = new Set(
+      (keptLessons ?? []).map((l) => format(startOfWeek(new Date(l.lesson_date), { weekStartsOn: 0 }), "yyyy-MM-dd"))
+    );
+
     // Recreate lessons with the new day_of_week up to the horizon
     if (lastLesson && lastLesson.length > 0) {
       const horizon = new Date(lastLesson[0].lesson_date);
@@ -322,7 +332,11 @@ export async function updateRecurringSchedule(
       let weekStart = startOfWeek(new Date(today), { weekStartsOn: 0 });
       while (weekStart <= horizon) {
         const lessonDateStr = format(addDays(weekStart, updatedItem.day_of_week), "yyyy-MM-dd");
-        if (lessonDateStr >= today && !isHoliday(lessonDateStr)) {
+        if (
+          lessonDateStr >= today &&
+          !isHoliday(lessonDateStr) &&
+          !keptWeeks.has(format(weekStart, "yyyy-MM-dd"))
+        ) {
           newLessons.push({
             recurring_item_id: updatedItem.id,
             location_id: updatedItem.location_id,
@@ -416,13 +430,15 @@ export async function applyPermanentChange(
     return { error: "שגיאה בעדכון הלוח הקבוע: " + recurringError.message };
   }
 
-  // 2. Update all future lessons from this recurring item (today + forward)
+  // 2. Update all future lessons from this recurring item (today + forward), skipping
+  // one-time changes — those were set by hand on the weekly board and must not be overwritten
   const today = getTodayInIsrael();
   const { error: lessonsError } = await supabase
     .from("lessons")
     .update(cleanUpdates)
     .eq("recurring_item_id", recurringId)
-    .gte("lesson_date", today);
+    .gte("lesson_date", today)
+    .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
   if (lessonsError) {
     return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
@@ -434,7 +450,8 @@ export async function applyPermanentChange(
     .update({ instructor_absence_request: false, instructor_request_handled: false })
     .eq("recurring_item_id", recurringId)
     .gte("lesson_date", today)
-    .eq("instructor_absence_request", true);
+    .eq("instructor_absence_request", true)
+    .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
   revalidatePath("/schedule");
   revalidatePath("/schedule/weekly");
@@ -1700,6 +1717,16 @@ export async function bulkApplyPermanentChange(
         return { error: "שגיאה במחיקת שיעורים עתידיים: " + delError.message };
       }
 
+      // Weeks that still hold a kept one-time lesson already have this group — don't add a second
+      const { data: keptLessons } = await supabase
+        .from("lessons")
+        .select("lesson_date")
+        .eq("recurring_item_id", item.id)
+        .gte("lesson_date", today);
+      const keptWeeks = new Set(
+        (keptLessons ?? []).map((l) => format(startOfWeek(new Date(l.lesson_date), { weekStartsOn: 0 }), "yyyy-MM-dd"))
+      );
+
       if (lastLesson && lastLesson.length > 0) {
         const horizon = new Date(lastLesson[0].lesson_date);
         const newLessons: Array<{
@@ -1714,7 +1741,7 @@ export async function bulkApplyPermanentChange(
         let weekStart = startOfWeek(new Date(today), { weekStartsOn: 0 });
         while (weekStart <= horizon) {
           const lessonDate = addDays(weekStart, item.day_of_week);
-          if (format(lessonDate, "yyyy-MM-dd") >= today) {
+          if (format(lessonDate, "yyyy-MM-dd") >= today && !keptWeeks.has(format(weekStart, "yyyy-MM-dd"))) {
             newLessons.push({
               recurring_item_id: item.id,
               location_id: item.location_id,
@@ -1744,11 +1771,13 @@ export async function bulkApplyPermanentChange(
     if (cleanUpdates.start_time) lessonUpdates.start_time = cleanUpdates.start_time as string;
 
     if (Object.keys(lessonUpdates).length > 0) {
+      // One-time changes were set by hand on the weekly board — leave them alone
       const { error: lessonsError } = await supabase
         .from("lessons")
         .update(lessonUpdates)
         .in("recurring_item_id", uniqueIds)
-        .gte("lesson_date", today);
+        .gte("lesson_date", today)
+        .or("is_one_time_change.is.null,is_one_time_change.eq.false");
 
       if (lessonsError) {
         return { error: "שגיאה בעדכון שיעורים עתידיים: " + lessonsError.message };
@@ -1760,7 +1789,8 @@ export async function bulkApplyPermanentChange(
       .update({ instructor_absence_request: false, instructor_request_handled: false })
       .in("recurring_item_id", uniqueIds)
       .gte("lesson_date", today)
-      .eq("instructor_absence_request", true);
+      .eq("instructor_absence_request", true)
+      .or("is_one_time_change.is.null,is_one_time_change.eq.false");
   }
 
   await commitUndo(
