@@ -2,6 +2,7 @@ import { getWeekLessons, getAllInstructors, getAllLocations } from "@/lib/querie
 import { ensureFutureWeeksThrottled, getLastScheduleUndo } from "@/lib/actions/schedule";
 import { UndoButton } from "@/components/schedule/undo-button";
 import { format, addDays, startOfWeek } from "date-fns";
+import { getEffectiveWeekStart } from "@/lib/utils/date";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyScheduleTable } from "@/components/schedule/weekly-schedule-table";
 import Link from "next/link";
@@ -18,7 +19,7 @@ export default async function WeeklyScheduleTablePage({
   // Create missing lessons before reading the week — same as /schedule/weekly
   await ensureFutureWeeksThrottled();
 
-  const baseDate = params.week ? new Date(params.week) : new Date();
+  const baseDate = params.week ? new Date(params.week) : getEffectiveWeekStart();
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
   const weekEnd = addDays(weekStart, 4); // Thursday
   const weekStartStr = format(weekStart, "yyyy-MM-dd");

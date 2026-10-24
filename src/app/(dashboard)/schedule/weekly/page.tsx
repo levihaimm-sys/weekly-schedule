@@ -2,6 +2,7 @@ import { getWeekLessons, getAllInstructors, getAllCities, getAllLocations } from
 import { ensureFutureWeeksThrottled, getLastScheduleUndo } from "@/lib/actions/schedule";
 import { UndoButton } from "@/components/schedule/undo-button";
 import { format, addDays, startOfWeek } from "date-fns";
+import { getEffectiveWeekStart } from "@/lib/utils/date";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyGrid } from "@/components/schedule/weekly-grid";
 import Link from "next/link";
@@ -19,8 +20,8 @@ export default async function WeeklySchedulePage({
   // first, so newly filled lessons only showed up on the next refresh.
   await ensureFutureWeeksThrottled();
 
-  // Parse week from query or use current week
-  const baseDate = params.week ? new Date(params.week) : new Date();
+  // Parse week from query or use the effective current week (next week once Thursday's work day is over)
+  const baseDate = params.week ? new Date(params.week) : getEffectiveWeekStart();
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
   const weekEnd = addDays(weekStart, 4); // Thursday
   const weekStartStr = format(weekStart, "yyyy-MM-dd");

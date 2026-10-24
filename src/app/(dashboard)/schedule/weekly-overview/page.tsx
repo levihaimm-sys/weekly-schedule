@@ -1,5 +1,6 @@
 import { getWeekLessons, getRecurringSchedule, getAllInstructors, getAllCities } from "@/lib/queries/schedule";
 import { format, addDays, startOfWeek } from "date-fns";
+import { getEffectiveWeekStart } from "@/lib/utils/date";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { WeeklyOverviewGrid } from "@/components/schedule/weekly-overview-grid";
 
@@ -12,7 +13,7 @@ export default async function WeeklyOverviewPage({
 }) {
   const params = await searchParams;
 
-  const baseDate = params.week ? new Date(params.week) : new Date();
+  const baseDate = params.week ? new Date(params.week) : getEffectiveWeekStart();
   const weekStart = startOfWeek(baseDate, { weekStartsOn: 0 });
   const weekEnd = addDays(weekStart, 4);
   const weekStartStr = format(weekStart, "yyyy-MM-dd");

@@ -1,21 +1,63 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { format, addDays, subDays, startOfWeek } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
+import { getEffectiveWeekStart } from "@/lib/utils/date";
 
 interface WeekNavigatorProps {
   weekStartStr: string;
   weekEndStr: string;
   basePath: string;
+  // When set, the navigator remembers the last week viewed under this localStorage key and
+  // jumps back to it on a fresh visit that didn't ask for a specific week (e.g. arriving via
+  // the sidebar) — instead of always defaulting to the current week. Screens that share a key
+  // (tiles + table) stay on the same week as you switch between them. Omit to keep the
+  // navigator's old stateless behavior (used by the instructor and equipment screens).
+  persistKey?: string;
+  // Whether the URL that produced weekStartStr explicitly requested a week (vs. defaulting to
+  // today because none was given) — only the latter triggers the restore-from-storage jump.
+  hasExplicitWeek?: boolean;
 }
 
 export function WeekNavigator({
   weekStartStr,
   weekEndStr,
   basePath,
+  persistKey,
+  hasExplicitWeek,
 }: WeekNavigatorProps) {
   const router = useRouter();
+  const restoredRef = useRef(false);
+
+  // Restore the last-viewed week once per mount, only when the page landed on the default
+  // (no explicit ?week=) — so it doesn't fight an actual link/back-button navigation.
+  useEffect(() => {
+    if (!persistKey || hasExplicitWeek || restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const saved = localStorage.getItem(persistKey);
+      // A remembered week that's already over is stale — stay on the effective current week
+      if (saved && saved !== weekStartStr && saved >= weekStartStr) {
+        router.replace(`${basePath}?week=${saved}`);
+      }
+    } catch {
+      // ignore — falls back to the current week
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep storage in sync with whatever week is actually showing, however it got there
+  // (prev/next, "today", or the restore above).
+  useEffect(() => {
+    if (!persistKey) return;
+    try {
+      localStorage.setItem(persistKey, weekStartStr);
+    } catch {
+      // ignore — e.g. private browsing with storage disabled
+    }
+  }, [persistKey, weekStartStr]);
 
   function navigate(direction: "prev" | "next") {
     const current = new Date(weekStartStr);
@@ -35,9 +77,9 @@ export function WeekNavigator({
   const startDisplay = format(start, "d/M");
   const endDisplay = format(end, "d/M");
 
-  // Check if this is the current week
-  const today = new Date();
-  const currentWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+  // Check if this is the current week — the effective one, which moves to next week once
+  // Thursday's work day is over
+  const currentWeekStart = getEffectiveWeekStart();
   const isCurrentWeek =
     format(currentWeekStart, "yyyy-MM-dd") === weekStartStr;
 
