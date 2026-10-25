@@ -1,6 +1,7 @@
 import { getAllInstructors } from "@/lib/queries/schedule";
 import { getDistinctClientNames } from "@/lib/actions/reports";
-import { FileText, Building2, BarChart3, Users } from "lucide-react";
+import { FileText, Building2, BarChart3, Users, FileSpreadsheet } from "lucide-react";
+import { AfterSchoolMonthlyForm } from "@/components/reports/afterschool-monthly-form";
 import { ReportForm } from "@/components/reports/report-form";
 import { ClientReportForm } from "@/components/reports/client-report-form";
 import { MonthlySummaryForm } from "@/components/reports/monthly-summary-form";
@@ -46,6 +47,14 @@ export default async function ReportsPage() {
           <h3 className="text-lg font-semibold">סיכום חודשי לפי מדריך</h3>
         </div>
         <InstructorSummaryForm instructors={instructors} />
+      </div>
+
+      <div className="rounded-xl border border-border bg-background p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <FileSpreadsheet className="text-green-600" size={24} />
+          <h3 className="text-lg font-semibold">דוח אפטר סקול חודשי</h3>
+        </div>
+        <AfterSchoolMonthlyForm />
       </div>
     </div>
   );
