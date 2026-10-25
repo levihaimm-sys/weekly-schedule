@@ -13,11 +13,11 @@ async function requireOwner() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_owner")
+    .select("is_owner, can_view_payroll")
     .eq("id", session?.user?.id ?? "")
     .single();
 
-  if (!profile?.is_owner) {
+  if (!profile?.is_owner && !profile?.can_view_payroll) {
     return { supabase: null, error: "אין הרשאה לצפות בעמוד זה" as const };
   }
   return { supabase, error: null };

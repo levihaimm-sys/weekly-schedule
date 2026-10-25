@@ -69,6 +69,7 @@ export interface Profile {
   id: string;
   role: "admin" | "instructor";
   is_owner: boolean;
+  can_view_payroll: boolean;
   instructor_id: string | null;
   display_name: string;
   phone: string | null;

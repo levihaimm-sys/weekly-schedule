@@ -78,7 +78,13 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
+export function AdminSidebar({
+  isOwner = false,
+  canViewPayroll = false,
+}: {
+  isOwner?: boolean;
+  canViewPayroll?: boolean;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -95,7 +101,15 @@ export function AdminSidebar({ isOwner = false }: { isOwner?: boolean }) {
           ],
         },
       ]
-    : NAV_SECTIONS;
+    : canViewPayroll
+      ? [
+          ...NAV_SECTIONS,
+          {
+            title: "אישי",
+            items: [{ href: "/payroll", label: "שכר מדריכים", icon: Banknote }],
+          },
+        ]
+      : NAV_SECTIONS;
 
   return (
     <>

@@ -33,11 +33,11 @@ export default async function PayrollPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_owner")
+    .select("is_owner, can_view_payroll")
     .eq("id", session?.user?.id ?? "")
     .single();
 
-  if (!profile?.is_owner) {
+  if (!profile?.is_owner && !profile?.can_view_payroll) {
     redirect("/dashboard");
   }
 
