@@ -1251,7 +1251,9 @@ export async function createRecurringScheduleItem(data: {
   }
 
   // Generate concrete lesson instances from the next occurrence of this weekday, 8 weeks out.
-  const today = new Date();
+  // Midnight of today's Israel date — a raw `new Date()` carries the current time, so a lesson
+  // on today's weekday (also midnight) compared as "before firstOccurrence" and was skipped.
+  const today = new Date(getTodayInIsrael() + "T00:00:00");
   const dayDiff = (data.day_of_week - today.getDay() + 7) % 7;
   const firstOccurrence = addDays(today, dayDiff);
   const horizon = addDays(today, 8 * 7);
@@ -1330,7 +1332,7 @@ export async function bulkImportRecurringSchedule(csvText: string) {
     (recurringRows ?? []).map((r) => `${r.instructor_id}|${r.location_id}|${r.day_of_week}|${r.start_time}`)
   );
 
-  const today = new Date();
+  const today = new Date(getTodayInIsrael() + "T00:00:00");
   const eightWeeksFromToday = addDays(today, 8 * 7);
 
   let created = 0;
