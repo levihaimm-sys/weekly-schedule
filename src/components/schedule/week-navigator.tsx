@@ -2,9 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ChevronLeft } from "lucide-react";
-import { format, addDays, subDays } from "date-fns";
-import { getEffectiveWeekStart } from "@/lib/utils/date";
+import { ChevronRight, ChevronLeft, CalendarSearch } from "lucide-react";
+import { format, addDays, subDays, parseISO } from "date-fns";
+import { getEffectiveWeekStart, getWeekStart } from "@/lib/utils/date";
 
 interface WeekNavigatorProps {
   weekStartStr: string;
@@ -71,6 +71,17 @@ export function WeekNavigator({
     router.push(basePath);
   }
 
+  // Jump to the work week containing the picked date (Saturday isn't a work day — it rolls
+  // forward to the next week, like the system's own week switch)
+  function jumpToDate(value: string) {
+    if (!value) return;
+    const picked = parseISO(value);
+    if (isNaN(picked.getTime())) return;
+    const target = addDays(getWeekStart(picked), picked.getDay() === 6 ? 7 : 0);
+    const targetStr = format(target, "yyyy-MM-dd");
+    if (targetStr !== weekStartStr) router.push(`${basePath}?week=${targetStr}`);
+  }
+
   // Format for display: dd/MM-dd/MM
   const start = new Date(weekStartStr);
   const end = new Date(weekEndStr);
@@ -124,6 +135,27 @@ export function WeekNavigator({
       >
         <ChevronLeft size={20} />
       </button>
+
+      <label
+        title="קפיצה לתאריך"
+        className="relative flex shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-border bg-background p-2.5 transition-colors hover:border-secondary hover:bg-muted"
+      >
+        <CalendarSearch size={20} />
+        <input
+          type="date"
+          aria-label="קפיצה לתאריך"
+          value=""
+          onChange={(e) => jumpToDate(e.target.value)}
+          onClick={(e) => {
+            try {
+              e.currentTarget.showPicker();
+            } catch {
+              // older browsers open the picker on their own
+            }
+          }}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </label>
 
       {!isCurrentWeek && (
         <button
