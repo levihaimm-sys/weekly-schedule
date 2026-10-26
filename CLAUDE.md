@@ -5,7 +5,7 @@ IMPORTANT: Read this entire file before doing anything else
 # Project Instructions
 
 ## Language
-Always respond in English only, regardless of what language I write in.
+Always respond in Hebrew, unless I explicitly ask otherwise.
 
 ## Performance Rules
 - Never run `tsc --noEmit` — skip type checking entirely
