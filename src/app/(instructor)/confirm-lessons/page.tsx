@@ -65,7 +65,8 @@ export default async function ConfirmLessonsPage({
       location:locations!lessons_location_id_fkey(id, name, city, street)
     `
     )
-    .eq("instructor_id", profile.instructor_id);
+    .eq("instructor_id", profile.instructor_id)
+    .neq("status", "cancelled");
 
   // Apply date filters
   if (params.date) {

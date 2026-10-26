@@ -9,6 +9,7 @@ import { LessonConfirmButtons } from "@/components/schedule/lesson-confirm-butto
 import { getInstructorCurrentWeekAssignment } from "@/lib/queries/lesson-plans";
 import { EquipmentConfirmationList } from "@/components/lesson-plans/equipment-confirmation";
 import { format } from "date-fns";
+import { resolveFrameworkName } from "@/lib/utils/framework-label";
 
 export default async function TodayPage() {
   const supabase = await createClient();
@@ -50,6 +51,7 @@ export default async function TodayPage() {
       lesson_date,
       start_time,
       status,
+      framework,
       framework_name,
       manager_name,
       manager_phone,
@@ -63,6 +65,8 @@ export default async function TodayPage() {
       )
       .eq("instructor_id", profile.instructor_id)
       .eq("lesson_date", today)
+      // Cancelled lessons are hidden from instructors entirely.
+      .neq("status", "cancelled")
       .order("start_time"),
     getInstructorCurrentWeekAssignment(profile.instructor_id),
   ]);
@@ -75,17 +79,23 @@ export default async function TodayPage() {
   // same fields directly on the lesson row instead, so fall back to that when there's no
   // recurring master.
   const recurringIds = [...new Set((todayLessons ?? []).map((l: any) => l.recurring_item_id).filter(Boolean))];
-  if (recurringIds.length > 0 && todayLessons) {
-    const { data: recurringRows } = await supabase
-      .from("recurring_schedule")
-      .select("id, group_name, framework_name, manager_name, manager_phone, address")
-      .in("id", recurringIds);
+  if (todayLessons) {
+    const { data: recurringRows } = recurringIds.length > 0
+      ? await supabase
+          .from("recurring_schedule")
+          .select("id, group_name, framework, framework_name, manager_name, manager_phone, address")
+          .in("id", recurringIds)
+      : { data: [] as any[] };
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
     for (const lesson of todayLessons as any[]) {
       const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
-      // Same priority as the admin schedule grid (group_name first) — framework_name can go stale
-      // when the template's location is changed but that secondary field isn't edited.
-      lesson.framework_name = recurring?.group_name || recurring?.framework_name || lesson.framework_name || null;
+      // Exactly the name the admin weekly board shows for this lesson, so both screens always match.
+      lesson.framework_name = resolveFrameworkName({
+        group_name: recurring?.group_name ?? null,
+        framework_name: recurring?.framework_name ?? lesson.framework_name,
+        framework: recurring?.framework ?? lesson.framework,
+        location: lesson.location,
+      }) || null;
       lesson.manager_name = recurring?.manager_name ?? lesson.manager_name ?? null;
       lesson.manager_phone = recurring?.manager_phone ?? lesson.manager_phone ?? null;
       lesson.address = recurring?.address ?? lesson.address ?? null;

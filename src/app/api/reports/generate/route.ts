@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
     .eq("instructor_id", instructorId)
     .gte("lesson_date", startDate)
     .lte("lesson_date", endDate)
+    // Lessons cancelled by the office aren't the instructor's to confirm or report.
+    .neq("status", "cancelled")
     .order("lesson_date")
     .order("start_time");
 

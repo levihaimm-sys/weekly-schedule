@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     .select("id,lesson_date,start_time,status,location:locations!lessons_location_id_fkey(name,city)")
     .eq("instructor_id", instructorId)
     .gte("lesson_date", startDate).lte("lesson_date", endDate)
+    // Lessons cancelled by the office aren't the instructor's to confirm or report.
+    .neq("status", "cancelled")
     .order("lesson_date").order("start_time");
 
   if (!lessons?.length) return new NextResponse("אין שיעורים לתקופה זו", { status: 404 });

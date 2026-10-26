@@ -13,6 +13,7 @@ import { format, addDays, startOfWeek } from "date-fns";
 import { WeekNavigator } from "@/components/schedule/week-navigator";
 import { redirect } from "next/navigation";
 import { AbsenceRequestButton } from "@/components/instructor/absence-request-button";
+import { resolveFrameworkName } from "@/lib/utils/framework-label";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,7 @@ export default async function MySchedulePage({
       lesson_date,
       start_time,
       status,
+      framework,
       framework_name,
       manager_name,
       manager_phone,
@@ -84,6 +86,8 @@ export default async function MySchedulePage({
     .eq("instructor_id", profile.instructor_id)
     .gte("lesson_date", weekStartStr)
     .lte("lesson_date", weekEndStr)
+    // Cancelled lessons (e.g. a whole day off) are hidden from instructors entirely.
+    .neq("status", "cancelled")
     .order("lesson_date")
     .order("start_time");
 
@@ -93,17 +97,23 @@ export default async function MySchedulePage({
   // same fields directly on the lesson row instead, so fall back to that when there's no
   // recurring master.
   const recurringIds = [...new Set((weekLessons ?? []).map((l: any) => l.recurring_item_id).filter(Boolean))];
-  if (recurringIds.length > 0 && weekLessons) {
-    const { data: recurringRows } = await supabase
-      .from("recurring_schedule")
-      .select("id, group_name, framework_name, manager_name, manager_phone, address")
-      .in("id", recurringIds);
+  if (weekLessons) {
+    const { data: recurringRows } = recurringIds.length > 0
+      ? await supabase
+          .from("recurring_schedule")
+          .select("id, group_name, framework, framework_name, manager_name, manager_phone, address")
+          .in("id", recurringIds)
+      : { data: [] as any[] };
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
     for (const lesson of weekLessons as any[]) {
       const recurring = lesson.recurring_item_id ? recurringById.get(lesson.recurring_item_id) : undefined;
-      // Same priority as the admin schedule grid (group_name first) — framework_name can go stale
-      // when the template's location is changed but that secondary field isn't edited.
-      lesson.framework_name = recurring?.group_name || recurring?.framework_name || lesson.framework_name || null;
+      // Exactly the name the admin weekly board shows for this lesson, so both screens always match.
+      lesson.framework_name = resolveFrameworkName({
+        group_name: recurring?.group_name ?? null,
+        framework_name: recurring?.framework_name ?? lesson.framework_name,
+        framework: recurring?.framework ?? lesson.framework,
+        location: lesson.location,
+      }) || null;
       lesson.manager_name = recurring?.manager_name ?? lesson.manager_name ?? null;
       lesson.manager_phone = recurring?.manager_phone ?? lesson.manager_phone ?? null;
       lesson.address = recurring?.address ?? lesson.address ?? null;
@@ -143,8 +153,7 @@ export default async function MySchedulePage({
   // Week summary stats
   const totalLessons = weekLessons?.length ?? 0;
   const confirmedLessons = (weekLessons ?? []).filter((l) => !!sigMap[l.id]).length;
-  const cancelledLessons = (weekLessons ?? []).filter((l) => l.status === "cancelled" && !sigMap[l.id]).length;
-  const pendingLessons = totalLessons - confirmedLessons - cancelledLessons;
+  const pendingLessons = totalLessons - confirmedLessons;
 
   return (
     <div className="space-y-4">
@@ -183,13 +192,6 @@ export default async function MySchedulePage({
               <span className="h-2.5 w-2.5 rounded-full bg-orange-400" />
               <span className="font-semibold text-orange-600">{pendingLessons}</span>
               <span className="text-muted-foreground">ממתינים</span>
-            </div>
-          )}
-          {cancelledLessons > 0 && (
-            <div className="flex items-center gap-1.5 text-sm">
-              <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
-              <span className="font-semibold text-destructive">{cancelledLessons}</span>
-              <span className="text-muted-foreground">בוטלו</span>
             </div>
           )}
         </div>
