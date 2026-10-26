@@ -16,6 +16,16 @@ export function coordinatorName(contact: string | null | undefined): string {
   return name || NO_COORDINATOR;
 }
 
+/**
+ * The frame's display name in client reports. Location names often carry schedule notes
+ * ("יוחנני א,ד,ה - 12:45ב,ג - 13:30"), so prefer the recurring row's group_name ("יוחנני"),
+ * falling back to the first line of the location name for one-off lessons.
+ */
+export function frameName(groupName: string | null | undefined, locationName: string | null | undefined): string {
+  const firstLine = (s: string | null | undefined) => (s ?? "").split("\n")[0].trim();
+  return firstLine(groupName) || firstLine(locationName) || "—";
+}
+
 /** Sorts coordinators alphabetically, with lessons missing a coordinator last. */
 export function compareCoordinators(a: string, b: string): number {
   if (a === b) return 0;
