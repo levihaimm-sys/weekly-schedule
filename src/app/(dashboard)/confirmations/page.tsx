@@ -48,14 +48,18 @@ export default async function ConfirmationsPage({
 
   const allLessons = lessons ?? [];
 
-  // Fetch signatures separately
+  // Fetch signatures separately, in chunks: a month has ~800 lessons and a
+  // single .in() with all their UUIDs exceeds the request URL limit, which
+  // silently returns no signatures (everything shows as "not confirmed").
   const lessonIds = allLessons.map((l) => l.id);
   const sigMap: Record<string, { signer_name: string; signer_role: string }> = {};
-  if (lessonIds.length > 0) {
-    const { data: signatures } = await supabase
+  const CHUNK_SIZE = 150;
+  for (let i = 0; i < lessonIds.length; i += CHUNK_SIZE) {
+    const { data: signatures, error } = await supabase
       .from("signatures")
       .select("lesson_id, signer_name, signer_role")
-      .in("lesson_id", lessonIds);
+      .in("lesson_id", lessonIds.slice(i, i + CHUNK_SIZE));
+    if (error) console.error("[confirmations] signatures fetch failed:", error.message);
     for (const sig of signatures ?? []) {
       sigMap[sig.lesson_id] = {
         signer_name: sig.signer_name,
