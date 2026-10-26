@@ -78,7 +78,7 @@ export function AfterSchoolMonthlyForm() {
         </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        גיליון לכל רכזת, שורה לכל מסגרת, ללא שמות מדריכים. כולל שיעורים עד היום, ללא שיעורים מבוטלים.
+        גיליון לכל רכזת, שורה לכל מסגרת, ללא שמות מדריכים. כולל שיעורים עד היום שמשובץ להם מדריך, ללא מבוטלים וללא חיסורים (חיסור שהושלם — נספר).
       </p>
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
     </div>

@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
     const recurringGroup = new Map((recurringRows ?? []).map((r) => [r.id, r.group_name as string | null]));
 
     const lessonSelect = `id, lesson_date, status, contact_name, recurring_item_id, instructor_id, substitute_instructor_id,
+         instructor_absence_request, instructor_request_type,
          location:locations!lessons_location_id_fkey(name, city)`;
 
     const lessons: any[] = [];
@@ -123,6 +124,11 @@ export async function GET(request: NextRequest) {
         cancelledDays.get(coord)!.add(day);
         continue;
       }
+      // Snapshot of lessons that actually took place: an instructor must be assigned, and a
+      // lesson marked as an absence counts only once it was completed (e.g. by a make-up)
+      const hasInstructor = !!(l.substitute_instructor_id ?? l.instructor_id);
+      const markedAbsent = l.instructor_absence_request && l.instructor_request_type !== "other";
+      if (!hasInstructor || (markedAbsent && l.status !== "completed")) continue;
       const days = coordinators.get(coord)!;
       if (!days.has(day)) days.set(day, new Map());
       const city = l.location?.city ?? "";
