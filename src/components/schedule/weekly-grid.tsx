@@ -316,9 +316,12 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
           !l.instructor_request_handled &&
           (!l.instructor_request_type || l.instructor_request_type === "absence"));
       // A lesson that changed this week — excluding open absences, which belong to "השלמות".
+      // "completed" is just an instructor confirmation, not a change, so it doesn't count.
       const isChanged = (l: WeeklyLesson) =>
         !(l.instructor_absence_request && !l.instructor_request_handled) &&
-        (!!l.change_notes || !!l.instructor_absence_request || l.status !== "scheduled");
+        (!!l.change_notes ||
+          !!l.instructor_absence_request ||
+          (l.status !== "scheduled" && l.status !== "completed"));
       filtered = filtered.filter(
         (l) => (localChangesOnly && isChanged(l)) || (localMakeupsOnly && isMissing(l))
       );
