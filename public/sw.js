@@ -1,4 +1,4 @@
-const CACHE = "haim-v3";
+const CACHE = "haim-v4";
 const OFFLINE_URL = "/offline.html";
 
 // Never cache auth flows or API calls — always go to the network
@@ -49,20 +49,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Everything else: network first, fall back to cache, then offline page
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        putInCache(request, response);
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-        if (request.mode === "navigate") {
-          return (await caches.match(OFFLINE_URL)) || Response.error();
-        }
-        return Response.error();
-      })
-  );
+  // Pages and RSC payloads are never cached: a stale page from an older
+  // deployment points at chunks that no longer exist and crashes the app.
+  // Only navigations get an offline fallback.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(
+        async () => (await caches.match(OFFLINE_URL)) || Response.error()
+      )
+    );
+  }
 });
