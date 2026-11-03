@@ -45,6 +45,7 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
   const [year, setYear] = useState(now.getFullYear());
   const [mode, setMode] = useState<"full" | "summary">("full");
   const [showSigs, setShowSigs] = useState(true);
+  const [showInstructor, setShowInstructor] = useState(true);
   const [report, setReport] = useState<ClientReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -182,6 +183,17 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
             <option value="no">ללא פירוט אישורים</option>
           </select>
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">מדריכה</label>
+          <select
+            value={showInstructor ? "yes" : "no"}
+            onChange={(e) => setShowInstructor(e.target.value === "yes")}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="yes">כולל שם המדריכה</option>
+            <option value="no">ללא שם המדריכה</option>
+          </select>
+        </div>
         <button
           onClick={handleSubmit}
           disabled={isPending}
@@ -191,7 +203,7 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
           הצג דוח
         </button>
         <a
-          href={`/api/reports/print/client?client=${encodeURIComponent(client)}&month=${month}&year=${year}&mode=${mode}&sigs=${showSigs ? "1" : "0"}`}
+          href={`/api/reports/print/client?client=${encodeURIComponent(client)}&month=${month}&year=${year}&mode=${mode}&sigs=${showSigs ? "1" : "0"}&instr=${showInstructor ? "1" : "0"}`}
           className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Printer size={14} />
@@ -317,7 +329,7 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
                             <th className="px-3 py-2">יום</th>
                             <th className="px-3 py-2">שעה</th>
                             <th className="px-3 py-2">גן</th>
-                            <th className="px-3 py-2">מדריכה</th>
+                            {showInstructor && <th className="px-3 py-2">מדריכה</th>}
                             <th className="px-3 py-2">סטטוס</th>
                             {showSigs && <th className="px-3 py-2">אישור</th>}
                           </tr>
@@ -327,9 +339,9 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
                             <tr key={lesson.id} className="hover:bg-muted/20">
                               <td className="px-3 py-2">{formatDate(lesson.lesson_date)}</td>
                               <td className="px-3 py-2 text-muted-foreground">{getDayName(lesson.lesson_date)}</td>
-                              <td className="px-3 py-2" dir="ltr">{formatTime(lesson.start_time)}</td>
+                              <td className="px-3 py-2 text-right" dir="ltr">{formatTime(lesson.start_time)}</td>
                               <td className="px-3 py-2 font-medium">{lesson.locationName}</td>
-                              <td className="px-3 py-2">{lesson.instructorName}</td>
+                              {showInstructor && <td className="px-3 py-2">{lesson.instructorName}</td>}
                               <td className="px-3 py-2">
                                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor[lesson.status] ?? ""}`}>
                                   {statusLabel[lesson.status] ?? lesson.status}

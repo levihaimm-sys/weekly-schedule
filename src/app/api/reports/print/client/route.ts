@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { compareCoordinators, coordinatorName, isGroupedByCoordinator } from "@/lib/utils/client-report";
+import { compareCoordinators, coordinatorName, frameName, isGroupedByCoordinator } from "@/lib/utils/client-report";
 
 const HEBREW_DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const MONTHS_HEBREW = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
@@ -19,13 +19,15 @@ export async function GET(request: NextRequest) {
   const year  = parseInt(p.get("year")  ?? "2026");
   const mode     = p.get("mode") ?? "full";
   const showSigs = p.get("sigs") !== "0";
+  const showInstructor = p.get("instr") !== "0";
 
   const { data: recurringRows } = await supabase
     .from("recurring_schedule")
-    .select("id, contact_name")
+    .select("id, contact_name, group_name")
     .eq("client_name", clientName);
   const recurringIds = (recurringRows ?? []).map((r: any) => r.id);
   const recurringContact = new Map<string, string | null>((recurringRows ?? []).map((r: any) => [r.id, r.contact_name]));
+  const recurringGroup = new Map<string, string | null>((recurringRows ?? []).map((r: any) => [r.id, r.group_name]));
   const groupByCoordinator = isGroupedByCoordinator(clientName);
 
   const startDate = `${year}-${String(month).padStart(2,"0")}-01`;
@@ -120,8 +122,8 @@ export async function GET(request: NextRequest) {
           <td>${d.toLocaleDateString("he-IL")}</td>
           <td>${HEBREW_DAYS[d.getDay()]}</td>
           <td>${lesson.start_time.slice(0,5)}</td>
-          <td>${lesson.location?.name ?? "—"}</td>
-          <td>${lesson.instructor?.full_name ?? "—"}</td>
+          <td>${frameName(recurringGroup.get(lesson.recurring_item_id), lesson.location?.name)}</td>
+          ${showInstructor ? `<td>${lesson.instructor?.full_name ?? "—"}</td>` : ""}
           <td>${statusLabel(lesson.status)}</td>
           ${sigCell}
         </tr>`;
@@ -134,7 +136,7 @@ export async function GET(request: NextRequest) {
           <div style="font-size:7.5pt;color:#4b5563;margin-top:2pt;font-weight:400">סה"כ: ${cityData.total} | הושלמו: ${cityData.completed} | בוטלו: ${cityData.cancelled}${showSigs ? ` | מאושר: ${cityConf}` : ""}</div>
         </div>
         <table>
-          <thead><tr><th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th><th>מדריכה</th><th>סטטוס</th>${showSigs ? "<th>אישור</th>" : ""}</tr></thead>
+          <thead><tr><th>תאריך</th><th>יום</th><th>שעה</th><th>מיקום</th>${showInstructor ? "<th>מדריכה</th>" : ""}<th>סטטוס</th>${showSigs ? "<th>אישור</th>" : ""}</tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }
