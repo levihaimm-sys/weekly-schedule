@@ -83,7 +83,7 @@ export function ClientReportForm({ clients }: { clients: string[] }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `report-${client}-${month}-${year}.pdf`;
+      a.download = `דוח ללקוח - ${client} - ${MONTHS[month - 1]}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

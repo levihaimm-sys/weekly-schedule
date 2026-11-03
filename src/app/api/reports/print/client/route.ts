@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
 <html dir="rtl" lang="he">
 <head>
 <meta charset="UTF-8">
-<title>דוח לקוח — ${clientName}</title>
+<title>דוח ללקוח - ${clientName} - ${MONTHS_HEBREW[month-1]}</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
