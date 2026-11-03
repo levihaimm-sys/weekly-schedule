@@ -23,7 +23,6 @@ import {
   Table,
   Tent,
   Banknote,
-  Wallet,
   TrendingUp,
   FlaskConical,
 } from "lucide-react";
@@ -95,7 +94,6 @@ export function AdminSidebar({
           title: "אישי",
           items: [
             { href: "/payroll", label: "שכר מדריכים", icon: Banknote },
-            { href: "/client-payments", label: "תשלום לקוחות", icon: Wallet },
             { href: "/profit-loss", label: "רווח והפסד", icon: TrendingUp },
             { href: "/sandbox", label: "סנדבוקס", icon: FlaskConical },
           ],

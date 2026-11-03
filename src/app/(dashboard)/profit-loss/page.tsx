@@ -127,7 +127,7 @@ export default async function ProfitLossPage({
       .select("client_name, city, billing_mode, rate_per_lesson, fixed_monthly_amount"),
     admin
       .from("client_payment_adjustments")
-      .select("client_name, label, amount")
+      .select("id, client_name, label, amount")
       .eq("year", year)
       .eq("month", month),
     // All settings, not just this month's instructors — office workers may have no lessons.

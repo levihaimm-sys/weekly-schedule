@@ -18,6 +18,11 @@ import {
   addFixedExpense,
   deleteFixedExpense,
 } from "@/lib/actions/profit-loss";
+import {
+  updateClientPaymentRate,
+  addClientPaymentAdjustment,
+  deleteClientPaymentAdjustment,
+} from "@/lib/actions/client-payments";
 
 interface LessonData {
   id: string;
@@ -101,7 +106,7 @@ interface Props {
   bonuses: Bonus[];
   clientRates: ClientRate[];
   clientExceptions: { lesson_id: string; amount: number }[];
-  adjustments: { client_name: string; label: string; amount: number }[];
+  adjustments: { id: string; client_name: string; label: string; amount: number }[];
   settings: Settings[];
   overrides: Override[];
   fixedExpenses: FixedExpense[];
@@ -739,7 +744,7 @@ export function ProfitLossView(props: Props) {
           <span>
             {unpricedRows > 0 && `${unpricedRows} שורות ללא תעריף מדריך. `}
             {unpricedOperators > 0 &&
-              `${unpricedOperators} לקוחות ללא תעריף לקוח (יש להגדיר במסך תשלום לקוחות).`}
+              `${unpricedOperators} לקוחות ללא תעריף לקוח (יש להגדיר בלשונית חשבוניות ללקוחות).`}
           </span>
         </div>
       )}
@@ -2028,7 +2033,7 @@ function OperatorsTable({
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        תעריפי לקוחות מגיעים ממסך תשלום לקוחות. הוצאות הדרכה כוללות תשלום, נסיעות והוצאות העסקה
+        תעריפי לקוחות נקבעים בלשונית חשבוניות ללקוחות. הוצאות הדרכה כוללות תשלום, נסיעות והוצאות העסקה
         (ללא תוספות חודשיות למדריך).
       </p>
       <div className={SCROLL_BOX}>
@@ -2075,7 +2080,7 @@ function OperatorsTable({
             ))}
             {adjustmentsTotal !== 0 && (
               <tr className="border-b border-border/50 text-muted-foreground">
-                <td className={TD_LABEL} colSpan={3}>התאמות לקוחות (ממסך תשלום לקוחות)</td>
+                <td className={TD_LABEL} colSpan={3}>התאמות לקוחות (מלשונית חשבוניות)</td>
                 <td className={TD}>₪{money(adjustmentsTotal)}</td>
                 <td className={TD} colSpan={4} />
               </tr>
@@ -2293,12 +2298,6 @@ function InvoicesTab({
   run: Run;
 }) {
   const sentCount = invoices.filter((i) => sent.has(i.clientName)).length;
-  function rateLabel(c: Data["operators"][number]) {
-    if (!c.rate) return "לא הוגדר";
-    if (c.rate.billing_mode === "fixed_monthly") return "סכום חודשי קבוע";
-    return `₪${money(Number(c.rate.rate_per_lesson))}`;
-  }
-
   function saveCount(c: Data["operators"][number], v: number | null) {
     // Typing back the instructor-rows value clears the correction.
     const count = v === null || v === c.rowActivities ? null : Math.max(0, Math.round(v));
@@ -2350,7 +2349,7 @@ function InvoicesTab({
       <p className="text-xs text-muted-foreground">
         {`ריכוז לחשבונית לכל לקוח, לפי עיר. הכמויות מבוססות על
         החתימות כולל תיקונים ידניים, וניתן לתקן אותן כאן לחשבונית בלבד (ערך מתוקן מסומן בכתום; מחיקה מחזירה לחישוב).
-        התעריפים מגיעים ממסך תשלום לקוחות. סה"כ כל החשבוניות: ₪${money(grand)}`}
+        את תעריף הלקוח (לפי שיעור או קבוע לחודש) ואת ההתאמות (תוספת/הנחה) עורכים כאן ישירות. סה"כ כל החשבוניות: ₪${money(grand)}`}
       </p>
       {invoices.map((inv) => {
         const isSent = sent.has(inv.clientName);
@@ -2458,16 +2457,35 @@ function InvoicesTab({
                       )}
                     </span>
                   </td>
-                  <td className={`${TD} ${!c.rate ? "text-red-600" : ""}`}>{rateLabel(c)}</td>
+                  <td className={TD}>
+                    <ClientRateCell clientName={c.clientName} city={c.city} rate={c.rate} run={run} />
+                  </td>
                   <td className={TD}>₪{money(c.income)}</td>
                 </tr>
               ))}
-              {inv.adjustments.map((a, idx) => (
-                <tr key={`adj-${idx}`} className="border-b border-border/50">
-                  <td className={TD_LABEL} colSpan={3}>{a.label}</td>
+              {inv.adjustments.map((a) => (
+                <tr key={a.id} className="border-b border-border/50">
+                  <td className={TD_LABEL} colSpan={3}>
+                    <span className="inline-flex items-center gap-1.5">
+                      {a.label}
+                      <button
+                        type="button"
+                        title="מחיקת ההתאמה"
+                        onClick={() => confirm("למחוק את ההתאמה?") && run(deleteClientPaymentAdjustment(a.id))}
+                        className="text-muted-foreground hover:text-red-600"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </span>
+                  </td>
                   <td className={TD}>₪{money(Number(a.amount))}</td>
                 </tr>
               ))}
+              <tr className="border-b border-border/50">
+                <td colSpan={4} className="px-3 py-1.5">
+                  <AdjustmentAdder clientName={inv.clientName} year={year} month={month} run={run} />
+                </td>
+              </tr>
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-border bg-blue-50 font-bold">
@@ -2481,6 +2499,107 @@ function InvoicesTab({
         </div>
         );
       })}
+    </div>
+  );
+}
+
+// Client rate for one client+city: per lesson, or a fixed monthly amount (if there was any activity).
+function ClientRateCell({
+  clientName,
+  city,
+  rate,
+  run,
+}: {
+  clientName: string;
+  city: string;
+  rate: ClientRate | undefined;
+  run: Run;
+}) {
+  const mode = rate?.billing_mode ?? "per_lesson";
+  const perLesson = Number(rate?.rate_per_lesson ?? 0);
+  const fixed = Number(rate?.fixed_monthly_amount ?? 0);
+
+  function save(next: { mode?: ClientRate["billing_mode"]; perLesson?: number; fixed?: number }) {
+    run(
+      updateClientPaymentRate(clientName, city, {
+        billing_mode: next.mode ?? mode,
+        rate_per_lesson: next.perLesson ?? perLesson,
+        fixed_monthly_amount: next.fixed ?? fixed,
+      })
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <select
+        value={mode}
+        onChange={(e) => save({ mode: e.target.value as ClientRate["billing_mode"] })}
+        className="rounded-md border border-border bg-background px-1 py-0.5 text-xs"
+      >
+        <option value="per_lesson">לשיעור</option>
+        <option value="fixed_monthly">קבוע לחודש</option>
+      </select>
+      <NumberCell
+        value={mode === "fixed_monthly" ? fixed : perLesson}
+        width="w-20"
+        highlight={!rate}
+        title={!rate ? "טרם הוגדר תעריף" : undefined}
+        onSave={(v) => save(mode === "fixed_monthly" ? { fixed: v ?? 0 } : { perLesson: v ?? 0 })}
+      />
+      {!rate && <AlertTriangle size={12} className="text-red-600" />}
+    </span>
+  );
+}
+
+// Monthly one-off addition/discount on a client's invoice (negative amount = discount).
+function AdjustmentAdder({
+  clientName,
+  year,
+  month,
+  run,
+}: {
+  clientName: string;
+  year: number;
+  month: number;
+  run: Run;
+}) {
+  const [label, setLabel] = useState("");
+  const [amount, setAmount] = useState("");
+
+  async function add() {
+    const amt = Number(amount);
+    if (!label.trim() || amount.trim() === "" || Number.isNaN(amt)) return;
+    await run(addClientPaymentAdjustment(clientName, year, month, label, amt));
+    setLabel("");
+    setAmount("");
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="התאמה (תוספת / הנחה)"
+        className="min-w-[10rem] flex-1 rounded-md border border-border bg-background px-2 py-1"
+      />
+      <input
+        type="number"
+        dir="ltr"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && add()}
+        placeholder="סכום (שלילי = הנחה)"
+        className="w-32 rounded-md border border-border bg-background px-2 py-1 text-right"
+      />
+      <button
+        type="button"
+        onClick={add}
+        disabled={!label.trim() || amount.trim() === ""}
+        className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-medium text-primary-foreground disabled:opacity-50"
+      >
+        <Plus size={12} />
+        הוסף התאמה
+      </button>
     </div>
   );
 }

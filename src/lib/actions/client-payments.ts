@@ -3,7 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-const PATH = "/client-payments";
+// Edited from the "חשבוניות ללקוחות" tab in רווח והפסד.
+const PATH = "/profit-loss";
 
 async function requireOwner() {
   const supabase = await createClient();
