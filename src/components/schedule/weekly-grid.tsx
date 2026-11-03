@@ -186,11 +186,9 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     const byId = new Map<string, string>();
     for (const lesson of allLessons) {
       if (lesson.instructor) byId.set(lesson.instructor.id, lesson.instructor.full_name);
-      const original = showOriginalInstructor ? changedOriginalInstructor(lesson) : null;
-      if (original) byId.set(original.id, original.full_name);
     }
     return instructors.filter((inst) => byId.has(inst.id));
-  }, [allLessons, instructors, showOriginalInstructor]);
+  }, [allLessons, instructors]);
 
   const hasActiveFilters =
     localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly || localMakeupsOnly;
@@ -315,11 +313,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       const instructorIds = localInstructors.filter((id) => id !== "__no_instructor__");
       filtered = filtered.filter((l) => {
         if (wantNoInstructor && !l.instructor) return true;
-        if (instructorIds.includes(l.instructor?.id ?? "")) return true;
-        // With "מדריך מקורי" on, a lesson handed to someone else still shows under the
-        // instructor it belongs to on the fixed schedule.
-        const original = showOriginalInstructor ? changedOriginalInstructor(l) : null;
-        return !!original && instructorIds.includes(original.id);
+        return instructorIds.includes(l.instructor?.id ?? "");
       });
     }
     if (localClients.length > 0) {
@@ -353,7 +347,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
     }
     return byDay;
-  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly, showOriginalInstructor]);
+  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly]);
 
   return (
     <>
