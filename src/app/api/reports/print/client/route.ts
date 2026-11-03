@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { compareCoordinators, coordinatorName, frameName, isGroupedByCoordinator } from "@/lib/utils/client-report";
+import { smartSortLessons } from "@/lib/utils/date";
 
 const HEBREW_DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const MONTHS_HEBREW = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   const startDate = `${year}-${String(month).padStart(2,"0")}-01`;
   const endDate   = `${year}-${String(month).padStart(2,"0")}-${new Date(year,month,0).getDate()}`;
 
-  const lessonSelect = "id,lesson_date,start_time,status,contact_name,recurring_item_id,instructor:instructors!lessons_instructor_id_fkey(full_name),location:locations!lessons_location_id_fkey(name,city)";
+  const lessonSelect = "id,lesson_date,start_time,status,contact_name,client_name,recurring_item_id,instructor:instructors!lessons_instructor_id_fkey(id,full_name),location:locations!lessons_location_id_fkey(name,city)";
 
   // A client's lessons are either generated from one of its recurring_schedule
   // rows, or one-off lessons that carry the client name directly (no recurring
@@ -51,9 +52,13 @@ export async function GET(request: NextRequest) {
   for (const l of [...(recurringLessonsRes.data ?? []), ...(oneOffLessonsRes.data ?? [])]) {
     byId.set(l.id, l);
   }
-  const lessons = [...byId.values()].sort((a: any, b: any) =>
-    a.lesson_date === b.lesson_date ? a.start_time.localeCompare(b.start_time) : a.lesson_date.localeCompare(b.lesson_date)
-  );
+  // By date; within a date, the same instructor-blocks as the weekly tile board
+  const byDate = new Map<string, any[]>();
+  for (const l of byId.values()) {
+    if (!byDate.has(l.lesson_date)) byDate.set(l.lesson_date, []);
+    byDate.get(l.lesson_date)!.push(l);
+  }
+  const lessons = [...byDate.keys()].sort().flatMap((d) => smartSortLessons(byDate.get(d)!));
 
   if (!lessons.length) {
     return new NextResponse(recurringIds.length ? "אין שיעורים לתקופה זו" : "לקוח לא נמצא", { status: 404 });

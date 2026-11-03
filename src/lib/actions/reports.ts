@@ -2,7 +2,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveLessonClient } from "@/lib/utils/client-name";
-import { coordinatorName, isGroupedByCoordinator } from "@/lib/utils/client-report";
+import { coordinatorName, frameName, isGroupedByCoordinator } from "@/lib/utils/client-report";
+import { smartSortLessons } from "@/lib/utils/date";
 
 /**
  * The real client for a lesson is whichever recurring_schedule template it was
@@ -62,15 +63,16 @@ export async function getClientReportData(
 
   const { data: recurringRows } = await supabase
     .from("recurring_schedule")
-    .select("id, contact_name")
+    .select("id, contact_name, group_name")
     .eq("client_name", client);
 
   const recurringIds = (recurringRows ?? []).map((r) => r.id);
   const recurringContact = new Map((recurringRows ?? []).map((r) => [r.id, r.contact_name as string | null]));
+  const recurringGroup = new Map((recurringRows ?? []).map((r) => [r.id, r.group_name as string | null]));
   const groupByCoordinator = isGroupedByCoordinator(client);
 
-  const lessonSelect = `id, lesson_date, start_time, status, contact_name, recurring_item_id,
-       instructor:instructors!lessons_instructor_id_fkey(full_name),
+  const lessonSelect = `id, lesson_date, start_time, status, contact_name, client_name, recurring_item_id,
+       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
        location:locations!lessons_location_id_fkey(name, city)`;
 
   // A client's lessons are either generated from one of its recurring_schedule
@@ -100,11 +102,13 @@ export async function getClientReportData(
   for (const l of [...(recurringLessonsRes.data ?? []), ...(oneOffLessonsRes.data ?? [])]) {
     byId.set((l as any).id, l);
   }
-  const rawLessons = [...byId.values()].sort((a: any, b: any) =>
-    a.lesson_date === b.lesson_date
-      ? a.start_time.localeCompare(b.start_time)
-      : a.lesson_date.localeCompare(b.lesson_date)
-  );
+  // By date; within a date, the same instructor-blocks as the weekly tile board
+  const byDate = new Map<string, any[]>();
+  for (const l of byId.values()) {
+    if (!byDate.has(l.lesson_date)) byDate.set(l.lesson_date, []);
+    byDate.get(l.lesson_date)!.push(l);
+  }
+  const rawLessons = [...byDate.keys()].sort().flatMap((d) => smartSortLessons(byDate.get(d)!));
 
   if (rawLessons.length === 0) return { error: "לקוח לא נמצא" };
 
@@ -129,7 +133,7 @@ export async function getClientReportData(
       start_time: l.start_time,
       status: l.status,
       instructorName: l.instructor?.full_name ?? "—",
-      locationName: l.location?.name ?? "—",
+      locationName: frameName(recurringGroup.get(l.recurring_item_id), l.location?.name),
       city: l.location?.city ?? "—",
       coordinator: groupByCoordinator
         ? coordinatorName(l.contact_name ?? recurringContact.get(l.recurring_item_id))
