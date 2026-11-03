@@ -40,6 +40,7 @@ interface WeeklyLesson {
   client_notified?: boolean;
   instructor: { id: string; full_name: string } | null;
   substitute_instructor?: { id: string; full_name: string } | null;
+  original_instructor?: { id: string; full_name: string } | null;
   location: {
     id: string;
     name: string;
@@ -65,6 +66,19 @@ function isMakeup(lesson: WeeklyLesson) {
     !!lesson.instructor_request_handled &&
     (!lesson.instructor_request_type || lesson.instructor_request_type === "absence")
   );
+}
+
+// The fixed-schedule instructor, when this week's lesson is taught by someone else.
+function changedOriginalInstructor(lesson: WeeklyLesson) {
+  const original = lesson.original_instructor;
+  if (!original || original.id === lesson.instructor?.id) return null;
+  return original;
+}
+
+function OriginalInstructorName({ lesson }: { lesson: WeeklyLesson }) {
+  const original = changedOriginalInstructor(lesson);
+  if (!original) return null;
+  return <span className="font-medium text-muted-foreground"> ({original.full_name})</span>;
 }
 
 function MakeupTag() {
@@ -159,6 +173,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [localChangesOnly, setLocalChangesOnly] = usePersistedState<boolean>("weekly-tiles-changes-only", currentFilters?.changesOnly ?? false);
   const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);  const [showClient, setShowClient] = usePersistedState<boolean>("weekly-tiles-show-client", false);
   const [hideInstructor, setHideInstructor] = usePersistedState<boolean>("weekly-tiles-hide-instructor", false);
+  const [showOriginalInstructor, setShowOriginalInstructor] = usePersistedState<boolean>("weekly-tiles-show-original-instructor", false);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
@@ -171,9 +186,11 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
     const byId = new Map<string, string>();
     for (const lesson of allLessons) {
       if (lesson.instructor) byId.set(lesson.instructor.id, lesson.instructor.full_name);
+      const original = showOriginalInstructor ? changedOriginalInstructor(lesson) : null;
+      if (original) byId.set(original.id, original.full_name);
     }
     return instructors.filter((inst) => byId.has(inst.id));
-  }, [allLessons, instructors]);
+  }, [allLessons, instructors, showOriginalInstructor]);
 
   const hasActiveFilters =
     localCities.length > 0 || localInstructors.length > 0 || localClients.length > 0 || localChangesOnly || localMakeupsOnly;
@@ -298,7 +315,11 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       const instructorIds = localInstructors.filter((id) => id !== "__no_instructor__");
       filtered = filtered.filter((l) => {
         if (wantNoInstructor && !l.instructor) return true;
-        return instructorIds.includes(l.instructor?.id ?? "");
+        if (instructorIds.includes(l.instructor?.id ?? "")) return true;
+        // With "מדריך מקורי" on, a lesson handed to someone else still shows under the
+        // instructor it belongs to on the fixed schedule.
+        const original = showOriginalInstructor ? changedOriginalInstructor(l) : null;
+        return !!original && instructorIds.includes(original.id);
       });
     }
     if (localClients.length > 0) {
@@ -332,7 +353,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
       if (byDay[lesson.lesson_date]) byDay[lesson.lesson_date].push(lesson);
     }
     return byDay;
-  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly]);
+  }, [allLessons, weekDates, localCities, localInstructors, localClients, localChangesOnly, localMakeupsOnly, showOriginalInstructor]);
 
   return (
     <>
@@ -389,6 +410,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             }`}
           >
             הסתר מדריך
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowOriginalInstructor((prev) => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              showOriginalInstructor
+                ? "border-sky-300 bg-sky-50 text-sky-700"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            מדריך מקורי
           </button>
           <button
             type="button"
@@ -673,6 +705,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                           selected={isSelected}
                           showClient={showClient}
                           hideInstructor={hideInstructor}
+                          showOriginalInstructor={showOriginalInstructor}
                         />
                       </div>
                     );
@@ -780,6 +813,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                               {lesson.instructor?.full_name ?? (
                                 <span className="text-red-600 font-medium">ללא מדריך</span>
                               )}
+                              {showOriginalInstructor && <OriginalInstructorName lesson={lesson} />}
                             </p>
                           )}
                           <p className="mt-1 text-sm leading-tight">
@@ -889,6 +923,7 @@ function MobileLessonCard({
   selected,
   showClient,
   hideInstructor,
+  showOriginalInstructor,
 }: {
   lesson: WeeklyLesson;
   onEdit: () => void;
@@ -896,6 +931,7 @@ function MobileLessonCard({
   selected?: boolean;
   showClient?: boolean;
   hideInstructor?: boolean;
+  showOriginalInstructor?: boolean;
 }) {
   return (
     <div
@@ -912,6 +948,7 @@ function MobileLessonCard({
               {lesson.instructor?.full_name ?? (
                 <span className="font-medium text-red-600">ללא מדריך</span>
               )}
+              {showOriginalInstructor && <OriginalInstructorName lesson={lesson} />}
             </p>
           )}
           <p className="mt-1 text-base leading-tight">

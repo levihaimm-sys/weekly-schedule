@@ -128,7 +128,7 @@ export async function getWeekLessons(
         supabase
           .from("recurring_schedule")
           .select(
-            "id, group_name, address, client_name, contact_name, manager_name, manager_phone, framework, framework_name, field, lesson_duration, lessons_count, notes"
+            "id, group_name, address, client_name, contact_name, manager_name, manager_phone, framework, framework_name, field, lesson_duration, lessons_count, notes, instructor:instructors!recurring_schedule_instructor_id_fkey(id, full_name)"
           )
           .in("id", ids)
       )
@@ -151,6 +151,9 @@ export async function getWeekLessons(
       lesson.lesson_duration = recurring?.lesson_duration ?? lesson.lesson_duration ?? null;
       lesson.lessons_count = recurring?.lessons_count ?? lesson.lessons_count ?? null;
       lesson.notes = recurring?.notes ?? null;
+      // The fixed-schedule instructor — shown in parentheses on the tile when this week's
+      // instructor differs (e.g. the lesson was handed to someone else).
+      lesson.original_instructor = recurring?.instructor ?? null;
     }
   }
 
