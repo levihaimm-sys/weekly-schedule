@@ -26,15 +26,38 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 const pct = (n: number, total: number) => (total ? (n / total) * 100 : 0);
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
+// Negative metrics: the 3 highest (non-zero) values in each column are shown in red
+const NEGATIVE_KEYS = ["cancelled", "cancelledPct", "dayChanged", "dayChangedPct"] as const;
+type NegativeKey = (typeof NEGATIVE_KEYS)[number];
+
+function top3Threshold(values: number[]) {
+  const sorted = values.filter((v) => v > 0).sort((a, b) => b - a);
+  return sorted.length ? sorted[Math.min(2, sorted.length - 1)] : Infinity;
+}
+
+function PctCell({ value, prev, red }: { value: number; prev: number | undefined; red: boolean }) {
+  return (
+    <td className={`px-3 py-2 text-center ${red ? "font-semibold text-red-600" : ""}`}>
+      {fmtPct(value)}
+      {prev !== undefined && (
+        <span className="ms-1 text-xs font-normal text-muted-foreground">({fmtPct(prev)})</span>
+      )}
+    </td>
+  );
+}
+
 export function ClientMonthlyStatsCard({
   stats,
+  prevStats,
   year,
   month,
 }: {
   stats: ClientMonthlyStat[];
+  prevStats: ClientMonthlyStat[];
   year: number;
   month: number;
 }) {
+  const prevByClient = new Map(prevStats.map((s) => [s.client, s]));
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -60,6 +83,23 @@ export function ClientMonthlyStatsCard({
     }),
     { total: 0, completed: 0, cancelled: 0, dayChanged: 0 }
   );
+  const prevTotals = prevStats.reduce(
+    (acc, s) => ({
+      total: acc.total + s.total,
+      cancelled: acc.cancelled + s.cancelled,
+      dayChanged: acc.dayChanged + s.dayChanged,
+    }),
+    { total: 0, cancelled: 0, dayChanged: 0 }
+  );
+
+  const thresholds = Object.fromEntries(
+    NEGATIVE_KEYS.map((k) => [k, top3Threshold(rows.map((r) => r[k]))])
+  ) as Record<NegativeKey, number>;
+  const isRed = (r: Row, k: NegativeKey) => r[k] > 0 && r[k] >= thresholds[k];
+  const prevPct = (client: string, k: "cancelled" | "dayChanged") => {
+    const p = prevByClient.get(client);
+    return p ? pct(p[k], p.total) : undefined;
+  };
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -84,7 +124,10 @@ export function ClientMonthlyStatsCard({
   return (
     <div className="rounded-xl border border-border bg-background">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <h3 className="text-lg font-bold">סיכום חודשי לפי לקוח</h3>
+        <div>
+          <h3 className="text-lg font-bold">סיכום חודשי לפי לקוח</h3>
+          <p className="text-xs text-muted-foreground">בסוגריים: האחוז בחודש הקודם</p>
+        </div>
         <select
           value={`${year}-${month}`}
           onChange={(e) => changeMonth(e.target.value)}
@@ -126,10 +169,10 @@ export function ClientMonthlyStatsCard({
                   <td className="px-3 py-2 font-medium">{r.client}</td>
                   <td className="px-3 py-2 text-center">{r.total}</td>
                   <td className="px-3 py-2 text-center text-green-700">{r.completed}</td>
-                  <td className="px-3 py-2 text-center text-red-600">{r.cancelled}</td>
-                  <td className="px-3 py-2 text-center text-red-600">{fmtPct(r.cancelledPct)}</td>
-                  <td className="px-3 py-2 text-center text-amber-700">{r.dayChanged}</td>
-                  <td className="px-3 py-2 text-center text-amber-700">{fmtPct(r.dayChangedPct)}</td>
+                  <td className={`px-3 py-2 text-center ${isRed(r, "cancelled") ? "font-semibold text-red-600" : ""}`}>{r.cancelled}</td>
+                  <PctCell value={r.cancelledPct} prev={prevPct(r.client, "cancelled")} red={isRed(r, "cancelledPct")} />
+                  <td className={`px-3 py-2 text-center ${isRed(r, "dayChanged") ? "font-semibold text-red-600" : ""}`}>{r.dayChanged}</td>
+                  <PctCell value={r.dayChangedPct} prev={prevPct(r.client, "dayChanged")} red={isRed(r, "dayChangedPct")} />
                 </tr>
               ))}
             </tbody>
@@ -138,10 +181,18 @@ export function ClientMonthlyStatsCard({
                 <td className="px-3 py-2">סה"כ</td>
                 <td className="px-3 py-2 text-center">{totals.total}</td>
                 <td className="px-3 py-2 text-center text-green-700">{totals.completed}</td>
-                <td className="px-3 py-2 text-center text-red-600">{totals.cancelled}</td>
-                <td className="px-3 py-2 text-center text-red-600">{fmtPct(pct(totals.cancelled, totals.total))}</td>
-                <td className="px-3 py-2 text-center text-amber-700">{totals.dayChanged}</td>
-                <td className="px-3 py-2 text-center text-amber-700">{fmtPct(pct(totals.dayChanged, totals.total))}</td>
+                <td className="px-3 py-2 text-center">{totals.cancelled}</td>
+                <PctCell
+                  value={pct(totals.cancelled, totals.total)}
+                  prev={prevTotals.total ? pct(prevTotals.cancelled, prevTotals.total) : undefined}
+                  red={false}
+                />
+                <td className="px-3 py-2 text-center">{totals.dayChanged}</td>
+                <PctCell
+                  value={pct(totals.dayChanged, totals.total)}
+                  prev={prevTotals.total ? pct(prevTotals.dayChanged, prevTotals.total) : undefined}
+                  red={false}
+                />
               </tr>
             </tfoot>
           </table>

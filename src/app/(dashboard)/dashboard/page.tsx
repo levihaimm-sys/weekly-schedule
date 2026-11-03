@@ -26,7 +26,9 @@ export default async function DashboardPage({
 }) {
   const { year: statsYear, month: statsMonth } = parseStatsMonth((await searchParams).statsMonth);
 
-  const [tasks, admins, unassigned, absenceRequests, scheduleChanges, instructors, clientStats] = await Promise.all([
+  const prevStats = new Date(statsYear, statsMonth - 2, 1);
+
+  const [tasks, admins, unassigned, absenceRequests, scheduleChanges, instructors, clientStats, prevClientStats] = await Promise.all([
     getAllTasks(),
     getAdminProfiles(),
     getUpcomingUnassignedLessons(),
@@ -34,12 +36,13 @@ export default async function DashboardPage({
     getUpcomingScheduleChanges(),
     getAllInstructors(),
     getClientMonthlyStats(statsYear, statsMonth),
+    getClientMonthlyStats(prevStats.getFullYear(), prevStats.getMonth() + 1),
   ]);
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">דשבורד</h2>
-      <ClientMonthlyStatsCard stats={clientStats} year={statsYear} month={statsMonth} />
+      <ClientMonthlyStatsCard stats={clientStats} prevStats={prevClientStats} year={statsYear} month={statsMonth} />
       <TaskManager tasks={tasks} admins={admins} />
 
       <UrgentAlertsCard lessons={unassigned as any} absenceRequests={absenceRequests as any} instructors={instructors} />
