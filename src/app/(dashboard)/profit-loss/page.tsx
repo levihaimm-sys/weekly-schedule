@@ -116,7 +116,7 @@ export default async function ProfitLossPage({
     })(),
     admin
       .from("instructor_pay_rates")
-      .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day"),
+      .select("instructor_id, client_name, city, rate_per_lesson, travel_rate_per_day, travel_mode"),
     admin
       .from("instructor_pay_bonuses")
       .select("id, instructor_id, label, amount")

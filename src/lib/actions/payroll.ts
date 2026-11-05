@@ -27,7 +27,11 @@ export async function updatePayRate(
   instructorId: string,
   clientName: string,
   city: string,
-  data: { rate_per_lesson: number; travel_rate_per_day: number }
+  data: {
+    rate_per_lesson: number;
+    travel_rate_per_day: number;
+    travel_mode?: "per_day" | "per_activity";
+  }
 ) {
   const { supabase, error: authError } = await requireOwner();
   if (!supabase) return { error: authError };
@@ -39,6 +43,7 @@ export async function updatePayRate(
       city,
       rate_per_lesson: data.rate_per_lesson,
       travel_rate_per_day: data.travel_rate_per_day,
+      ...(data.travel_mode ? { travel_mode: data.travel_mode } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "instructor_id,client_name,city" }

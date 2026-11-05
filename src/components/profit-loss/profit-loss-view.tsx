@@ -40,7 +40,10 @@ interface PayRate {
   city: string;
   rate_per_lesson: number;
   travel_rate_per_day: number;
+  travel_mode: TravelMode | null;
 }
+
+type TravelMode = "per_day" | "per_activity";
 
 interface ClientRate {
   client_name: string;
@@ -269,7 +272,9 @@ function computeReport(
 
       const rate = payRateMap.get(k);
       const ratePerLesson = Number(rate?.rate_per_lesson ?? 0);
+      // Travel rate is per work day or per activity, depending on travelMode.
       const travelPerDay = Number(rate?.travel_rate_per_day ?? 0);
+      const travelMode: TravelMode = rate?.travel_mode ?? "per_day";
 
       const signed = ls.filter((l) => l.signed);
       const signedCount = signed.length;
@@ -291,7 +296,7 @@ function computeReport(
       }
 
       const pay = activityCount * ratePerLesson + exceptionDelta;
-      const travel = workDays * travelPerDay;
+      const travel = (travelMode === "per_activity" ? activityCount : workDays) * travelPerDay;
       const employerCost = 0; // filled in per employee below
 
       return {
@@ -308,6 +313,7 @@ function computeReport(
         hasRate: !!rate,
         ratePerLesson,
         travelPerDay,
+        travelMode,
         signedCount,
         signedDays,
         countOverride,
@@ -348,6 +354,7 @@ function computeReport(
         hasRate: officeRate > 0,
         ratePerLesson: officeRate,
         travelPerDay: 0,
+        travelMode: "per_day" as TravelMode,
         signedCount: hours,
         signedDays: 0,
         countOverride: null,
@@ -650,12 +657,12 @@ export function ProfitLossView(props: Props) {
     lines.push([`רווח והפסד - ${monthLabel}${data.isFiltered ? " (מסונן)" : ""}`]);
     lines.push([]);
     lines.push(["פירוט מדריכים"]);
-    lines.push(["העסקה", "מדריך", "לקוח", "עיר", "תשלום לפעילות", "נסיעות ליום", "ימי עבודה", "פעילויות", "מתוכן ידני", 'סה"כ פעילויות', "נסיעות", "הוצאות העסקה", 'סה"כ']);
+    lines.push(["העסקה", "מדריך", "לקוח", "עיר", "תשלום לפעילות", "תעריף נסיעות", "נסיעות לפי", "ימי עבודה", "פעילויות", "מתוכן ידני", 'סה"כ פעילויות', "נסיעות", "הוצאות העסקה", 'סה"כ']);
     for (const r of data.rows) {
       lines.push([
         r.isOffice ? "משרד" : r.employmentType === "employee" ? "שכיר/ה" : "עצמאי/ת",
         r.instructorName, r.clientName, r.city, r.ratePerLesson, r.travelPerDay,
-        r.workDays, r.activityCount, r.manualCount || "", Math.round(r.pay), Math.round(r.travel),
+        r.travelMode === "per_activity" ? "פעילות" : "יום", r.workDays, r.activityCount, r.manualCount || "", Math.round(r.pay), Math.round(r.travel),
         Math.round(r.employerCost), Math.round(r.total),
       ]);
     }
@@ -1297,6 +1304,16 @@ function DetailTable({
     );
   }
 
+  function saveTravelMode(r: Data["rows"][number], mode: TravelMode) {
+    run(
+      updatePayRate(r.instructorId, r.clientName, r.city, {
+        rate_per_lesson: r.ratePerLesson,
+        travel_rate_per_day: r.travelPerDay,
+        travel_mode: mode,
+      })
+    );
+  }
+
   function saveOverride(r: Data["rows"][number], field: "count" | "days", v: number | null) {
     // The cell shows override + manual lessons, so the override is what's left after the manual part.
     // Typing back the signature-based value clears the override.
@@ -1340,7 +1357,7 @@ function DetailTable({
             <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
               <th className={`${TH} text-start`}>מדריך / לקוח</th>
               <th className={TH}>תשלום לפעילות</th>
-              <th className={TH}>נסיעות ליום</th>
+              <th className={TH}>תעריף נסיעות</th>
               <th className={TH}>ימי עבודה</th>
               <th className={TH}>פעילויות</th>
               <th className={TH}>{'סה"כ פעילויות'}</th>
@@ -1422,7 +1439,17 @@ function DetailTable({
                   <NumberCell value={r.ratePerLesson} onSave={(v) => saveRate(r, "rate", v)} />
                 </td>
                 <td className={TD}>
-                  <NumberCell value={r.travelPerDay} onSave={(v) => saveRate(r, "travel", v)} />
+                  <span className="inline-flex items-center gap-1">
+                    <NumberCell value={r.travelPerDay} onSave={(v) => saveRate(r, "travel", v)} />
+                    <select
+                      value={r.travelMode}
+                      onChange={(e) => saveTravelMode(r, e.target.value as TravelMode)}
+                      className="rounded border border-border bg-background px-1 py-0.5 text-xs"
+                    >
+                      <option value="per_day">ליום</option>
+                      <option value="per_activity">לפעילות</option>
+                    </select>
+                  </span>
                 </td>
                 <td className={TD}>
                   <NumberCell
@@ -2223,7 +2250,7 @@ function ReportTable({ instructors }: { instructors: Data["instructors"] }) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        סיכום לדיווח בלבד. נסיעות ליום מוגדרות בלשונית פירוט מדריכים.
+        סיכום לדיווח בלבד. תעריפי הנסיעות (ליום או לפעילות) מוגדרים בלשונית פירוט מדריכים.
       </p>
       <div className={SCROLL_BOX}>
         <table className="w-full text-sm">
