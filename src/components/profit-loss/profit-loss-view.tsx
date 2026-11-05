@@ -859,7 +859,6 @@ export function ProfitLossView(props: Props) {
       {data.rows.length > 0 && tab === "report" && (
         <ReportTable
           instructors={data.instructors.filter((i) => i.employmentType === "employee")}
-          rows={data.rows}
         />
       )}
     </div>
@@ -2212,13 +2211,7 @@ function FixedExpensesSection({
   );
 }
 
-function ReportTable({
-  instructors,
-  rows,
-}: {
-  instructors: Data["instructors"];
-  rows: Data["rows"];
-}) {
+function ReportTable({ instructors }: { instructors: Data["instructors"] }) {
   if (instructors.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-background py-12 text-center text-muted-foreground">
@@ -2236,46 +2229,26 @@ function ReportTable({
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-border bg-amber-100 text-xs">
-              <th className={`${TH} text-start`}>עובד / עיר</th>
+              <th className={`${TH} text-start`}>עובד</th>
               <th className={TH}>ימי עבודה</th>
               <th className={TH}>שעות / פעילויות</th>
               <th className={TH}>שכר</th>
-              <th className={TH}>נסיעות ליום</th>
               <th className={TH}>תשלום נסיעות</th>
               <th className={TH}>תוספות</th>
             </tr>
           </thead>
-          {instructors.map((i) => (
-            <tbody key={i.id} className="border-t-[6px] border-background">
-              <tr className="bg-amber-50 font-bold">
-                <td className={TD_LABEL}>{i.name}</td>
+          <tbody>
+            {instructors.map((i) => (
+              <tr key={i.id} className="border-b border-border/50">
+                <td className={`${TD_LABEL} font-bold`}>{i.name}</td>
                 <td className={TD}>{i.workDays}</td>
                 <td className={TD}>{i.activities}</td>
                 <td className={TD}>₪{money(i.pay)}</td>
-                <td className={TD} />
                 <td className={TD}>₪{money(i.travel)}</td>
                 <td className={TD}>{i.bonus ? `₪${money(i.bonus)}` : "—"}</td>
               </tr>
-              {rows
-                .filter((r) => r.instructorId === i.id)
-                .map((r) => (
-                  <tr key={r.key} className="border-b border-border/50">
-                    <td className={`${TD_LABEL} ps-8`}>
-                      {r.city || "—"}
-                      <span className="ms-1 text-xs text-muted-foreground">{r.clientName}</span>
-                    </td>
-                    <td className={TD}>{r.workDays}</td>
-                    <td className={TD}>{r.activityCount}</td>
-                    <td className={TD}>₪{money(r.pay)}</td>
-                    <td className={TD}>
-                      {r.kind === "office" ? "—" : `₪${money(r.travelPerDay)}`}
-                    </td>
-                    <td className={TD}>₪{money(r.travel)}</td>
-                    <td className={TD} />
-                  </tr>
-                ))}
-            </tbody>
-          ))}
+            ))}
+          </tbody>
         </table>
       </div>
     </div>
