@@ -82,13 +82,11 @@ export type MatchResult = {
  * Step 1: matches each selected file to a lesson plan and pre-fills its equipment list
  * from what's currently saved in the database, for the admin to review/edit before saving.
  */
-export async function matchLessonPlanFiles(formData: FormData): Promise<MatchResult[]> {
+export async function matchLessonPlanFiles(fileNames: string[]): Promise<MatchResult[]> {
   const supabase = createAdminClient();
-  const files = formData.getAll("files") as File[];
   const results: MatchResult[] = [];
 
-  for (const file of files) {
-    const fileName = file.name;
+  for (const fileName of fileNames) {
     const match = await matchFileToLessonPlan(supabase, fileName);
 
     if (match.status !== "matched") {

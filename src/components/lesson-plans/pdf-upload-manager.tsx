@@ -66,10 +66,9 @@ export function PdfUploadManager() {
     if (files.length === 0) return;
 
     startMatching(async () => {
-      const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-
-      const results = await matchLessonPlanFiles(formData);
+      // Only file names are needed for matching — sending the PDFs themselves would
+      // exceed the server-action body size limit and crash the page.
+      const results = await matchLessonPlanFiles(files.map((file) => file.name));
       setMatches(results);
       const drafts: Record<number, string> = {};
       const readStatus: Record<number, AutoReadStatus> = {};
@@ -94,21 +93,31 @@ export function PdfUploadManager() {
   function handleSaveAll() {
     if (!matches) return;
 
-    const formData = new FormData();
-    let count = 0;
-
-    matches.forEach((m, i) => {
-      if (m.status !== "matched" || !m.planId) return;
-      formData.append(`file_${count}`, files[i]);
-      formData.append(`planId_${count}`, m.planId);
-      formData.append(`equipmentText_${count}`, equipmentDrafts[i] ?? "");
-      count++;
-    });
-    formData.append("count", String(count));
-
     startSaving(async () => {
-      const results = await applyLessonPlanUpdates(formData);
-      setApplyResults(results);
+      // One request per file, so a batch of PDFs never exceeds the request size limit.
+      const allResults: ApplyResult[] = [];
+
+      for (let i = 0; i < matches.length; i++) {
+        const m = matches[i];
+        if (m.status !== "matched" || !m.planId) continue;
+
+        const formData = new FormData();
+        formData.append("file_0", files[i]);
+        formData.append("planId_0", m.planId);
+        formData.append("equipmentText_0", equipmentDrafts[i] ?? "");
+        formData.append("count", "1");
+
+        try {
+          allResults.push(...(await applyLessonPlanUpdates(formData)));
+        } catch {
+          allResults.push({
+            fileName: files[i].name,
+            status: "error",
+            message: "השמירה נכשלה (ייתכן שהקובץ גדול מדי — עד 4MB)",
+          });
+        }
+        setApplyResults([...allResults]);
+      }
     });
   }
 

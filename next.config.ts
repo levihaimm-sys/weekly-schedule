@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
   // bundler shouldn't try to process — load it as a plain runtime dependency instead.
   // Only the isolated /api/lesson-plans/extract-equipment route imports it.
   serverExternalPackages: ["pdfjs-dist"],
+  // Lesson-plan PDF uploads go through a server action (default limit is 1MB).
+  // Vercel caps request bodies at ~4.5MB, so stay just under that.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
+  },
 };
 
 export default nextConfig;
