@@ -966,6 +966,30 @@ export async function createLocation(data: {
   return { success: true, id: loc.id as string };
 }
 
+export async function updateLocationNotes(
+  locationId: string,
+  notes: string,
+  hideFromInstructor: boolean
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("locations")
+    .update({
+      notes: notes.trim() || null,
+      hide_notes_from_instructor: hideFromInstructor,
+    })
+    .eq("id", locationId);
+
+  if (error) {
+    return { error: "שגיאה בעדכון הערה: " + error.message };
+  }
+
+  revalidatePath("/locations");
+  revalidatePath("/schedule/weekly");
+  return { success: true };
+}
+
 const CITY_ALIASES: Record<string, string> = {
   "פתח תקווה": "פת",
 };

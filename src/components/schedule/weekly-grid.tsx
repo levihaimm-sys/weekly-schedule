@@ -47,6 +47,8 @@ interface WeeklyLesson {
     city: string;
     street?: string | null;
     age_group?: string | null;
+    notes?: string | null;
+    hide_notes_from_instructor?: boolean;
   } | null;
 }
 
@@ -817,6 +819,12 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
                             {lesson.location?.city}
                           </p>
+                          {lesson.location?.notes && (
+                            <p className={`mt-0.5 text-xs font-medium ${lesson.location.hide_notes_from_instructor ? "text-purple-600" : "text-amber-700"}`}>
+                              📌 {lesson.location.notes}
+                              {lesson.location.hide_notes_from_instructor && " 🔒"}
+                            </p>
+                          )}
                           {showClient && <ClientInfo item={lesson} />}
                           <RequestBadge lesson={lesson} />
                           {!selectMode && <ClientNotifiedToggle lesson={lesson} />}
@@ -952,6 +960,12 @@ function MobileLessonCard({
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
             {lesson.location?.city}
           </p>
+          {lesson.location?.notes && (
+            <p className={`mt-0.5 text-sm font-medium ${lesson.location.hide_notes_from_instructor ? "text-purple-600" : "text-amber-700"}`}>
+              📌 {lesson.location.notes}
+              {lesson.location.hide_notes_from_instructor && " 🔒"}
+            </p>
+          )}
           {showClient && <ClientInfo item={lesson} size="base" />}
         </div>
         <div className="flex items-center gap-2 self-start">

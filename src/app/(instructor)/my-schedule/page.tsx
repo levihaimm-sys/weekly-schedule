@@ -80,7 +80,7 @@ export default async function MySchedulePage({
       instructor_request_handled,
       instructor_request_type,
       recurring_item_id,
-      location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
+      location:locations!lessons_location_id_fkey(id, name, city, street, age_group, notes, hide_notes_from_instructor)
     `
     )
     .eq("instructor_id", profile.instructor_id)
@@ -305,6 +305,11 @@ export default async function MySchedulePage({
                                 <span className="inline-block rounded-xl bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                                   גיל {lesson.location.age_group}
                                 </span>
+                              )}
+                              {lesson.location?.notes && !lesson.location?.hide_notes_from_instructor && (
+                                <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-900">
+                                  📌 {lesson.location.notes}
+                                </div>
                               )}
                             </div>
                             <span

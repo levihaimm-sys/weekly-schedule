@@ -38,7 +38,7 @@ export default async function LessonDetailPage({
       address,
       recurring_item_id,
       instructor:instructors!lessons_instructor_id_fkey(id, full_name),
-      location:locations!lessons_location_id_fkey(id, name, city, street, age_group)
+      location:locations!lessons_location_id_fkey(id, name, city, street, age_group, notes, hide_notes_from_instructor)
     `
     )
     .eq("id", lessonId)
@@ -130,6 +130,12 @@ export default async function LessonDetailPage({
             </div>
           )}
         </div>
+
+        {location?.notes && !location?.hide_notes_from_instructor && (
+          <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-900">
+            📌 {location.notes}
+          </div>
+        )}
       </div>
 
       {/* Waze Navigation */}
