@@ -825,6 +825,11 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                               {lesson.location.hide_notes_from_instructor && " 🔒"}
                             </p>
                           )}
+                          {lesson.notes && (
+                            <p className="mt-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">
+                              📝 {lesson.notes}
+                            </p>
+                          )}
                           {showClient && <ClientInfo item={lesson} />}
                           <RequestBadge lesson={lesson} />
                           {!selectMode && <ClientNotifiedToggle lesson={lesson} />}
@@ -964,6 +969,11 @@ function MobileLessonCard({
             <p className={`mt-0.5 text-sm font-medium ${lesson.location.hide_notes_from_instructor ? "text-purple-600" : "text-amber-700"}`}>
               📌 {lesson.location.notes}
               {lesson.location.hide_notes_from_instructor && " 🔒"}
+            </p>
+          )}
+          {lesson.notes && (
+            <p className="mt-0.5 rounded bg-amber-100 px-2 py-1 text-sm font-bold text-amber-900">
+              📝 {lesson.notes}
             </p>
           )}
           {showClient && <ClientInfo item={lesson} size="base" />}
