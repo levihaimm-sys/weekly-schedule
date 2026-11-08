@@ -101,7 +101,7 @@ export default async function MySchedulePage({
     const { data: recurringRows } = recurringIds.length > 0
       ? await supabase
           .from("recurring_schedule")
-          .select("id, group_name, framework, framework_name, manager_name, manager_phone, address")
+          .select("id, group_name, framework, framework_name, manager_name, manager_phone, address, notes")
           .in("id", recurringIds)
       : { data: [] as any[] };
     const recurringById = new Map((recurringRows ?? []).map((r) => [r.id, r]));
@@ -117,6 +117,7 @@ export default async function MySchedulePage({
       lesson.manager_name = recurring?.manager_name ?? lesson.manager_name ?? null;
       lesson.manager_phone = recurring?.manager_phone ?? lesson.manager_phone ?? null;
       lesson.address = recurring?.address ?? lesson.address ?? null;
+      lesson.notes = recurring?.notes ?? null;
     }
   }
 
@@ -309,6 +310,11 @@ export default async function MySchedulePage({
                               {lesson.location?.notes && !lesson.location?.hide_notes_from_instructor && (
                                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-900">
                                   📌 {lesson.location.notes}
+                                </div>
+                              )}
+                              {lesson.notes && (
+                                <div className="whitespace-pre-line rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-900">
+                                  📝 {lesson.notes}
                                 </div>
                               )}
                             </div>

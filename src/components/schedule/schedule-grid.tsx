@@ -40,6 +40,8 @@ interface ScheduleItem {
     city: string;
     street: string | null;
     age_group: string | null;
+    notes?: string | null;
+    hide_notes_from_instructor?: boolean;
   } | null;
 }
 
@@ -54,6 +56,25 @@ interface ScheduleGridProps {
 }
 
 const NO_INSTRUCTOR = "__no_instructor__";
+
+function TileNotes({ item, size = "sm" }: { item: ScheduleItem; size?: "sm" | "base" }) {
+  const text = size === "base" ? "text-sm" : "text-xs";
+  return (
+    <>
+      {item.location?.notes && (
+        <p className={`mt-0.5 font-medium ${text} ${item.location.hide_notes_from_instructor ? "text-purple-600" : "text-amber-700"}`}>
+          📌 {item.location.notes}
+          {item.location.hide_notes_from_instructor && " 🔒"}
+        </p>
+      )}
+      {item.notes && (
+        <p className={`mt-0.5 whitespace-pre-line rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-900 ${text}`}>
+          📝 {item.notes}
+        </p>
+      )}
+    </>
+  );
+}
 
 export function ScheduleGrid({
   schedule,
@@ -74,6 +95,7 @@ export function ScheduleGrid({
   const [localClients, setLocalClients] = usePersistedState<string[]>(`${filterKey}-clients`, []);
   const [showClient, setShowClient] = usePersistedState<boolean>(`${filterKey}-show-client`, false);
   const [hideInstructor, setHideInstructor] = usePersistedState<boolean>(`${filterKey}-hide-instructor`, false);
+  const [showNotes, setShowNotes] = usePersistedState<boolean>(`${filterKey}-show-notes`, true);
 
   // Multi-select state — every write here is inherently permanent (this screen edits
   // recurring_schedule directly), so there's no temporary/permanent scope choice.
@@ -273,6 +295,17 @@ export function ScheduleGrid({
           }`}
         >
           הסתר מדריך
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowNotes((prev) => !prev)}
+          className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            showNotes
+              ? "border-amber-300 bg-amber-50 text-amber-800"
+              : "border-border bg-background hover:bg-muted"
+          }`}
+        >
+          הצג הערות
         </button>
         <button
           type="button"
@@ -612,6 +645,7 @@ export function ScheduleGrid({
                       {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                       {item.location?.city}
                     </p>
+                    {showNotes && <TileNotes item={item} size="base" />}
                     {showClient && <ClientInfo item={item} size="base" />}
                   </div>
                 </div>
@@ -671,6 +705,7 @@ export function ScheduleGrid({
                             {(item.address || item.location?.street) && `${item.address || item.location?.street}, `}
                             {item.location?.city}
                           </p>
+                          {showNotes && <TileNotes item={item} />}
                           {showClient && <ClientInfo item={item} />}
                         </div>
                       </div>

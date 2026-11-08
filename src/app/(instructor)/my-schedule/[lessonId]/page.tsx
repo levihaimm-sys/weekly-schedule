@@ -61,13 +61,15 @@ export default async function LessonDetailPage({
   // The framework's address lives on the recurring template, not the lesson instance or the
   // physical location record — attach it here (same as the weekly/today instructor views).
   let recurringAddress: string | null = null;
+  let recurringNotes: string | null = null;
   if (lesson.recurring_item_id) {
     const { data: recurring } = await supabase
       .from("recurring_schedule")
-      .select("address")
+      .select("address, notes")
       .eq("id", lesson.recurring_item_id)
       .single();
     recurringAddress = recurring?.address ?? null;
+    recurringNotes = recurring?.notes ?? null;
   }
 
   const location = lesson.location as any;
@@ -134,6 +136,11 @@ export default async function LessonDetailPage({
         {location?.notes && !location?.hide_notes_from_instructor && (
           <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-900">
             📌 {location.notes}
+          </div>
+        )}
+        {recurringNotes && (
+          <div className="mt-3 whitespace-pre-line rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-900">
+            📝 {recurringNotes}
           </div>
         )}
       </div>

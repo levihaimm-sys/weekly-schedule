@@ -30,7 +30,7 @@ export async function getRecurringSchedule(filters?: {
       lessons_count,
       notes,
       instructor:instructors!recurring_schedule_instructor_id_fkey(id, full_name),
-      location:locations!recurring_schedule_location_id_fkey(id, name, city, street, age_group)
+      location:locations!recurring_schedule_location_id_fkey(id, name, city, street, age_group, notes, hide_notes_from_instructor)
     `
     )
     .is("archived_at", null)
