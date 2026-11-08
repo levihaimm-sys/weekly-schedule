@@ -176,6 +176,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
   const [localMakeupsOnly, setLocalMakeupsOnly] = usePersistedState<boolean>("weekly-tiles-makeups-only", false);  const [showClient, setShowClient] = usePersistedState<boolean>("weekly-tiles-show-client", false);
   const [hideInstructor, setHideInstructor] = usePersistedState<boolean>("weekly-tiles-hide-instructor", false);
   const [showOriginalInstructor, setShowOriginalInstructor] = usePersistedState<boolean>("weekly-tiles-show-original-instructor", false);
+  const [showNotes, setShowNotes] = usePersistedState<boolean>("weekly-tiles-show-notes", true);
 
   const clientOptions = useMemo(
     () => Array.from(new Set(allLessons.map((l) => l.client_name).filter((c): c is string => !!c))).sort(),
@@ -417,6 +418,17 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
             }`}
           >
             מדריך מקורי
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowNotes((prev) => !prev)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              showNotes
+                ? "border-amber-300 bg-amber-50 text-amber-800"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            הצג הערות
           </button>
           <button
             type="button"
@@ -702,6 +714,7 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                           showClient={showClient}
                           hideInstructor={hideInstructor}
                           showOriginalInstructor={showOriginalInstructor}
+                          showNotes={showNotes}
                         />
                       </div>
                     );
@@ -819,13 +832,13 @@ export function WeeklyGrid({ weekDates, allLessons, instructors, locations, citi
                             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
                             {lesson.location?.city}
                           </p>
-                          {lesson.location?.notes && (
+                          {showNotes && lesson.location?.notes && (
                             <p className={`mt-0.5 text-xs font-medium ${lesson.location.hide_notes_from_instructor ? "text-purple-600" : "text-amber-700"}`}>
                               📌 {lesson.location.notes}
                               {lesson.location.hide_notes_from_instructor && " 🔒"}
                             </p>
                           )}
-                          {lesson.notes && (
+                          {showNotes && lesson.notes && (
                             <p className="mt-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">
                               📝 {lesson.notes}
                             </p>
@@ -931,6 +944,7 @@ function MobileLessonCard({
   showClient,
   hideInstructor,
   showOriginalInstructor,
+  showNotes,
 }: {
   lesson: WeeklyLesson;
   onEdit: () => void;
@@ -939,6 +953,7 @@ function MobileLessonCard({
   showClient?: boolean;
   hideInstructor?: boolean;
   showOriginalInstructor?: boolean;
+  showNotes?: boolean;
 }) {
   return (
     <div
@@ -965,13 +980,13 @@ function MobileLessonCard({
             {(lesson.address || lesson.location?.street) && `${lesson.address || lesson.location?.street}, `}
             {lesson.location?.city}
           </p>
-          {lesson.location?.notes && (
+          {showNotes && lesson.location?.notes && (
             <p className={`mt-0.5 text-sm font-medium ${lesson.location.hide_notes_from_instructor ? "text-purple-600" : "text-amber-700"}`}>
               📌 {lesson.location.notes}
               {lesson.location.hide_notes_from_instructor && " 🔒"}
             </p>
           )}
-          {lesson.notes && (
+          {showNotes && lesson.notes && (
             <p className="mt-0.5 rounded bg-amber-100 px-2 py-1 text-sm font-bold text-amber-900">
               📝 {lesson.notes}
             </p>
