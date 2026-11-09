@@ -604,7 +604,7 @@ function AddNeedForm({ sessionId, session, onClose }: { sessionId: string; dates
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">מסגרת</label>
-            <input value={framework} onChange={(e) => setFramework(e.target.value)} placeholder="גן, בי\"ס..." className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <input value={framework} onChange={(e) => setFramework(e.target.value)} placeholder={'גן, בי"ס...'} className="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">כתובת</label>
