@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/sync-equipment-sheet",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/whatsapp-reminder",
-      "schedule": "0 4,5 * * 0-4"
+      "schedule": "0 4 * * 0-4"
     }
   ]
 }
