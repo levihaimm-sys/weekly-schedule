@@ -13,6 +13,7 @@ interface CampRequestInput {
   num_groups: number;
   start_time_note?: string | null;
   notes?: string | null;
+  camp_session_id?: string | null;
 }
 
 export async function addCampRequest(data: CampRequestInput) {
@@ -30,6 +31,7 @@ export async function addCampRequest(data: CampRequestInput) {
     num_groups: numGroups,
     start_time_note: data.start_time_note?.trim() || null,
     notes: data.notes?.trim() || null,
+    camp_session_id: data.camp_session_id || null,
   });
 
   if (error) return { error: "שגיאה בהוספה: " + error.message };
@@ -54,6 +56,7 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
       num_groups: numGroups,
       start_time_note: data.start_time_note?.trim() || null,
       notes: data.notes?.trim() || null,
+      camp_session_id: data.camp_session_id || null,
     })
     .eq("id", id);
 
@@ -85,7 +88,7 @@ export async function duplicateCampRequest(id: string) {
   const supabase = createAdminClient();
   const { data: original, error: fetchError } = await supabase
     .from("camp_requests")
-    .select("client_name, coordinator_name, area, camp_date, num_groups, start_time_note, notes")
+    .select("client_name, coordinator_name, area, camp_date, num_groups, start_time_note, notes, camp_session_id")
     .eq("id", id)
     .single();
 

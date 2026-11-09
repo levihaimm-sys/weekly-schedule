@@ -60,11 +60,13 @@ function formatDate(dateStr: string) {
 interface Props {
   requests: CampRequestWithCandidates[];
   instructors: Instructor[];
+  sessionId: string | undefined;
+  isArchived: boolean;
 }
 
 type SortColumn = "date" | "area";
 
-export function CampsManager({ requests, instructors }: Props) {
+export function CampsManager({ requests, instructors, sessionId, isArchived }: Props) {
   const router = useRouter();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -193,6 +195,7 @@ export function CampsManager({ requests, instructors }: Props) {
       num_groups: Number(numGroups) || 1,
       start_time_note: startTimeNote,
       notes,
+      camp_session_id: sessionId || null,
     });
     setIsPending(false);
     if (result.error) {
@@ -234,13 +237,15 @@ export function CampsManager({ requests, instructors }: Props) {
           לקליטת בקשות משיבוץ ושיוך מדריכים בלבד — השיעורים המלאים (כתובות, שעות) יוזנו בהמשך ללוח
           הקבוע
         </p>
-        <button
-          onClick={() => setAddFormOpen(!addFormOpen)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Plus size={16} />
-          הוסף בקשת קייטנה
-        </button>
+        {!isArchived && (
+          <button
+            onClick={() => setAddFormOpen(!addFormOpen)}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Plus size={16} />
+            הוסף בקשת קייטנה
+          </button>
+        )}
       </div>
 
       {addFormOpen && (

@@ -359,6 +359,15 @@ export interface InstructorPayBonus {
 // CAMPS INTAKE (קייטנות)
 // =============================================
 
+export interface CampSession {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  is_archived: boolean;
+  created_at: string;
+}
+
 export interface CampRequest {
   id: string;
   client_name: string | null;
@@ -369,6 +378,7 @@ export interface CampRequest {
   start_time_note: string | null;
   notes: string | null;
   moved_to_schedule: boolean;
+  camp_session_id: string | null;
   created_at: string;
 }
 
