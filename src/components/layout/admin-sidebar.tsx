@@ -25,6 +25,8 @@ import {
   Banknote,
   TrendingUp,
   FlaskConical,
+  Receipt,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -73,6 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/confirmations", label: "מעקב אישורים", icon: ClipboardCheck },
       { href: "/reports", label: "דוחות", icon: FileText },
+      { href: "/whatsapp", label: "תזכורות WhatsApp", icon: MessageCircle },
     ],
   },
 ];
@@ -94,6 +97,7 @@ export function AdminSidebar({
           title: "אישי",
           items: [
             { href: "/payroll", label: "שכר מדריכים", icon: Banknote },
+            { href: "/invoices", label: "חשבוניות", icon: Receipt },
             { href: "/profit-loss", label: "רווח והפסד", icon: TrendingUp },
             { href: "/sandbox", label: "סנדבוקס", icon: FlaskConical },
           ],
