@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Filter, Hand, Plus, RotateCcw, Trash2, X, XCircle } from "lucide-react";
 import { updatePayRate, addPayBonus, deletePayBonus } from "@/lib/actions/payroll";
+import { parsePayslips, type PayslipResult } from "@/lib/utils/payslips";
 import {
   addManualLessons,
   deleteManualLessons,
@@ -2127,10 +2128,109 @@ function BankTransferList({
   run: Run;
 }) {
   const period = `${HEB_MONTHS[month - 1]} ${year}`;
-  const payees = instructors.filter((i) => Math.round(i.deposit) > 0);
-  const total = payees.reduce((t, i) => t + Math.round(i.deposit), 0);
+  const storageKey = `payslip-nets-${year}-${month}`;
+  const [slips, setSlips] = useState<PayslipResult | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      setSlips(raw ? (JSON.parse(raw) as PayslipResult) : null);
+    } catch {
+      setSlips(null);
+    }
+  }, [storageKey]);
+
+  async function uploadSlips(file: File) {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/payslips/extract", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "שגיאה בקריאת הקובץ");
+      const result = parsePayslips(json.pages as string[][], instructors);
+      if (Object.keys(result.nets).length === 0) {
+        throw new Error("לא נמצא 'נטו לתשלום' בקובץ. ייתכן שהמבנה שונה — שלח לי את הקובץ לבדיקה.");
+      }
+      setSlips(result);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(result));
+      } catch {
+        /* ignore */
+      }
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "שגיאה בקריאת הקובץ");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function clearSlips() {
+    setSlips(null);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const amountOf = (i: Data["instructors"][number]) => {
+    const net = slips?.nets[i.id];
+    return net != null ? net : Math.round(i.deposit);
+  };
+  const fmtAmount = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  const payees = instructors.filter((i) => Math.round(i.deposit) > 0 || slips?.nets[i.id] != null);
+  const total = payees.reduce((t, i) => t + amountOf(i), 0);
+  const name = (id: string) => instructors.find((i) => i.id === id)?.name ?? id;
+  const employeesWithoutSlip = slips
+    ? payees.filter((i) => i.employmentType === "employee" && slips.nets[i.id] == null)
+    : [];
 
   return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <label className="cursor-pointer rounded-md border border-border px-3 py-1 hover:bg-muted">
+          {uploading ? "קורא תלושים..." : "העלה תלושים (PDF)"}
+          <input
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadSlips(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {slips && (
+          <>
+            <span className="text-green-700">
+              נטו מתלושים נטען ל-{Object.keys(slips.nets).length} עובדים
+            </span>
+            <button type="button" onClick={clearSlips} className="text-xs text-muted-foreground underline">
+              נקה תלושים
+            </button>
+          </>
+        )}
+      </div>
+      {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+      {slips && (slips.missingNet.length > 0 || slips.unmatchedPages.length > 0 || employeesWithoutSlip.length > 0) && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+          {employeesWithoutSlip.length > 0 && (
+            <p>שכירים בלי תלוש בקובץ (מוצג הסכום המשוער): {employeesWithoutSlip.map((i) => i.name).join(", ")}</p>
+          )}
+          {slips.missingNet.length > 0 && (
+            <p>נמצא תלוש אבל לא נמצא נטו: {slips.missingNet.map(name).join(", ")}</p>
+          )}
+          {slips.unmatchedPages.length > 0 && (
+            <p>עמודים שלא זוהה בהם שם: {slips.unmatchedPages.join(", ")}</p>
+          )}
+        </div>
+      )}
     <div className={SCROLL_BOX}>
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10">
@@ -2141,7 +2241,8 @@ function BankTransferList({
         </thead>
         <tbody>
           {payees.map((i) => {
-            const amount = String(Math.round(i.deposit));
+            const fromSlip = slips?.nets[i.id] != null;
+            const amount = fmtAmount(amountOf(i));
             return (
               <tr key={i.id} className="border-b border-border/50 even:bg-blue-50">
                 <td className="px-3 py-1.5">
@@ -2153,9 +2254,19 @@ function BankTransferList({
                   </span>
                 </td>
                 <td className="px-3 py-1.5 text-center">
-                  <CopyButton text={amount}>
-                    <span className="font-semibold text-blue-700">{amount}</span>
-                  </CopyButton>
+                  <span className="inline-flex items-center gap-2">
+                    <CopyButton text={amount}>
+                      <span className="font-semibold text-blue-700">{amount}</span>
+                    </CopyButton>
+                    {fromSlip && (
+                      <span
+                        className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-800"
+                        title={`הערכת המערכת: ${Math.round(i.deposit)}`}
+                      >
+                        מתלוש
+                      </span>
+                    )}
+                  </span>
                 </td>
               </tr>
             );
@@ -2164,10 +2275,11 @@ function BankTransferList({
         <tfoot>
           <tr className="border-t-2 border-border bg-blue-100/60 font-bold">
             <td className="px-3 py-1.5">{'סה"כ'}</td>
-            <td className="px-3 py-1.5 text-center tabular-nums">{total}</td>
+            <td className="px-3 py-1.5 text-center tabular-nums">{fmtAmount(Math.round(total * 100) / 100)}</td>
           </tr>
         </tfoot>
       </table>
+    </div>
     </div>
   );
 }

@@ -7,12 +7,28 @@
  * The pdfjs-dist import is dynamic (not a top-level import) so this module never loads
  * that dependency unless extraction actually runs — kept out of any shared bundle.
  */
-async function extractFirstPageLines(buffer: Buffer): Promise<string[]> {
+async function loadPdf(buffer: Buffer) {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
   const data = new Uint8Array(buffer);
-  const doc = await getDocument({ data, useWorkerFetch: false, isEvalSupported: false }).promise;
-  const page = await doc.getPage(1);
+  return getDocument({ data, useWorkerFetch: false, isEvalSupported: false }).promise;
+}
+
+async function extractFirstPageLines(buffer: Buffer): Promise<string[]> {
+  const doc = await loadPdf(buffer);
+  return pageLines(await doc.getPage(1));
+}
+
+/** Every page's text as reading-order lines (same reconstruction as the first-page helper). */
+export async function extractAllPagesLines(buffer: Buffer): Promise<string[][]> {
+  const doc = await loadPdf(buffer);
+  const pages: string[][] = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    pages.push(await pageLines(await doc.getPage(p)));
+  }
+  return pages;
+}
+
+async function pageLines(page: { getTextContent: () => Promise<{ items: unknown[] }> }): Promise<string[]> {
   const content = await page.getTextContent();
 
   const lines = new Map<number, Array<{ str: string; x: number }>>();
