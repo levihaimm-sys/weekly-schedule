@@ -2143,7 +2143,7 @@ function BankTransferList({
           {payees.map((i) => {
             const amount = String(Math.round(i.deposit));
             return (
-              <tr key={i.id} className="border-b border-border/50">
+              <tr key={i.id} className="border-b border-border/50 even:bg-blue-50">
                 <td className="px-3 py-1.5">
                   <span className="flex items-center gap-2">
                     <PaidToggle paid={i.paid} onChange={(p) => run(setPayeePaid(i.id, year, month, p))} />
