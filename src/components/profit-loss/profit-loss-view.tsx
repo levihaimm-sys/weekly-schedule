@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Filter, Hand, Plus, RotateCcw, Trash2, X, XCircle } from "lucide-react";
 import { updatePayRate, addPayBonus, deletePayBonus } from "@/lib/actions/payroll";
@@ -1909,6 +1909,12 @@ function PayrollTable({
 
   const instructorsOnly = sum([...groups[0].items, ...groups[1].items]);
   const grand = sum(instructors);
+  const [view, setView] = useState<"full" | "bank">("full");
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  function scrollBox(dir: "left" | "right") {
+    boxRef.current?.scrollBy({ left: dir === "left" ? -300 : 300, behavior: "smooth" });
+  }
 
   function totalRow(label: string, t: ReturnType<typeof sum>, strong?: boolean) {
     return (
@@ -1935,8 +1941,49 @@ function PayrollTable({
         תלוש מדויק): ביטוח לאומי מעסיק (4.51% עד ₪7,522, 7.6% מעל), פנסיה 6.5%, פיצויים 6%,
         והפרשה לחופשה והבראה כ-6%.
       </p>
-      <div className={SCROLL_BOX}>
-        <table className="w-full text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-lg border border-border p-0.5 text-sm">
+          <button
+            type="button"
+            onClick={() => setView("full")}
+            className={`rounded-md px-3 py-1 ${view === "full" ? "bg-muted font-semibold" : ""}`}
+          >
+            טבלה מלאה
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("bank")}
+            className={`rounded-md px-3 py-1 ${view === "bank" ? "bg-muted font-semibold" : ""}`}
+          >
+            להעברה בבנק
+          </button>
+        </div>
+        {view === "full" && (
+          <div className="inline-flex gap-1">
+            <button
+              type="button"
+              onClick={() => scrollBox("right")}
+              className="rounded-md border border-border px-2 py-1 text-sm"
+              title="גלול ימינה"
+            >
+              →
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollBox("left")}
+              className="rounded-md border border-border px-2 py-1 text-sm"
+              title="גלול שמאלה"
+            >
+              ←
+            </button>
+          </div>
+        )}
+      </div>
+      {view === "bank" ? (
+        <BankTransferList instructors={instructors} year={year} month={month} run={run} />
+      ) : (
+      <div ref={boxRef} className={SCROLL_BOX}>
+        <table className="w-full min-w-max text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
               <th className={TH}>העסקה</th>
@@ -2033,6 +2080,94 @@ function PayrollTable({
           </tfoot>
         </table>
       </div>
+      )}
+    </div>
+  );
+}
+
+const HEB_MONTHS = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
+
+function CopyButton({ text, children }: { text: string; children: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* clipboard blocked — user can still select the text */
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="לחץ להעתקה"
+      className={`rounded-md border px-2 py-1 text-start tabular-nums transition-colors ${
+        copied ? "border-green-500 bg-green-50 text-green-700" : "border-border hover:bg-muted"
+      }`}
+    >
+      {copied ? "הועתק ✓" : children}
+    </button>
+  );
+}
+
+function BankTransferList({
+  instructors,
+  year,
+  month,
+  run,
+}: {
+  instructors: Data["instructors"];
+  year: number;
+  month: number;
+  run: Run;
+}) {
+  const period = `${HEB_MONTHS[month - 1]} ${year}`;
+  const payees = instructors.filter((i) => Math.round(i.deposit) > 0);
+  const total = payees.reduce((t, i) => t + Math.round(i.deposit), 0);
+
+  return (
+    <div className={SCROLL_BOX}>
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 z-10">
+          <tr className="border-b border-border bg-muted text-xs text-muted-foreground">
+            <th className={`${TH} text-start`}>מדריך (לחץ להעתקה)</th>
+            <th className={TH}>לתשלום (לחץ להעתקה)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {payees.map((i) => {
+            const amount = String(Math.round(i.deposit));
+            return (
+              <tr key={i.id} className="border-b border-border/50">
+                <td className="px-3 py-1.5">
+                  <span className="flex items-center gap-2">
+                    <PaidToggle paid={i.paid} onChange={(p) => run(setPayeePaid(i.id, year, month, p))} />
+                    <CopyButton text={`${i.name} ${period}`}>
+                      {i.name} {period}
+                    </CopyButton>
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-center">
+                  <CopyButton text={amount}>
+                    <span className="font-semibold text-blue-700">{amount}</span>
+                  </CopyButton>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-border bg-blue-100/60 font-bold">
+            <td className="px-3 py-1.5">{'סה"כ'}</td>
+            <td className="px-3 py-1.5 text-center tabular-nums">{total}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
