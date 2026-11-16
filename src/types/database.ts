@@ -376,6 +376,7 @@ export interface CampRequest {
   camp_date: string;
   num_groups: number;
   start_time_note: string | null;
+  activity_type: string | null;
   notes: string | null;
   moved_to_schedule: boolean;
   camp_session_id: string | null;
@@ -395,4 +396,45 @@ export interface CampRequestCandidate {
 
 export interface CampRequestWithCandidates extends CampRequest {
   candidates: CampRequestCandidate[];
+}
+
+// ====================== Camp Staffing ======================
+
+export interface CampStaffingNeed {
+  id: string;
+  camp_session_id: string;
+  client_name: string;
+  area: string | null;
+  camp_date: string;
+  num_groups: number;
+  start_time: string | null;
+  field: string | null;
+  framework: string | null;
+  address: string | null;
+  contact_name: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CampStaffingAvailability {
+  id: string;
+  camp_session_id: string;
+  instructor_name: string;
+  area: string;
+  camp_date: string | null;
+  notes: string | null;
+  status: string;
+  status_updated_at: string | null;
+  created_at: string;
+}
+
+export interface CampStaffingAssignment {
+  id: string;
+  need_id: string;
+  instructor_name: string;
+  availability_id: string | null;
+  is_confirmed: boolean;
+  notes: string | null;
+  created_at: string;
 }

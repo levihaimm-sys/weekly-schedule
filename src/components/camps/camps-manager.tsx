@@ -80,6 +80,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
   const [campDate, setCampDate] = useState("");
   const [numGroups, setNumGroups] = useState("1");
   const [startTimeNote, setStartTimeNote] = useState("");
+  const [activityType, setActivityType] = useState("");
   const [notes, setNotes] = useState("");
 
   const [search, setSearch] = usePersistedState("camps-search", "");
@@ -126,6 +127,9 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
   const clientOptions = (Array.from(new Set(requests.map((r) => r.client_name).filter(Boolean))) as string[]).sort(
     sortHe
   );
+  const activityOptions = (
+    Array.from(new Set(requests.map((r) => r.activity_type?.trim()).filter(Boolean))) as string[]
+  ).sort(sortHe);
   const instructorById = new Map(instructors.map((i) => [i.id, i]));
   const instructorOptions = Array.from(new Set(requests.flatMap((r) => r.candidates.map((c) => c.instructor_id))))
     .map((id) => ({ value: id, label: instructorById.get(id)?.full_name ?? "?" }))
@@ -162,6 +166,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
           r.area.toLowerCase().includes(q) ||
           (r.client_name ?? "").toLowerCase().includes(q) ||
           (r.coordinator_name ?? "").toLowerCase().includes(q) ||
+          (r.activity_type ?? "").toLowerCase().includes(q) ||
           (r.notes ?? "").toLowerCase().includes(q);
         if (!match) return false;
       }
@@ -194,6 +199,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
       camp_date: campDate,
       num_groups: Number(numGroups) || 1,
       start_time_note: startTimeNote,
+      activity_type: activityType,
       notes,
       camp_session_id: sessionId || null,
     });
@@ -209,6 +215,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
     setCampDate("");
     setNumGroups("1");
     setStartTimeNote("");
+    setActivityType("");
     setNotes("");
     router.refresh();
   }
@@ -232,6 +239,12 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
 
   return (
     <div className="space-y-4">
+      {/* shared by the add form and the edit modal */}
+      <datalist id="camp-activity-types">
+        {activityOptions.map((a) => (
+          <option key={a} value={a} />
+        ))}
+      </datalist>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           לקליטת בקשות משיבוץ ושיוך מדריכים בלבד — השיעורים המלאים (כתובות, שעות) יוזנו בהמשך ללוח
@@ -305,6 +318,16 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
                   value={startTimeNote}
                   onChange={(e) => setStartTimeNote(e.target.value)}
                   placeholder="החל מ-9 בבוקר"
+                  className="w-44 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">סוג פעילות</label>
+                <input
+                  value={activityType}
+                  onChange={(e) => setActivityType(e.target.value)}
+                  list="camp-activity-types"
+                  placeholder="תאטרון, תנועה..."
                   className="w-44 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
@@ -420,6 +443,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
                 </button>
               </th>
               <th className="px-3 py-2.5 whitespace-nowrap">שעת התחלה</th>
+              <th className="px-3 py-2.5 whitespace-nowrap">פעילות</th>
               <th className="px-2 py-2.5 text-center whitespace-nowrap">קב&apos;</th>
               <th className="px-3 py-2.5 whitespace-nowrap">סטטוס</th>
               <th className="px-3 py-2.5 whitespace-nowrap text-center">הועבר ללוח</th>
@@ -430,7 +454,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
           <tbody className="divide-y divide-border">
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-10 text-center text-muted-foreground">
+                <td colSpan={11} className="py-10 text-center text-muted-foreground">
                   אין בקשות קייטנה תואמות
                 </td>
               </tr>
@@ -458,6 +482,7 @@ export function CampsManager({ requests, instructors, sessionId, isArchived }: P
                     <td className="px-3 py-2.5 align-top text-muted-foreground whitespace-nowrap">
                       {r.start_time_note ?? "—"}
                     </td>
+                    <td className="px-3 py-2.5 align-top whitespace-nowrap">{r.activity_type ?? "—"}</td>
                     <td className="px-2 py-2.5 align-top text-center text-muted-foreground">{r.num_groups}</td>
                     <td className="px-3 py-2.5 align-top whitespace-nowrap">
                       <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status]}`}>

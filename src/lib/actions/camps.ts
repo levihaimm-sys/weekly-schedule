@@ -12,6 +12,7 @@ interface CampRequestInput {
   camp_date: string;
   num_groups: number;
   start_time_note?: string | null;
+  activity_type?: string | null;
   notes?: string | null;
   camp_session_id?: string | null;
 }
@@ -30,6 +31,7 @@ export async function addCampRequest(data: CampRequestInput) {
     camp_date: data.camp_date,
     num_groups: numGroups,
     start_time_note: data.start_time_note?.trim() || null,
+    activity_type: data.activity_type?.trim() || null,
     notes: data.notes?.trim() || null,
     camp_session_id: data.camp_session_id || null,
   });
@@ -55,6 +57,7 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
       camp_date: data.camp_date,
       num_groups: numGroups,
       start_time_note: data.start_time_note?.trim() || null,
+      ...(data.activity_type !== undefined ? { activity_type: data.activity_type?.trim() || null } : {}),
       notes: data.notes?.trim() || null,
       // Keep the request in its session unless the caller explicitly moves it —
       // the edit modal doesn't send camp_session_id, and nulling it hid the request.
@@ -90,7 +93,7 @@ export async function duplicateCampRequest(id: string) {
   const supabase = createAdminClient();
   const { data: original, error: fetchError } = await supabase
     .from("camp_requests")
-    .select("client_name, coordinator_name, area, camp_date, num_groups, start_time_note, notes, camp_session_id")
+    .select("client_name, coordinator_name, area, camp_date, num_groups, start_time_note, activity_type, notes, camp_session_id")
     .eq("id", id)
     .single();
 

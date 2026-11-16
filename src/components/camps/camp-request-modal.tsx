@@ -14,6 +14,7 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
   const [campDate, setCampDate] = useState(request.camp_date);
   const [numGroups, setNumGroups] = useState(String(request.num_groups));
   const [startTimeNote, setStartTimeNote] = useState(request.start_time_note ?? "");
+  const [activityType, setActivityType] = useState(request.activity_type ?? "");
   const [notes, setNotes] = useState(request.notes ?? "");
 
   const [isPending, setIsPending] = useState(false);
@@ -31,6 +32,7 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
         camp_date: campDate,
         num_groups: Number(numGroups) || 1,
         start_time_note: startTimeNote,
+        activity_type: activityType,
         notes,
       });
       if (result.error) {
@@ -94,11 +96,18 @@ export function CampRequestModal({ request, onClose }: { request: CampRequestWit
               className={inputClass}
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="שעת התחלה (טקסט חופשי)">
-              <input value={startTimeNote} onChange={(e) => setStartTimeNote(e.target.value)} className={inputClass} />
-            </Field>
-          </div>
+          <Field label="שעת התחלה (טקסט חופשי)">
+            <input value={startTimeNote} onChange={(e) => setStartTimeNote(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="סוג פעילות">
+            <input
+              value={activityType}
+              onChange={(e) => setActivityType(e.target.value)}
+              list="camp-activity-types"
+              placeholder="תאטרון, תנועה..."
+              className={inputClass}
+            />
+          </Field>
           <div className="sm:col-span-2">
             <Field label="הערות">
               <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} />

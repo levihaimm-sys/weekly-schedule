@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
-import { Check, RotateCcw, X, Loader2 } from "lucide-react";
+import { Check, RotateCcw, X, Loader2, ChevronDown } from "lucide-react";
 import {
   addRequestCandidate,
   confirmRequestCandidate,
@@ -261,6 +261,7 @@ function RequestTile({
   onUnconfirm: (candidateId: string) => void;
   onRemove: (candidateId: string) => void;
 }) {
+  const [showOther, setShowOther] = useState(false);
   const confirmed = req.candidates.filter((c) => c.is_confirmed).length;
   const needMore = req.candidates.length < req.num_groups;
   const state: CellState =
@@ -276,7 +277,12 @@ function RequestTile({
         {req.num_groups} {req.num_groups === 1 ? "שיעור" : "שיעורים"}
         {req.start_time_note && <span className="font-normal"> · {req.start_time_note}</span>}
       </div>
-      <div className="text-[11px] opacity-80">
+      {req.activity_type && (
+        <div className="mx-auto mt-0.5 w-fit rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-medium text-foreground">
+          {req.activity_type}
+        </div>
+      )}
+      <div className="mt-0.5 text-[11px] opacity-80">
         אושרו {confirmed}/{req.num_groups}
       </div>
 
@@ -330,16 +336,24 @@ function RequestTile({
           />
           {options.other.length > 0 && (
             <div className="mt-1.5 border-t border-current/20 pt-1">
-              <div className="text-[10px] opacity-70">אפשרויות נוספות</div>
-              <OptionChips
-                list={options.other}
-                reqId={req.id}
-                showArea
-                muted
-                disabled={isArchived}
-                pending={pending}
-                onPick={onAdd}
-              />
+              <button
+                onClick={() => setShowOther((v) => !v)}
+                className="mx-auto flex items-center gap-0.5 text-[10px] opacity-70 hover:opacity-100"
+              >
+                אפשרויות נוספות ({options.other.length})
+                <ChevronDown size={11} className={`transition-transform ${showOther ? "rotate-180" : ""}`} />
+              </button>
+              {showOther && (
+                <OptionChips
+                  list={options.other}
+                  reqId={req.id}
+                  showArea
+                  muted
+                  disabled={isArchived}
+                  pending={pending}
+                  onPick={onAdd}
+                />
+              )}
             </div>
           )}
         </>

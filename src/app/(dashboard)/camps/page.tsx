@@ -36,7 +36,7 @@ export default async function CampsPage({
     supabase
       .from("camp_requests")
       .select(
-        "id, client_name, coordinator_name, area, camp_date, num_groups, start_time_note, notes, moved_to_schedule, camp_session_id, created_at"
+        "id, client_name, coordinator_name, area, camp_date, num_groups, start_time_note, activity_type, notes, moved_to_schedule, camp_session_id, created_at"
       )
       .eq("camp_session_id", selectedSessionId)
       .order("camp_date"),
