@@ -115,10 +115,16 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
     const cellNeeds = needs.filter((n) => (n.area || NO_AREA) === area && n.camp_date === date);
     const groups = cellNeeds.reduce((s, n) => s + n.num_groups, 0);
     const assigned = cellNeeds.reduce((s, n) => s + (assignmentsByNeed.get(n.id)?.length ?? 0), 0);
-    const free = freeOn(date, area).length;
+    const freeList = freeOn(date, area);
+    const free = freeList.length;
     let state: CellState = "empty";
     if (groups > 0) state = assigned >= groups ? "ok" : assigned + free >= groups ? "mid" : "bad";
-    return { cellNeeds, groups, assigned, free, state };
+    const openNeed =
+      [...cellNeeds]
+        .sort((a, b) => a.client_name.localeCompare(b.client_name, "he"))
+        .find((n) => (assignmentsByNeed.get(n.id)?.length ?? 0) < n.num_groups) ?? null;
+    const otherList = openNeed ? freeOn(date).filter((f) => f.area !== area) : [];
+    return { cellNeeds, groups, assigned, free, freeList, otherList, openNeed, state };
   }
 
   const totals = useMemo(() => {
@@ -167,7 +173,7 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
         <Legend cls={CELL_CLASS.ok} label="מכוסה" />
         <Legend cls={CELL_CLASS.mid} label="יש זמינים, לא שובץ" />
         <Legend cls={CELL_CLASS.bad} label="חסרים מדריכים" />
-        <span>המספר העליון: שובצו/קבוצות · התחתון: מדריכים פנויים</span>
+        <span>בכל תא: שובצו/קבוצות, ומתחת שמות הפנויים. לחיצה על שם משבצת אותו</span>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
@@ -178,7 +184,7 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
               {dates.map((d) => {
                 const f = formatDay(d);
                 return (
-                  <th key={d} className="min-w-[88px] text-center text-xs font-medium text-muted-foreground">
+                  <th key={d} className="min-w-[130px] text-center text-xs font-medium text-muted-foreground">
                     <div>{f.day}</div>
                     <div className="text-foreground">{f.date}</div>
                   </th>
@@ -194,18 +200,37 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
                   const info = cellInfo(area, date);
                   const isSel = selected?.area === area && selected?.date === date;
                   return (
-                    <td key={date} className="p-0">
-                      <button
+                    <td key={date} className="h-px p-0 align-top">
+                      <div
                         onClick={() => selectCell(area, date)}
-                        className={`w-full rounded-lg border px-2 py-2 text-center transition-all hover:brightness-95 ${
+                        className={`h-full w-full cursor-pointer rounded-lg border px-2 py-2 text-center transition-all hover:brightness-95 ${
                           CELL_CLASS[info.state]
                         } ${isSel ? "ring-2 ring-primary ring-offset-1" : ""}`}
                       >
                         <div className="text-sm font-semibold">
                           {info.groups > 0 ? `${info.assigned}/${info.groups}` : "—"}
                         </div>
-                        <div className="text-[11px] opacity-80">{info.free} פנויים</div>
-                      </button>
+                        <CellNames
+                          list={info.freeList}
+                          canAssign={!!info.openNeed && !isArchived}
+                          pending={pending}
+                          onPick={(i) => info.openNeed && assign(info.openNeed.id, i)}
+                          emptyText={info.groups > 0 ? "אין פנויים באזור" : undefined}
+                        />
+                        {info.otherList.length > 0 && (
+                          <div className="mt-1.5 border-t border-current/20 pt-1">
+                            <div className="text-[10px] opacity-70">אפשרויות נוספות</div>
+                            <CellNames
+                              list={info.otherList}
+                              showArea
+                              muted
+                              canAssign={!isArchived}
+                              pending={pending}
+                              onPick={(i) => info.openNeed && assign(info.openNeed.id, i)}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </td>
                   );
                 })}
@@ -355,6 +380,56 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
 
       {!selected && areas.length > 0 && (
         <p className="text-center text-sm text-muted-foreground">לחצו על תא כדי לשבץ מדריכים</p>
+      )}
+    </div>
+  );
+}
+
+function CellNames({
+  list,
+  canAssign,
+  pending,
+  onPick,
+  showArea,
+  muted,
+  emptyText,
+}: {
+  list: FreeInstructor[];
+  canAssign: boolean;
+  pending: string | null;
+  onPick: (i: FreeInstructor) => void;
+  showArea?: boolean;
+  muted?: boolean;
+  emptyText?: string;
+}) {
+  if (list.length === 0) {
+    return emptyText ? <div className="mt-1 text-[11px] opacity-80">{emptyText}</div> : null;
+  }
+  return (
+    <div className="mt-1 flex flex-wrap justify-center gap-1">
+      {list.map((i) =>
+        canAssign ? (
+          <button
+            key={i.name}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPick(i);
+            }}
+            title={showArea ? `${i.name} (${i.area}) – לחצו לשיבוץ` : `${i.name} – לחצו לשיבוץ`}
+            className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground ${
+              muted ? "border-current/30 bg-background/40" : "border-current/40 bg-background/80"
+            }`}
+          >
+            {pending === `assign-${i.name}` && <Loader2 size={10} className="animate-spin" />}
+            {i.name}
+            {showArea && <span className="opacity-60">· {i.area}</span>}
+          </button>
+        ) : (
+          <span key={i.name} className="rounded-full px-1.5 py-0.5 text-[11px] opacity-80">
+            {i.name}
+            {showArea && <span className="opacity-60"> · {i.area}</span>}
+          </span>
+        )
       )}
     </div>
   );
