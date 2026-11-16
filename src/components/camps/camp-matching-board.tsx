@@ -10,6 +10,7 @@ import {
   confirmRequestCandidate,
   unconfirmRequestCandidate,
   removeRequestCandidate,
+  setCampRequestActivity,
 } from "@/lib/actions/camps";
 import type { CampRequestWithCandidates, CampStaffingAvailability, Instructor } from "@/types/database";
 
@@ -277,11 +278,7 @@ function RequestTile({
         {req.num_groups} {req.num_groups === 1 ? "שיעור" : "שיעורים"}
         {req.start_time_note && <span className="font-normal"> · {req.start_time_note}</span>}
       </div>
-      {req.activity_type && (
-        <div className="mx-auto mt-0.5 w-fit rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-medium text-foreground">
-          {req.activity_type}
-        </div>
-      )}
+      <ActivityLine req={req} isArchived={isArchived} />
       <div className="mt-0.5 text-[11px] opacity-80">
         אושרו {confirmed}/{req.num_groups}
       </div>
@@ -359,6 +356,58 @@ function RequestTile({
         </>
       )}
     </div>
+  );
+}
+
+/** What the client asked us to teach. Click to edit right inside the tile. */
+function ActivityLine({ req, isArchived }: { req: CampRequestWithCandidates; isArchived: boolean }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(req.activity_type ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setEditing(false);
+    if (value.trim() === (req.activity_type ?? "")) return;
+    setSaving(true);
+    await setCampRequestActivity(req.id, value);
+    setSaving(false);
+    router.refresh();
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") {
+            setValue(req.activity_type ?? "");
+            setEditing(false);
+          }
+        }}
+        placeholder="ספורט, תנועה, ריקוד..."
+        className="mt-1 w-full rounded border border-border bg-background px-1.5 py-0.5 text-center text-xs text-foreground"
+      />
+    );
+  }
+
+  const label = req.activity_type || null;
+  return (
+    <button
+      disabled={isArchived}
+      onClick={() => setEditing(true)}
+      title={req.notes ? `הערות: ${req.notes}` : "לחצו לעריכת סוג הפעילות"}
+      className={`mx-auto mt-1 flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-xs ${
+        label ? "bg-background font-semibold text-foreground" : "border border-dashed border-current/40 opacity-70"
+      }`}
+    >
+      {saving && <Loader2 size={10} className="animate-spin" />}
+      {label ?? "+ איזה שיעור?"}
+    </button>
   );
 }
 
