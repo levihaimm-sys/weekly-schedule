@@ -173,7 +173,7 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
         <Legend cls={CELL_CLASS.ok} label="מכוסה" />
         <Legend cls={CELL_CLASS.mid} label="יש זמינים, לא שובץ" />
         <Legend cls={CELL_CLASS.bad} label="חסרים מדריכים" />
-        <span>בכל תא: שובצו/קבוצות, ומתחת שמות הפנויים. לחיצה על שם משבצת אותו</span>
+        <span>בכל תא: שורה לכל לקוח עם רשימת בחירה, ומתחת שמות הפנויים</span>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
@@ -210,9 +210,28 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
                         <div className="text-sm font-semibold">
                           {info.groups > 0 ? `${info.assigned}/${info.groups}` : "—"}
                         </div>
+                        {info.cellNeeds.length > 0 && (
+                          <div className="mt-1 space-y-1">
+                            {[...info.cellNeeds]
+                              .sort((a, b) => a.client_name.localeCompare(b.client_name, "he"))
+                              .map((n) => (
+                                <NeedLine
+                                  key={n.id}
+                                  need={n}
+                                  list={assignmentsByNeed.get(n.id) ?? []}
+                                  free={info.freeList}
+                                  other={info.otherList}
+                                  isArchived={isArchived}
+                                  pending={pending}
+                                  onAssign={(i) => assign(n.id, i)}
+                                  onRemove={(id) => run(id, deleteCampAssignment)}
+                                />
+                              ))}
+                          </div>
+                        )}
                         <CellNames
                           list={info.freeList}
-                          canAssign={!!info.openNeed && !isArchived}
+                          canAssign={info.cellNeeds.filter((n) => (assignmentsByNeed.get(n.id)?.length ?? 0) < n.num_groups).length === 1 && !isArchived}
                           pending={pending}
                           onPick={(i) => info.openNeed && assign(info.openNeed.id, i)}
                           emptyText={info.groups > 0 ? "אין פנויים באזור" : undefined}
@@ -224,7 +243,7 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
                               list={info.otherList}
                               showArea
                               muted
-                              canAssign={!isArchived}
+                              canAssign={info.cellNeeds.filter((n) => (assignmentsByNeed.get(n.id)?.length ?? 0) < n.num_groups).length === 1 && !isArchived}
                               pending={pending}
                               onPick={(i) => info.openNeed && assign(info.openNeed.id, i)}
                             />
@@ -380,6 +399,100 @@ export function CampMatchingBoard({ session, needs, availability, assignments, i
 
       {!selected && areas.length > 0 && (
         <p className="text-center text-sm text-muted-foreground">לחצו על תא כדי לשבץ מדריכים</p>
+      )}
+    </div>
+  );
+}
+
+function firstWord(name: string) {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+function NeedLine({
+  need,
+  list,
+  free,
+  other,
+  isArchived,
+  pending,
+  onAssign,
+  onRemove,
+}: {
+  need: CampStaffingNeed;
+  list: CampStaffingAssignment[];
+  free: FreeInstructor[];
+  other: FreeInstructor[];
+  isArchived: boolean;
+  pending: string | null;
+  onAssign: (i: FreeInstructor) => void;
+  onRemove: (id: string) => void;
+}) {
+  const full = list.length >= need.num_groups;
+  const all = [...free, ...other];
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="rounded-md bg-background/70 px-1.5 py-1 text-right text-[11px] text-foreground"
+    >
+      <div className="flex items-center justify-between gap-1">
+        <span className="truncate font-medium" title={need.client_name}>
+          {firstWord(need.client_name)}
+        </span>
+        <span className={full ? "text-green-700" : "text-red-700"}>
+          {list.length}/{need.num_groups}
+        </span>
+      </div>
+      {list.length > 0 && (
+        <div className="mt-0.5 flex flex-wrap gap-1">
+          {list.map((a) => (
+            <span
+              key={a.id}
+              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 ${
+                a.is_confirmed ? "bg-green-100 text-green-800" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {a.instructor_name}
+              {pending === a.id ? (
+                <Loader2 size={9} className="animate-spin" />
+              ) : (
+                !isArchived && (
+                  <button onClick={() => onRemove(a.id)} title="הסר" className="hover:text-red-600">
+                    <X size={9} />
+                  </button>
+                )
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      {!full && !isArchived && (
+        <select
+          value=""
+          disabled={all.length === 0}
+          onChange={(e) => {
+            const pick = all.find((i) => i.name === e.target.value);
+            if (pick) onAssign(pick);
+          }}
+          className="mt-0.5 w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] disabled:opacity-50"
+        >
+          <option value="" disabled>
+            {all.length === 0 ? "אין פנויים" : "+ בחר מדריך/ה"}
+          </option>
+          {free.map((i) => (
+            <option key={i.name} value={i.name}>
+              {i.name}
+            </option>
+          ))}
+          {other.length > 0 && (
+            <optgroup label="אפשרויות נוספות">
+              {other.map((i) => (
+                <option key={i.name} value={i.name}>
+                  {i.name} · {i.area}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
       )}
     </div>
   );
