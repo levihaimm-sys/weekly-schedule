@@ -56,7 +56,9 @@ export async function updateCampRequest(id: string, data: CampRequestInput) {
       num_groups: numGroups,
       start_time_note: data.start_time_note?.trim() || null,
       notes: data.notes?.trim() || null,
-      camp_session_id: data.camp_session_id || null,
+      // Keep the request in its session unless the caller explicitly moves it —
+      // the edit modal doesn't send camp_session_id, and nulling it hid the request.
+      ...(data.camp_session_id !== undefined ? { camp_session_id: data.camp_session_id || null } : {}),
     })
     .eq("id", id);
 
