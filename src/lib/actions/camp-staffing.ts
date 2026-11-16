@@ -14,8 +14,15 @@ async function recomputeNeedStatus(needId: string) {
     .select("is_confirmed")
     .eq("need_id", needId);
 
+  const { data: need } = await supabase
+    .from("camp_staffing_needs")
+    .select("num_groups")
+    .eq("id", needId)
+    .single();
+  const required = Math.max(need?.num_groups ?? 1, 1);
+
   const confirmedCount = (assignments ?? []).filter((a) => a.is_confirmed).length;
-  const status = confirmedCount > 0 ? "filled" : (assignments ?? []).length > 0 ? "partially_filled" : "open";
+  const status = confirmedCount >= required ? "filled" : (assignments ?? []).length > 0 ? "partially_filled" : "open";
   await supabase.from("camp_staffing_needs").update({ status }).eq("id", needId);
 }
 

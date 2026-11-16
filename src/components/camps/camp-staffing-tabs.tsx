@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Users, ClipboardList, UserCheck } from "lucide-react";
+import { Users, ClipboardList, UserCheck, LayoutGrid } from "lucide-react";
 import { CampsManager } from "@/components/camps/camps-manager";
 import { CampMatchingTab } from "@/components/camps/camp-matching-tab";
+import { CampMatchingBoard } from "@/components/camps/camp-matching-board";
 import { CampAvailabilityTab } from "@/components/camps/camp-availability-tab";
 import type {
   CampRequestWithCandidates,
@@ -28,6 +29,7 @@ interface Props {
 }
 
 const TABS = [
+  { key: "board", label: "לוח שיבוץ", icon: LayoutGrid },
   { key: "matching", label: "שיבוצים", icon: UserCheck },
   { key: "availability", label: "מדריכים וזמינות", icon: Users },
   { key: "requests", label: "בקשות קייטנה", icon: ClipboardList },
@@ -87,6 +89,16 @@ export function CampStaffingTabs({
           </Link>
         ))}
       </div>
+
+      {activeTab === "board" && (
+        <CampMatchingBoard
+          session={session}
+          needs={needs}
+          availability={availability}
+          assignments={assignments}
+          isArchived={isArchived}
+        />
+      )}
 
       {activeTab === "matching" && (
         <CampMatchingTab
