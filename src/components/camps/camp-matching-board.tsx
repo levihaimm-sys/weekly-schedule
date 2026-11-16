@@ -4,29 +4,21 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
-import { Check, CheckCircle2, RotateCcw, X, Loader2 } from "lucide-react";
+import { Check, RotateCcw, X, Loader2 } from "lucide-react";
 import {
-  addCampAssignment,
-  confirmCampAssignment,
-  unconfirmCampAssignment,
-  deleteCampAssignment,
-} from "@/lib/actions/camp-staffing";
-import type {
-  CampStaffingNeed,
-  CampStaffingAvailability,
-  CampStaffingAssignment,
-  CampSession,
-} from "@/types/database";
+  addRequestCandidate,
+  confirmRequestCandidate,
+  unconfirmRequestCandidate,
+  removeRequestCandidate,
+} from "@/lib/actions/camps";
+import type { CampRequestWithCandidates, CampStaffingAvailability, Instructor } from "@/types/database";
 
 interface Props {
-  session: CampSession;
-  needs: CampStaffingNeed[];
+  requests: CampRequestWithCandidates[];
+  instructors: Pick<Instructor, "id" | "full_name" | "is_active">[];
   availability: CampStaffingAvailability[];
-  assignments: CampStaffingAssignment[];
   isArchived: boolean;
 }
-
-const NO_AREA = "ללא אזור";
 
 type CellState = "ok" | "mid" | "bad";
 
@@ -36,10 +28,11 @@ const CELL_CLASS: Record<CellState, string> = {
   bad: "border-red-200 bg-red-50 text-red-800",
 };
 
-interface FreeInstructor {
+interface Option {
+  instructorId: string;
   name: string;
-  area: string;
-  slotId: string;
+  areas: string[];
+  busyAt: string[]; // other clients already holding this instructor that day
 }
 
 interface Row {
@@ -57,118 +50,133 @@ function firstWord(name: string) {
   return name.trim().split(/\s+/)[0] || name;
 }
 
-function rowKeyOf(n: CampStaffingNeed) {
-  return `${n.area || NO_AREA}||${n.client_name.trim()}`;
+const norm = (s: string) => s.trim().replace(/\s+/g, " ");
+
+/** "באר יעקב/ראשון לציון" / "ראשון לציון, באר יעקב" → separate areas */
+function splitAreas(area: string | null): string[] {
+  if (!area) return [];
+  return area
+    .split(/[\/,]/)
+    .map(norm)
+    .filter(Boolean);
 }
 
-export function CampMatchingBoard({ needs, availability, assignments, isArchived }: Props) {
+/** "צפון תל אביב" matches an instructor area "תל אביב" and vice versa */
+function areaMatches(requestArea: string, instructorArea: string) {
+  const a = norm(requestArea);
+  const b = norm(instructorArea);
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+function rowKeyOf(r: CampRequestWithCandidates) {
+  return `${norm(r.area)}||${norm(r.client_name ?? "")}`;
+}
+
+export function CampMatchingBoard({ requests, instructors, availability, isArchived }: Props) {
   const router = useRouter();
-  const [selected, setSelected] = useState<{ rowKey: string; date: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const assignmentsByNeed = useMemo(() => {
-    const map = new Map<string, CampStaffingAssignment[]>();
-    for (const a of assignments) {
-      const list = map.get(a.need_id) ?? [];
-      list.push(a);
-      map.set(a.need_id, list);
-    }
-    return map;
-  }, [assignments]);
+  const instructorById = useMemo(() => new Map(instructors.map((i) => [i.id, i])), [instructors]);
+  const instructorIdByName = useMemo(
+    () => new Map(instructors.map((i) => [norm(i.full_name), i.id])),
+    [instructors]
+  );
 
-  const dates = useMemo(() => Array.from(new Set(needs.map((n) => n.camp_date))).sort(), [needs]);
+  const dates = useMemo(() => Array.from(new Set(requests.map((r) => r.camp_date))).sort(), [requests]);
 
   const rows = useMemo(() => {
     const map = new Map<string, Row>();
-    for (const n of needs) {
-      const key = rowKeyOf(n);
-      if (!map.has(key)) map.set(key, { key, area: n.area || NO_AREA, client: n.client_name.trim() });
+    for (const r of requests) {
+      const key = rowKeyOf(r);
+      if (!map.has(key)) map.set(key, { key, area: norm(r.area), client: norm(r.client_name ?? "") });
     }
     return Array.from(map.values()).sort(
       (a, b) => a.area.localeCompare(b.area, "he") || a.client.localeCompare(b.client, "he")
     );
-  }, [needs]);
+  }, [requests]);
 
-  // instructor names already assigned on each date (any client)
+  // date -> instructorId -> client names already holding them
   const busyByDate = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const n of needs) {
-      const set = map.get(n.camp_date) ?? new Set<string>();
-      (assignmentsByNeed.get(n.id) ?? []).forEach((a) => set.add(a.instructor_name.trim()));
-      map.set(n.camp_date, set);
+    const map = new Map<string, Map<string, string[]>>();
+    for (const r of requests) {
+      const m = map.get(r.camp_date) ?? new Map<string, string[]>();
+      for (const c of r.candidates) {
+        const list = m.get(c.instructor_id) ?? [];
+        list.push(firstWord(r.client_name ?? r.area));
+        m.set(c.instructor_id, list);
+      }
+      map.set(r.camp_date, m);
     }
     return map;
-  }, [needs, assignmentsByNeed]);
+  }, [requests]);
 
-  function freeOn(date: string): FreeInstructor[] {
-    const busy = busyByDate.get(date) ?? new Set<string>();
-    const seen = new Set<string>();
-    const result: FreeInstructor[] = [];
-    for (const a of availability) {
-      if (a.camp_date !== null && a.camp_date !== date) continue;
-      const name = a.instructor_name.trim();
-      if (busy.has(name) || seen.has(name)) continue;
-      seen.add(name);
-      result.push({ name, area: a.area || NO_AREA, slotId: a.id });
+  // date -> available instructors (with their separate areas)
+  const availableByDate = useMemo(() => {
+    const result = new Map<string, Map<string, { name: string; areas: Set<string> }>>();
+    for (const date of dates) {
+      const m = new Map<string, { name: string; areas: Set<string> }>();
+      for (const a of availability) {
+        if (a.camp_date !== null && a.camp_date !== date) continue;
+        const id = instructorIdByName.get(norm(a.instructor_name));
+        if (!id) continue;
+        const entry = m.get(id) ?? { name: norm(a.instructor_name), areas: new Set<string>() };
+        splitAreas(a.area).forEach((x) => entry.areas.add(x));
+        m.set(id, entry);
+      }
+      result.set(date, m);
     }
-    return result.sort((x, y) => x.name.localeCompare(y.name, "he"));
-  }
+    return result;
+  }, [dates, availability, instructorIdByName]);
 
-  function cellInfo(row: Row, date: string) {
-    const cellNeeds = needs
-      .filter((n) => rowKeyOf(n) === row.key && n.camp_date === date)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    if (cellNeeds.length === 0) return null;
-    const groups = cellNeeds.reduce((s, n) => s + n.num_groups, 0);
-    const cellAssignments = cellNeeds.flatMap((n) => assignmentsByNeed.get(n.id) ?? []);
-    const assigned = cellAssignments.length;
-    const all = freeOn(date);
-    const sameArea = all.filter((f) => f.area === row.area);
-    const otherArea = all.filter((f) => f.area !== row.area);
-    const openNeed = cellNeeds.find((n) => (assignmentsByNeed.get(n.id)?.length ?? 0) < n.num_groups) ?? null;
-    const state: CellState = assigned >= groups ? "ok" : assigned + sameArea.length >= groups ? "mid" : "bad";
-    return { cellNeeds, groups, cellAssignments, assigned, sameArea, otherArea, openNeed, state };
+  function optionsFor(req: CampRequestWithCandidates) {
+    const taken = new Set(req.candidates.map((c) => c.instructor_id));
+    const busy = busyByDate.get(req.camp_date) ?? new Map<string, string[]>();
+    const same: Option[] = [];
+    const other: Option[] = [];
+    for (const [id, { name, areas }] of availableByDate.get(req.camp_date) ?? []) {
+      if (taken.has(id)) continue;
+      const opt: Option = { instructorId: id, name, areas: Array.from(areas), busyAt: busy.get(id) ?? [] };
+      if (opt.areas.some((x) => areaMatches(req.area, x))) same.push(opt);
+      else other.push(opt);
+    }
+    const sort = (a: Option, b: Option) =>
+      a.busyAt.length - b.busyAt.length || a.name.localeCompare(b.name, "he");
+    return { same: same.sort(sort), other: other.sort(sort) };
   }
 
   const totals = useMemo(() => {
-    const groups = needs.reduce((s, n) => s + n.num_groups, 0);
-    const assigned = needs.reduce((s, n) => s + (assignmentsByNeed.get(n.id)?.length ?? 0), 0);
-    return { groups, assigned };
-  }, [needs, assignmentsByNeed]);
+    const groups = requests.reduce((s, r) => s + r.num_groups, 0);
+    const confirmed = requests.reduce((s, r) => s + r.candidates.filter((c) => c.is_confirmed).length, 0);
+    return { groups, confirmed };
+  }, [requests]);
 
-  async function assign(needId: string, inst: FreeInstructor) {
-    if (isArchived) return;
-    setPending(`assign-${needId}-${inst.name}`);
-    await addCampAssignment({ need_id: needId, instructor_name: inst.name, availability_id: inst.slotId });
+  async function act(key: string, fn: () => Promise<{ error?: string }>) {
+    setPending(key);
+    setError(null);
+    const res = await fn();
+    if (res?.error) setError(res.error);
     setPending(null);
     router.refresh();
   }
-
-  async function run(id: string, fn: (id: string) => Promise<unknown>) {
-    setPending(id);
-    await fn(id);
-    setPending(null);
-    router.refresh();
-  }
-
-  const selectedRow = selected ? rows.find((r) => r.key === selected.rowKey) : null;
-  const selectedInfo = selected && selectedRow ? cellInfo(selectedRow, selected.date) : null;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="font-medium text-foreground">
-          {totals.assigned}/{totals.groups} שיעורים שובצו
+          {totals.confirmed}/{totals.groups} שיעורים מאוישים
         </span>
-        <Legend cls={CELL_CLASS.ok} label="מכוסה" />
-        <Legend cls={CELL_CLASS.mid} label="יש זמינים באזור" />
+        <Legend cls={CELL_CLASS.ok} label="מאויש" />
+        <Legend cls={CELL_CLASS.mid} label="יש מספיק מדריכים לבחירה" />
         <Legend cls={CELL_CLASS.bad} label="חסרים מדריכים" />
-        <span>לחיצה על שם מדריך באריח משבצת אותו</span>
+        <span>לחיצה על שם משבצת · ✓ מאשר</span>
       </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-          אין עדיין בקשות לקוח
+          אין עדיין בקשות קייטנה
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
@@ -179,7 +187,7 @@ export function CampMatchingBoard({ needs, availability, assignments, isArchived
                 {dates.map((d) => {
                   const f = formatDay(d);
                   return (
-                    <th key={d} className="min-w-[150px] text-center text-xs font-medium text-muted-foreground">
+                    <th key={d} className="min-w-[160px] text-center text-xs font-medium text-muted-foreground">
                       <div>{f.day}</div>
                       <div className="text-foreground">{f.date}</div>
                     </th>
@@ -195,78 +203,29 @@ export function CampMatchingBoard({ needs, availability, assignments, isArchived
                     title={`${row.area} – ${row.client}`}
                   >
                     {row.area}
-                    <span className="text-muted-foreground"> ({firstWord(row.client)})</span>
+                    {row.client && <span className="text-muted-foreground"> ({firstWord(row.client)})</span>}
                   </td>
                   {dates.map((date) => {
-                    const info = cellInfo(row, date);
-                    if (!info) return <td key={date} />;
-                    const isSel = selected?.rowKey === row.key && selected?.date === date;
+                    const cellReqs = requests
+                      .filter((r) => rowKeyOf(r) === row.key && r.camp_date === date)
+                      .sort((a, b) => (a.start_time_note ?? "").localeCompare(b.start_time_note ?? ""));
                     return (
-                      <td key={date} className="h-px p-0 align-top">
-                        <div
-                          onClick={() => setSelected({ rowKey: row.key, date })}
-                          className={`h-full cursor-pointer rounded-lg border p-2 text-center transition-all hover:brightness-95 ${
-                            CELL_CLASS[info.state]
-                          } ${isSel ? "ring-2 ring-primary ring-offset-1" : ""}`}
-                        >
-                          <div className="text-sm font-semibold">
-                            {info.groups} {info.groups === 1 ? "שיעור" : "שיעורים"}
-                          </div>
-                          <div className="text-[11px] opacity-80">
-                            שובצו {info.assigned}/{info.groups}
-                          </div>
-
-                          {info.cellAssignments.length > 0 && (
-                            <div className="mt-1 flex flex-wrap justify-center gap-1">
-                              {info.cellAssignments.map((a) => (
-                                <span
-                                  key={a.id}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] ${
-                                    a.is_confirmed ? "bg-green-600 text-white" : "bg-foreground/80 text-background"
-                                  }`}
-                                >
-                                  {a.instructor_name}
-                                  {pending === a.id ? (
-                                    <Loader2 size={9} className="animate-spin" />
-                                  ) : (
-                                    !isArchived && (
-                                      <button onClick={() => run(a.id, deleteCampAssignment)} title="הסר" className="opacity-70 hover:opacity-100">
-                                        <X size={9} />
-                                      </button>
-                                    )
-                                  )}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {info.openNeed && (
-                            <>
-                              <NameChips
-                                list={info.sameArea}
-                                disabled={isArchived}
-                                pending={pending}
-                                needId={info.openNeed.id}
-                                onPick={(i) => info.openNeed && assign(info.openNeed.id, i)}
-                                emptyText="אין פנויים באזור"
-                              />
-                              {info.otherArea.length > 0 && (
-                                <div className="mt-1.5 border-t border-current/20 pt-1">
-                                  <div className="text-[10px] opacity-70">אפשרויות נוספות</div>
-                                  <NameChips
-                                    list={info.otherArea}
-                                    showArea
-                                    muted
-                                    disabled={isArchived}
-                                    pending={pending}
-                                    needId={info.openNeed.id}
-                                    onPick={(i) => info.openNeed && assign(info.openNeed.id, i)}
-                                  />
-                                </div>
-                              )}
-                            </>
-                          )}
+                      <td key={date} className="p-0 align-top">
+                        <div className="space-y-1.5">
+                          {cellReqs.map((req) => (
+                            <RequestTile
+                              key={req.id}
+                              req={req}
+                              options={optionsFor(req)}
+                              instructorById={instructorById}
+                              isArchived={isArchived}
+                              pending={pending}
+                              onAdd={(id) => act(`add-${req.id}-${id}`, () => addRequestCandidate(req.id, id))}
+                              onConfirm={(cid) => act(cid, () => confirmRequestCandidate(cid))}
+                              onUnconfirm={(cid) => act(cid, () => unconfirmRequestCandidate(cid))}
+                              onRemove={(cid) => act(cid, () => removeRequestCandidate(cid))}
+                            />
+                          ))}
                         </div>
                       </td>
                     );
@@ -277,91 +236,133 @@ export function CampMatchingBoard({ needs, availability, assignments, isArchived
           </table>
         </div>
       )}
+    </div>
+  );
+}
 
-      {selected && selectedRow && selectedInfo && (
-        <div className="space-y-2 rounded-xl border border-border bg-background p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">
-              {selectedRow.client} · {selectedRow.area} · {formatDay(selected.date).day} {formatDay(selected.date).date}
-            </h3>
-            <button onClick={() => setSelected(null)} className="rounded p-1 text-muted-foreground hover:bg-muted">
-              <X size={14} />
-            </button>
-          </div>
-          {selectedInfo.cellNeeds.map((n) => {
-            const list = assignmentsByNeed.get(n.id) ?? [];
+function RequestTile({
+  req,
+  options,
+  instructorById,
+  isArchived,
+  pending,
+  onAdd,
+  onConfirm,
+  onUnconfirm,
+  onRemove,
+}: {
+  req: CampRequestWithCandidates;
+  options: { same: Option[]; other: Option[] };
+  instructorById: Map<string, Pick<Instructor, "id" | "full_name" | "is_active">>;
+  isArchived: boolean;
+  pending: string | null;
+  onAdd: (instructorId: string) => void;
+  onConfirm: (candidateId: string) => void;
+  onUnconfirm: (candidateId: string) => void;
+  onRemove: (candidateId: string) => void;
+}) {
+  const confirmed = req.candidates.filter((c) => c.is_confirmed).length;
+  const needMore = req.candidates.length < req.num_groups;
+  const state: CellState =
+    confirmed >= req.num_groups
+      ? "ok"
+      : req.candidates.length + options.same.length >= req.num_groups
+        ? "mid"
+        : "bad";
+
+  return (
+    <div className={`rounded-lg border p-2 text-center ${CELL_CLASS[state]}`}>
+      <div className="text-sm font-semibold">
+        {req.num_groups} {req.num_groups === 1 ? "שיעור" : "שיעורים"}
+        {req.start_time_note && <span className="font-normal"> · {req.start_time_note}</span>}
+      </div>
+      <div className="text-[11px] opacity-80">
+        אושרו {confirmed}/{req.num_groups}
+      </div>
+
+      {req.candidates.length > 0 && (
+        <div className="mt-1 flex flex-wrap justify-center gap-1">
+          {req.candidates.map((c) => {
+            const name = instructorById.get(c.instructor_id)?.full_name ?? "—";
             return (
-              <div key={n.id} className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">
-                    {[n.field, n.framework, n.start_time].filter(Boolean).join(" · ") || "—"}
-                  </span>
-                  <span>
-                    {list.length}/{n.num_groups}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {list.length === 0 && <span className="text-xs text-muted-foreground">אין עדיין שיבוצים</span>}
-                  {list.map((a) => (
-                    <span
-                      key={a.id}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
-                        a.is_confirmed
-                          ? "border-green-200 bg-green-50 text-green-800"
-                          : "border-border bg-muted/40 text-muted-foreground"
-                      }`}
-                    >
-                      {a.instructor_name}
-                      {pending === a.id ? (
-                        <Loader2 size={11} className="animate-spin" />
-                      ) : a.is_confirmed ? (
-                        <>
-                          <CheckCircle2 size={12} className="text-green-700" />
-                          {!isArchived && (
-                            <button onClick={() => run(a.id, unconfirmCampAssignment)} title="בטל אישור" className="hover:text-red-600">
-                              <RotateCcw size={11} />
-                            </button>
-                          )}
-                        </>
+              <span
+                key={c.id}
+                className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] ${
+                  c.is_confirmed ? "bg-green-600 text-white" : "bg-foreground/75 text-background"
+                }`}
+              >
+                {name}
+                {pending === c.id ? (
+                  <Loader2 size={9} className="animate-spin" />
+                ) : (
+                  !isArchived && (
+                    <>
+                      {c.is_confirmed ? (
+                        <button onClick={() => onUnconfirm(c.id)} title="בטל אישור" className="opacity-70 hover:opacity-100">
+                          <RotateCcw size={9} />
+                        </button>
                       ) : (
-                        !isArchived && (
-                          <button onClick={() => run(a.id, confirmCampAssignment)} title="אשר שיבוץ" className="hover:text-green-700">
-                            <Check size={11} />
-                          </button>
-                        )
-                      )}
-                      {!isArchived && pending !== a.id && (
-                        <button onClick={() => run(a.id, deleteCampAssignment)} title="הסר" className="hover:text-red-600">
-                          <X size={11} />
+                        <button onClick={() => onConfirm(c.id)} title="אשר" className="opacity-80 hover:opacity-100">
+                          <Check size={10} />
                         </button>
                       )}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                      <button onClick={() => onRemove(c.id)} title="הסר" className="opacity-70 hover:opacity-100">
+                        <X size={9} />
+                      </button>
+                    </>
+                  )
+                )}
+              </span>
             );
           })}
         </div>
+      )}
+
+      {needMore && (
+        <>
+          <OptionChips
+            list={options.same}
+            reqId={req.id}
+            disabled={isArchived}
+            pending={pending}
+            onPick={onAdd}
+            emptyText="אין זמינים באזור"
+          />
+          {options.other.length > 0 && (
+            <div className="mt-1.5 border-t border-current/20 pt-1">
+              <div className="text-[10px] opacity-70">אפשרויות נוספות</div>
+              <OptionChips
+                list={options.other}
+                reqId={req.id}
+                showArea
+                muted
+                disabled={isArchived}
+                pending={pending}
+                onPick={onAdd}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-function NameChips({
+function OptionChips({
   list,
+  reqId,
   disabled,
   pending,
-  needId,
   onPick,
   showArea,
   muted,
   emptyText,
 }: {
-  list: FreeInstructor[];
+  list: Option[];
+  reqId: string;
   disabled: boolean;
   pending: string | null;
-  needId: string;
-  onPick: (i: FreeInstructor) => void;
+  onPick: (instructorId: string) => void;
   showArea?: boolean;
   muted?: boolean;
   emptyText?: string;
@@ -371,24 +372,32 @@ function NameChips({
   }
   return (
     <div className="mt-1 flex flex-wrap justify-center gap-1">
-      {list.map((i) => (
-        <button
-          key={i.name}
-          disabled={disabled}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPick(i);
-          }}
-          title={`${i.name}${showArea ? ` (${i.area})` : ""} – לחצו לשיבוץ`}
-          className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:pointer-events-none ${
-            muted ? "border-current/30 bg-background/40" : "border-current/40 bg-background/80"
-          }`}
-        >
-          {pending === `assign-${needId}-${i.name}` && <Loader2 size={10} className="animate-spin" />}
-          {i.name}
-          {showArea && <span className="opacity-60">· {i.area}</span>}
-        </button>
-      ))}
+      {list.map((o) => {
+        const busy = o.busyAt.length > 0;
+        const title = [
+          o.name,
+          showArea ? `(${o.areas.join(" / ")})` : "",
+          busy ? `– כבר משובץ/ת היום ב: ${o.busyAt.join(", ")}` : "– לחצו לשיבוץ",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return (
+          <button
+            key={o.instructorId}
+            disabled={disabled}
+            onClick={() => onPick(o.instructorId)}
+            title={title}
+            className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground disabled:pointer-events-none ${
+              muted ? "border-current/30 bg-background/40" : "border-current/40 bg-background/80"
+            } ${busy ? "border-dashed opacity-60" : ""}`}
+          >
+            {pending === `add-${reqId}-${o.instructorId}` && <Loader2 size={10} className="animate-spin" />}
+            {o.name}
+            {showArea && <span className="opacity-60">· {o.areas.join(" / ")}</span>}
+            {busy && <span className="opacity-70">({o.busyAt.join(", ")})</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

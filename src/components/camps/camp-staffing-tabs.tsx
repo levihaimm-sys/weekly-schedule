@@ -92,10 +92,9 @@ export function CampStaffingTabs({
 
       {activeTab === "board" && (
         <CampMatchingBoard
-          session={session}
-          needs={needs}
+          requests={requests}
+          instructors={instructors}
           availability={availability}
-          assignments={assignments}
           isArchived={isArchived}
         />
       )}
