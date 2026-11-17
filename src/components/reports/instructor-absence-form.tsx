@@ -364,7 +364,8 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         לכל מדריך: מה קרה לשיעורים שהיו שלו בלוח הקבוע באותו תאריך (לפי היסטוריית הלוח הקבוע והשבועי).
-        חיסור נרשם על המדריך שסומן עליו. נספרים רק שיעורים שכבר עברו.
+        חיסור = שיעור שלא לימדו בפועל (חיסור שלא טופל או שיעור בלי מדריך, כמו "השלמות" בלוח השבועי).
+        חיסור שקיבל מחליף נספר כ"הועבר למדריך אחר". נספרים רק שיעורים שכבר עברו.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">

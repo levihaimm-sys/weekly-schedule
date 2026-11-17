@@ -101,7 +101,7 @@ export async function getInstructorAbsenceReport(
         .from("lessons")
         .select(
           `id, lesson_date, status, instructor_id, substitute_instructor_id, recurring_item_id, client_name,
-           is_one_time_change, instructor_absence_request, instructor_request_type,
+           is_one_time_change, instructor_absence_request, instructor_request_type, instructor_request_handled,
            location:locations!lessons_location_id_fkey(city)`
         )
         .gte("lesson_date", startDate)
@@ -111,8 +111,15 @@ export async function getInstructorAbsenceReport(
         .range(f, t)
     );
 
+    // A lesson counts as an absence only if it was NOT taught in practice — same rule as the
+    // "השלמות" filter on the weekly board: an absence that was never handled, or a lesson left
+    // with no instructor. A handled absence (substitute assigned, moved or cancelled) is not
+    // an absence; it shows up as transferred / cancelled instead.
     const isAbsenceLesson = (l: any) =>
-      !!l.instructor_absence_request && l.instructor_request_type === "absence";
+      !(l.substitute_instructor_id ?? l.instructor_id) ||
+      (!!l.instructor_absence_request &&
+        !l.instructor_request_handled &&
+        (!l.instructor_request_type || l.instructor_request_type === "absence"));
 
     // Fixed-schedule history: every edit of the fixed schedule stores the row as it was
     // BEFORE the edit (schedule_undo_log.before_recurring). Edits apply from their date onward,
@@ -166,9 +173,8 @@ export async function getInstructorAbsenceReport(
         // or — for an absence that already existed (e.g. reported by the instructor in the app) —
         // the instructor on the lesson the first time the log saw it marked.
         if (b.instructor_id && (isAbsenceMarking || (b.instructor_absence_request && !firstAbsSeen.has(b.id)))) {
-          const set = absentees.get(b.id) ?? new Set<string>();
-          set.add(b.instructor_id);
-          absentees.set(b.id, set);
+          // Keep only the latest one: that's who the open absence is on
+          absentees.set(b.id, new Set([b.instructor_id]));
         }
         if (b.instructor_absence_request) firstAbsSeen.add(b.id);
       }
