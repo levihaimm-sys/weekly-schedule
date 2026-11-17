@@ -27,11 +27,142 @@ function csvCell(value: string | number) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// ─── Charts (plain SVG/CSS, no chart library) ─────────────────────────────────
+
+type MonthPoint = { month: number; absences: number; cancelled: number; held: number; cost: number };
+
+function Legend({ items }: { items: [string, string][] }) {
+  return (
+    <div className="mb-2 flex gap-4 text-xs text-muted-foreground">
+      {items.map(([color, label]) => (
+        <span key={label} className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MonthlyBars({
+  data,
+  selected,
+  onSelect,
+}: {
+  data: MonthPoint[];
+  selected: number;
+  onSelect: (month: number) => void;
+}) {
+  const max = Math.max(1, ...data.map((d) => Math.max(d.absences, d.cancelled)));
+  const W = 480, H = 200, padL = 24, padB = 22, padT = 14;
+  const innerW = W - padL, innerH = H - padB - padT;
+  const slot = innerW / 12;
+  const barW = slot * 0.32;
+  const y = (v: number) => padT + innerH - (v / max) * innerH;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" dir="ltr" role="img" aria-label="חיסורים וביטולים לפי חודש">
+      {[0, 0.5, 1].map((t) => (
+        <g key={t}>
+          <line x1={padL} x2={W} y1={y(max * t)} y2={y(max * t)} stroke="currentColor" opacity={0.1} />
+          <text x={padL - 4} y={y(max * t) + 3} textAnchor="end" fontSize="9" fill="currentColor" opacity={0.5}>
+            {Math.round(max * t)}
+          </text>
+        </g>
+      ))}
+      {data.map((d, i) => {
+        const x0 = padL + i * slot + slot * 0.15;
+        const dim = selected && selected !== d.month ? 0.35 : 1;
+        return (
+          <g key={d.month} onClick={() => onSelect(d.month)} style={{ cursor: "pointer" }} opacity={dim}>
+            <rect x={padL + i * slot} y={padT} width={slot} height={innerH + padB} fill="transparent" />
+            <rect x={x0} y={y(d.absences)} width={barW} height={padT + innerH - y(d.absences)} rx={2} fill="#dc2626" />
+            <rect x={x0 + barW + 2} y={y(d.cancelled)} width={barW} height={padT + innerH - y(d.cancelled)} rx={2} fill="#f97316" />
+            {d.absences > 0 && (
+              <text x={x0 + barW / 2} y={y(d.absences) - 2} textAnchor="middle" fontSize="8" fill="#dc2626">{d.absences}</text>
+            )}
+            {d.cancelled > 0 && (
+              <text x={x0 + barW * 1.5 + 2} y={y(d.cancelled) - 2} textAnchor="middle" fontSize="8" fill="#f97316">{d.cancelled}</text>
+            )}
+            <text x={padL + i * slot + slot / 2} y={H - 6} textAnchor="middle" fontSize="9" fill="currentColor" opacity={0.7}>
+              {MONTHS[i].slice(0, 3)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function InstructorBars({ data }: { data: { name: string; absences: number; cancelled: number }[] }) {
+  if (data.length === 0) {
+    return <p className="py-8 text-center text-sm text-muted-foreground">אין חיסורים או ביטולים בתקופה זו</p>;
+  }
+  const max = Math.max(1, ...data.map((d) => d.absences + d.cancelled));
+  return (
+    <div className="space-y-1.5">
+      {data.map((d) => (
+        <div key={d.name} className="flex items-center gap-2 text-xs">
+          <span className="w-28 shrink-0 truncate" title={d.name}>{d.name}</span>
+          <div className="flex h-4 flex-1 overflow-hidden rounded bg-muted/40" dir="ltr">
+            <div style={{ width: `${(d.absences / max) * 100}%`, background: "#dc2626" }} title={`חיסורים: ${d.absences}`} />
+            <div style={{ width: `${(d.cancelled / max) * 100}%`, background: "#f97316" }} title={`ביטולים: ${d.cancelled}`} />
+          </div>
+          <span className="w-14 shrink-0 text-center tabular-nums text-muted-foreground">
+            {d.absences} / {d.cancelled}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AvgPriceLine({ data }: { data: MonthPoint[] }) {
+  const pts = data.map((d) => ({ month: d.month, v: d.held > 0 ? d.cost / d.held : null }));
+  const vals = pts.map((p) => p.v).filter((v): v is number => v !== null);
+  if (vals.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">אין נתונים</p>;
+  const max = Math.max(...vals) * 1.1 || 1;
+  const W = 960, H = 180, padL = 36, padB = 22, padT = 14;
+  const slot = (W - padL) / 12;
+  const x = (i: number) => padL + i * slot + slot / 2;
+  const y = (v: number) => padT + (H - padB - padT) - (v / max) * (H - padB - padT);
+  const line = pts
+    .map((p, i) => (p.v === null ? null : `${x(i)},${y(p.v)}`))
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" dir="ltr" role="img" aria-label="מחיר ממוצע לשיעור לפי חודש">
+      {[0, 0.5, 1].map((t) => (
+        <g key={t}>
+          <line x1={padL} x2={W} y1={y(max * t)} y2={y(max * t)} stroke="currentColor" opacity={0.1} />
+          <text x={padL - 4} y={y(max * t) + 3} textAnchor="end" fontSize="10" fill="currentColor" opacity={0.5}>
+            {Math.round(max * t)}
+          </text>
+        </g>
+      ))}
+      <polyline points={line} fill="none" stroke="#2563eb" strokeWidth={2} />
+      {pts.map((p, i) =>
+        p.v === null ? null : (
+          <g key={p.month}>
+            <circle cx={x(i)} cy={y(p.v)} r={3.5} fill="#2563eb" />
+            <text x={x(i)} y={y(p.v) - 7} textAnchor="middle" fontSize="10" fill="#2563eb">{Math.round(p.v)}</text>
+          </g>
+        )
+      )}
+      {MONTHS.map((m, i) => (
+        <text key={m} x={x(i)} y={H - 6} textAnchor="middle" fontSize="10" fill="currentColor" opacity={0.7}>
+          {m.slice(0, 3)}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 export function InstructorAbsenceForm({ instructors }: { instructors: { full_name: string }[] }) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [rows, setRows] = useState<InstructorAbsenceRow[] | null>(null);
   const [showCost, setShowCost] = useState(false);
   const [filterInstructor, setFilterInstructor] = useState("");
+  const [filterMonth, setFilterMonth] = useState(0); // 0 = all months
   const [sortKey, setSortKey] = useState<SortKey>("instructorName");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +188,46 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
     }
   }
 
+  // Rows filtered by instructor only: feeds the yearly month-by-month chart
+  const byInstructorRows = useMemo(
+    () => (rows ?? []).filter((r) => !filterInstructor || r.instructorName === filterInstructor),
+    [rows, filterInstructor]
+  );
+
+  const monthly = useMemo(() => {
+    const m = MONTHS.map((_, i) => ({ month: i + 1, absences: 0, cancelled: 0, held: 0, cost: 0 }));
+    for (const r of byInstructorRows) {
+      const t = m[r.month - 1];
+      t.absences += r.absences;
+      t.cancelled += r.cancelled;
+      t.held += r.held;
+      t.cost += r.cost ?? 0;
+    }
+    return m;
+  }, [byInstructorRows]);
+
+  const perInstructor = useMemo(() => {
+    const map = new Map<string, { name: string; absences: number; cancelled: number }>();
+    for (const r of byInstructorRows) {
+      if (filterMonth && r.month !== filterMonth) continue;
+      const e = map.get(r.instructorId) ?? { name: r.instructorName, absences: 0, cancelled: 0 };
+      e.absences += r.absences;
+      e.cancelled += r.cancelled;
+      map.set(r.instructorId, e);
+    }
+    return [...map.values()]
+      .filter((e) => e.absences + e.cancelled > 0)
+      .sort((a, b) => b.absences + b.cancelled - (a.absences + a.cancelled))
+      .slice(0, 15);
+  }, [byInstructorRows, filterMonth]);
+
   const visible = useMemo(() => {
     if (!rows) return [];
-    const list = rows.filter((r) => !filterInstructor || r.instructorName === filterInstructor);
+    const list = rows.filter(
+      (r) =>
+        (!filterInstructor || r.instructorName === filterInstructor) &&
+        (!filterMonth || r.month === filterMonth)
+    );
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
       const av = a[sortKey] ?? -1;
@@ -74,7 +242,7 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
         a.month - b.month
       );
     });
-  }, [rows, filterInstructor, sortKey, sortDir]);
+  }, [rows, filterInstructor, filterMonth, sortKey, sortDir]);
 
   const totals = useMemo(() => {
     const t = { scheduled: 0, held: 0, absences: 0, cancelled: 0, lateness: 0, coveredForOthers: 0, cost: 0 };
@@ -141,6 +309,17 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
           </select>
         </div>
         <div>
+          <label className="mb-1 block text-xs font-medium text-muted-foreground">חודש</label>
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(Number(e.target.value))}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value={0}>כל החודשים</option>
+            {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+        </div>
+        <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">מדריך</label>
           <select
             value={filterInstructor}
@@ -176,6 +355,31 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
         <p className="rounded-xl border border-border bg-background py-10 text-center text-sm text-muted-foreground">
           אין נתונים לתקופה זו
         </p>
+      )}
+
+      {rows && rows.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-border bg-background p-4">
+            <h4 className="mb-1 text-sm font-semibold">
+              חיסורים וביטולים לפי חודש{filterInstructor ? ` – ${filterInstructor}` : " – כל המדריכים"}
+            </h4>
+            <Legend items={[["#dc2626", "חיסורים"], ["#f97316", "ביטולים"]]} />
+            <MonthlyBars data={monthly} selected={filterMonth} onSelect={(m) => setFilterMonth(m === filterMonth ? 0 : m)} />
+          </div>
+          <div className="rounded-xl border border-border bg-background p-4">
+            <h4 className="mb-1 text-sm font-semibold">
+              לפי מדריך{filterMonth ? ` – ${MONTHS[filterMonth - 1]}` : " – כל השנה"}
+            </h4>
+            <Legend items={[["#dc2626", "חיסורים"], ["#f97316", "ביטולים"]]} />
+            <InstructorBars data={perInstructor} />
+          </div>
+          {showCost && (
+            <div className="rounded-xl border border-border bg-background p-4 lg:col-span-2">
+              <h4 className="mb-1 text-sm font-semibold">מחיר ממוצע לשיעור לפי חודש (₪)</h4>
+              <AvgPriceLine data={monthly} />
+            </div>
+          )}
+        </div>
       )}
 
       {visible.length > 0 && (
