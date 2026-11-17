@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X, Download, Upload } from "lucide-react";
-import { updateWeeklyAssignment, createWeeklyAssignment, distributeEquipmentToInstructor } from "@/lib/actions/equipment";
+import { updateWeeklyAssignment, createWeeklyAssignment, assignAndDistributeEquipment } from "@/lib/actions/equipment";
 import { updateRotationOrders, clearRotationOrder } from "@/lib/actions/instructors";
 import { NO_HEADER_LESSON_PLAN_CATEGORIES } from "@/lib/utils/constants";
 import type { LessonPlan } from "@/types/database";
@@ -93,6 +93,22 @@ export function AssignmentsOverviewTable({
   const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [distributing, setDistributing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const stickyHeaderRef = useRef<HTMLTableCellElement>(null);
+  const currentWeekHeaderRef = useRef<HTMLTableCellElement>(null);
+
+  // On load, scroll horizontally so the current week is in view (with one previous
+  // week visible to its right). Earlier weeks remain reachable by scrolling right,
+  // later weeks by scrolling left (RTL table).
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    const currentTh = currentWeekHeaderRef.current;
+    const stickyTh = stickyHeaderRef.current;
+    if (!container || !currentTh || !stickyTh) return;
+    const thRect = currentTh.getBoundingClientRect();
+    const targetRight = stickyTh.getBoundingClientRect().left - thRect.width;
+    container.scrollBy({ left: thRect.right - targetRight });
+  }, [currentWeekStart, weeks]);
 
   // Use ordered instructors from DB; fall back to extracting from assignments
   const instructors = useMemo(() => {
@@ -344,38 +360,26 @@ export function AssignmentsOverviewTable({
     if (!editingCell || !selectedLessonPlanId) return;
     setDistributing(true);
     try {
-      let assignmentId = editingCell.assignmentId;
-      const isNew = !assignmentId;
-      if (!assignmentId) {
-        const createResult = await createWeeklyAssignment(
-          editingCell.instructorId,
-          selectedLessonPlanId,
-          editingCell.week,
-          false
-        );
-        if (!createResult.success || !createResult.data) {
-          alert("שגיאה ביצירת שיבוץ: " + createResult.error);
-          return;
-        }
-        assignmentId = createResult.data.id;
-      } else if (selectedLessonPlanId !== editingCell.currentLessonPlanId) {
-        const updateResult = await updateWeeklyAssignment(assignmentId, selectedLessonPlanId, false);
-        if (!updateResult.success) {
-          alert("שגיאה בעדכון שיבוץ: " + updateResult.error);
-          return;
-        }
-      }
-      const result = await distributeEquipmentToInstructor(assignmentId, selectedLessonPlanId);
+      const isNew = !editingCell.assignmentId;
+      const planChanged = selectedLessonPlanId !== editingCell.currentLessonPlanId;
+      const result = await assignAndDistributeEquipment({
+        assignmentId: editingCell.assignmentId,
+        instructorId: editingCell.instructorId,
+        weekStartDate: editingCell.week,
+        lessonPlanId: selectedLessonPlanId,
+        planChanged,
+      });
       if (!result.success) {
         alert("שגיאה באישור חלוקת ציוד: " + result.error);
         return;
       }
+      const assignmentId = result.assignmentId;
       const lessonPlan = findLessonPlan(selectedLessonPlanId);
       if (isNew) {
         setAssignments((prev) => [
           ...prev,
           {
-            id: assignmentId!,
+            id: assignmentId,
             instructor_id: editingCell.instructorId,
             lesson_plan_id: selectedLessonPlanId,
             week_start_date: editingCell.week,
@@ -546,11 +550,11 @@ export function AssignmentsOverviewTable({
         )}
       </div>
 
-      <div className="overflow-auto rounded-lg border border-border max-h-[calc(100vh-200px)]">
+      <div ref={scrollContainerRef} className="overflow-auto rounded-lg border border-border max-h-[calc(100vh-200px)]">
         <table className="border-collapse text-sm" dir="rtl">
           <thead className="sticky top-0 z-20">
             <tr className="bg-secondary text-[#1C1917]">
-              <th className="sticky right-0 z-30 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold whitespace-nowrap">
+              <th ref={stickyHeaderRef} className="sticky right-0 z-30 border border-secondary/70 bg-secondary px-3 py-2 text-center font-bold whitespace-nowrap">
                 מדריכה
               </th>
               <th className="border border-secondary/70 px-2 py-2 text-center text-xs font-normal whitespace-nowrap">
@@ -561,6 +565,7 @@ export function AssignmentsOverviewTable({
                 return (
                   <th
                     key={week}
+                    ref={isCurrentWeek ? currentWeekHeaderRef : undefined}
                     className={`border border-secondary/60 px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap ${
                       isCurrentWeek ? "bg-amber-200 text-amber-900" : ""
                     }`}
