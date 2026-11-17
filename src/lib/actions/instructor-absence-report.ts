@@ -8,18 +8,16 @@ import { resolveLessonClient } from "@/lib/utils/client-name";
  * Fixed-schedule reliability report.
  *
  * Every lesson generated from the fixed schedule (recurring_item_id) is attributed to the
- * instructor who OWNS that fixed slot (recurring_schedule.instructor_id) — not to whoever is
- * currently assigned on the lesson. This way an absence stays with the regular instructor
- * even after the lesson was handed to a substitute.
+ * instructor who OWNED that fixed slot on the lesson's date — not to whoever is currently
+ * assigned on the lesson. This way an absence stays with the regular instructor even after
+ * the lesson was handed to a substitute. The fixed instructor comes from the fixed vs weekly
+ * board data only (see fixedInstructorOf). A lesson with no fixed instructor is not counted.
  *
  * Each past fixed lesson falls into exactly one bucket (in this priority order):
  *   absence     — marked as an instructor absence
  *   cancelled   — status cancelled
  *   transferred — taught by someone other than the slot owner (or left with no instructor)
  *   self        — taught by the slot owner
- *
- * Known limitation: if a slot was permanently handed to a new instructor, older lessons taught
- * by the previous owner are compared to the current owner and count as "transferred".
  */
 export interface InstructorAbsenceRow {
   instructorId: string;
@@ -28,7 +26,8 @@ export interface InstructorAbsenceRow {
   year: number;
   fixed: number; // past lessons generated from this instructor's fixed slots
   self: number;
-  absences: number;
+  absences: number; // absences on this instructor's own fixed lessons
+  absencesElsewhere: number; // absences marked on them in lessons that aren't their fixed slots
   transferred: number;
   cancelled: number;
   changed: number; // fixed lessons manually changed on the weekly board (is_one_time_change)
@@ -112,6 +111,74 @@ export async function getInstructorAbsenceReport(
         .range(f, t)
     );
 
+    const isAbsenceLesson = (l: any) =>
+      !!l.instructor_absence_request && l.instructor_request_type === "absence";
+
+    // Fixed-schedule history: every edit of the fixed schedule stores the row as it was
+    // BEFORE the edit (schedule_undo_log.before_recurring). Edits apply from their date onward,
+    // so the slot's instructor on a given date is the "before" value of the first edit made
+    // AFTER that date, or the current fixed-schedule instructor if no later edit exists.
+    const undoRows = await fetchAll<{
+      created_at: string;
+      label: string | null;
+      before_recurring: any[] | null;
+      before_lessons: any[] | null;
+    }>((f, t) =>
+      admin
+        .from("schedule_undo_log")
+        .select("created_at, label, before_recurring, before_lessons")
+        .order("created_at")
+        .range(f, t)
+    );
+    const slotHistory = new Map<string, { date: string; instructorId: string | null }[]>();
+    // Weekly-board history: the lesson as it was before its first manual (one-time) change
+    const fixedBeforeChange = new Map<string, string | null>();
+    const absentees = new Map<string, Set<string>>();
+    const firstAbsSeen = new Set<string>();
+    for (const u of undoRows) {
+      const date = new Date(u.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+      for (const r of Array.isArray(u.before_recurring) ? u.before_recurring : []) {
+        if (!r?.id) continue;
+        const list = slotHistory.get(r.id) ?? [];
+        list.push({ date, instructorId: r.instructor_id ?? null });
+        slotHistory.set(r.id, list);
+      }
+      const isAbsenceMarking = (u.label ?? "").startsWith("סימון חיסור");
+      for (const b of Array.isArray(u.before_lessons) ? u.before_lessons : []) {
+        if (!b?.id) continue;
+        if (!fixedBeforeChange.has(b.id) && b.is_one_time_change !== true) {
+          fixedBeforeChange.set(b.id, b.instructor_id ?? null);
+        }
+        // Who the absence was marked on: the instructor on the lesson at the moment of marking,
+        // or — for an absence that already existed (e.g. reported by the instructor in the app) —
+        // the instructor on the lesson the first time the log saw it marked.
+        if (b.instructor_id && (isAbsenceMarking || (b.instructor_absence_request && !firstAbsSeen.has(b.id)))) {
+          const set = absentees.get(b.id) ?? new Set<string>();
+          set.add(b.instructor_id);
+          absentees.set(b.id, set);
+        }
+        if (b.instructor_absence_request) firstAbsSeen.add(b.id);
+      }
+    }
+    function slotOwnerAt(slot: string, lessonDate: string): string | null {
+      // An edit made on the lesson's own date already applies to it
+      const later = slotHistory.get(slot)?.find((h) => h.date > lessonDate);
+      if (later) return later.instructorId;
+      return ownerBySlot.get(slot) ?? null;
+    }
+    /**
+     * The fixed-schedule instructor of a lesson:
+     * - not changed on the weekly board → the instructor on the lesson IS the fixed schedule;
+     * - changed on the weekly board → the instructor it had before its first manual change
+     *   (from the undo log), or, if that change predates the log, the fixed-schedule row
+     *   as it was on that date.
+     */
+    function fixedInstructorOf(l: any): string | null {
+      if (!l.is_one_time_change) return l.instructor_id ?? null;
+      if (fixedBeforeChange.has(l.id)) return fixedBeforeChange.get(l.id) ?? null;
+      return slotOwnerAt(l.recurring_item_id, l.lesson_date);
+    }
+
     type Acc = {
       row: InstructorAbsenceRow;
       paid: { id: string; date: string; client: string; city: string }[];
@@ -130,6 +197,7 @@ export async function getInstructorAbsenceReport(
             fixed: 0,
             self: 0,
             absences: 0,
+            absencesElsewhere: 0,
             transferred: 0,
             cancelled: 0,
             changed: 0,
@@ -149,15 +217,28 @@ export async function getInstructorAbsenceReport(
     for (const l of lessons) {
       const month = Number(String(l.lesson_date).slice(5, 7));
       const taughtBy: string | null = l.substitute_instructor_id ?? l.instructor_id ?? null;
-      const owner = l.recurring_item_id ? ownerBySlot.get(l.recurring_item_id) ?? null : null;
+      const owner = l.recurring_item_id ? fixedInstructorOf(l) : null;
+
+      // Instructors the absence was marked on (from the log); without a log entry, the absence
+      // belongs to the lesson's fixed instructor (or whoever is on it, for one-off lessons)
+      let absentSet: Set<string> = new Set();
+      if (isAbsenceLesson(l)) {
+        absentSet = absentees.get(l.id) ?? new Set();
+        if (absentSet.size === 0) {
+          const who = owner ?? l.instructor_id;
+          if (who) absentSet = new Set([who]);
+        }
+        for (const who of absentSet) {
+          if (who !== owner) acc(who, month).row.absencesElsewhere++;
+        }
+      }
 
       // Fixed-schedule reliability, attributed to the slot owner
       if (owner) {
         const a = acc(owner, month);
         a.row.fixed++;
         if (l.is_one_time_change) a.row.changed++;
-        const isAbsence = l.instructor_absence_request && l.instructor_request_type === "absence";
-        if (isAbsence) a.row.absences++;
+        if (absentSet.has(owner)) a.row.absences++;
         else if (l.status === "cancelled") a.row.cancelled++;
         else if (taughtBy !== owner) a.row.transferred++;
         else a.row.self++;

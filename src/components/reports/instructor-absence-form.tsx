@@ -23,7 +23,7 @@ type BucketKey = (typeof BUCKETS)[number]["key"];
 type Counts = Record<BucketKey, number>;
 
 type SortKey =
-  | "instructorName" | "month" | "fixed" | "self" | "selfPct" | "absences" | "transferred"
+  | "instructorName" | "month" | "fixed" | "self" | "selfPct" | "absences" | "absencesElsewhere" | "transferred"
   | "cancelled" | "changed" | "coveredForOthers" | "cost" | "avgPrice";
 
 const COL = "px-3 py-2 text-center tabular-nums";
@@ -300,11 +300,12 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
   }, [byInstructorRows, filterMonth, sortKey, sortDir]);
 
   const totals = useMemo(() => {
-    const t = { fixed: 0, self: 0, absences: 0, transferred: 0, cancelled: 0, changed: 0, coveredForOthers: 0, cost: 0, paid: 0 };
+    const t = { fixed: 0, self: 0, absences: 0, absencesElsewhere: 0, transferred: 0, cancelled: 0, changed: 0, coveredForOthers: 0, cost: 0, paid: 0 };
     for (const r of visible) {
       t.fixed += r.fixed;
       t.self += r.self;
       t.absences += r.absences;
+      t.absencesElsewhere += r.absencesElsewhere;
       t.transferred += r.transferred;
       t.cancelled += r.cancelled;
       t.changed += r.changed;
@@ -318,14 +319,14 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
   function downloadCsv() {
     const header = [
       "מדריך", "חודש", "שיעורים בלוח הקבוע", "לימד/ה בעצמו", "% לימד/ה בעצמו", "חיסורים",
-      "הועברו למדריך אחר", "בוטלו", "שינויים בלוח השבועי", "מילא/ה מקום",
+      "חיסורים בשיעורים לא קבועים", "הועברו למדריך אחר", "בוטלו", "שינויים בלוח השבועי", "מילא/ה מקום",
     ];
     if (showCost) header.push("עלות", "מחיר ממוצע לשיעור");
     const lines: (string | number)[][] = [header];
     for (const r of visible) {
       const line: (string | number)[] = [
         r.instructorName, MONTHS[r.month - 1], r.fixed, r.self, r.selfPct.toFixed(1), r.absences,
-        r.transferred, r.cancelled, r.changed, r.coveredForOthers,
+        r.absencesElsewhere, r.transferred, r.cancelled, r.changed, r.coveredForOthers,
       ];
       if (showCost) line.push(Math.round(r.cost ?? 0), (r.avgPrice ?? 0).toFixed(2));
       lines.push(line);
@@ -362,8 +363,8 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        לכל מדריך: מה קרה לשיעורים מהמשבצות שלו בלוח הקבוע. חיסור נשאר על המדריך הקבוע גם כשמישהו אחר מילא את מקומו.
-        נספרים רק שיעורים שכבר עברו.
+        לכל מדריך: מה קרה לשיעורים שהיו שלו בלוח הקבוע באותו תאריך (לפי היסטוריית הלוח הקבוע והשבועי).
+        חיסור נרשם על המדריך שסומן עליו. נספרים רק שיעורים שכבר עברו.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -477,6 +478,7 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
                   <Th k="self" label="לימד/ה" color="#16a34a" />
                   <Th k="selfPct" label="% לימד/ה" />
                   <Th k="absences" label="חיסורים" color="#dc2626" />
+                  <Th k="absencesElsewhere" label="חיסורים בשיעור לא קבוע" />
                   <Th k="transferred" label="הועברו" color="#2563eb" />
                   <Th k="cancelled" label="בוטלו" color="#a8a29e" />
                   <Th k="changed" label="שינויים" />
@@ -496,6 +498,7 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
                       {r.fixed > 0 ? `${Math.round(r.selfPct)}%` : "—"}
                     </td>
                     <td className={`${COL} ${r.absences ? "font-semibold text-red-600" : "text-muted-foreground"}`}>{r.absences}</td>
+                    <td className={`${COL} ${r.absencesElsewhere ? "text-red-600" : "text-muted-foreground"}`}>{r.absencesElsewhere}</td>
                     <td className={`${COL} ${r.transferred ? "font-semibold text-blue-600" : "text-muted-foreground"}`}>{r.transferred}</td>
                     <td className={`${COL} ${r.cancelled ? "" : "text-muted-foreground"}`}>{r.cancelled}</td>
                     <td className={`${COL} ${r.changed ? "" : "text-muted-foreground"}`}>{r.changed}</td>
@@ -510,6 +513,7 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
                   <td className={COL}>{totals.self}</td>
                   <td className={COL}>{totals.fixed > 0 ? `${Math.round((totals.self / totals.fixed) * 100)}%` : "—"}</td>
                   <td className={COL}>{totals.absences}</td>
+                  <td className={COL}>{totals.absencesElsewhere}</td>
                   <td className={COL}>{totals.transferred}</td>
                   <td className={COL}>{totals.cancelled}</td>
                   <td className={COL}>{totals.changed}</td>
