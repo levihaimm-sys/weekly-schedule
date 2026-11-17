@@ -321,6 +321,84 @@ export async function distributeEquipmentToInstructor(
 }
 
 /**
+ * Assign a lesson plan (creating the assignment if needed) and mark its equipment as
+ * distributed, in a single round-trip. Used by the assignments table dialog.
+ *
+ * Deliberately no revalidatePath: every page here is force-dynamic, so revalidation only
+ * makes Next re-render the whole (heavy) assignments table inside this action's response,
+ * which is what made "חלק ציוד" slow. The table updates its own state optimistically.
+ */
+export async function assignAndDistributeEquipment(params: {
+  assignmentId: string | null;
+  instructorId: string;
+  weekStartDate: string;
+  lessonPlanId: string;
+  planChanged: boolean;
+}) {
+  const { assignmentId, instructorId, weekStartDate, lessonPlanId, planChanged } = params;
+  const supabase = await createClient();
+  const distributedFields = {
+    lesson_plan_id: lessonPlanId,
+    equipment_distributed: true,
+    equipment_distributed_at: new Date().toISOString(),
+  };
+
+  // The plan's equipment list doesn't depend on the assignment write, so fetch it in parallel.
+  const equipmentPromise = supabase
+    .from("lesson_plan_equipment")
+    .select("equipment_id, quantity, instructor_quantity")
+    .eq("lesson_plan_id", lessonPlanId);
+
+  let id: string;
+  if (assignmentId) {
+    const [{ error: updateError }, { error: deleteError }] = await Promise.all([
+      supabase
+        .from("weekly_lesson_assignments")
+        // Changing the plan while distributing is a one-off change, same as updateWeeklyAssignment(..., false)
+        .update(planChanged ? { ...distributedFields, is_permanent_change: false } : distributedFields)
+        .eq("id", assignmentId),
+      // Clear confirmations from a previous distribution / previous plan
+      supabase.from("equipment_confirmations").delete().eq("assignment_id", assignmentId),
+    ]);
+    if (updateError) return { success: false as const, error: updateError.message };
+    if (deleteError) return { success: false as const, error: deleteError.message };
+    id = assignmentId;
+  } else {
+    const { data, error } = await supabase
+      .from("weekly_lesson_assignments")
+      .insert({
+        ...distributedFields,
+        instructor_id: instructorId,
+        week_start_date: weekStartDate,
+        is_permanent_change: false,
+      })
+      .select("id")
+      .single();
+    if (error || !data) return { success: false as const, error: error?.message ?? "Insert failed" };
+    id = data.id;
+  }
+
+  const { data: equipmentItems, error: equipmentError } = await equipmentPromise;
+  if (equipmentError) return { success: false as const, error: equipmentError.message };
+
+  if (equipmentItems && equipmentItems.length > 0) {
+    const { error: insertError } = await supabase.from("equipment_confirmations").insert(
+      equipmentItems.map((item) => ({
+        assignment_id: id,
+        instructor_id: instructorId,
+        equipment_id: item.equipment_id,
+        expected_quantity: item.instructor_quantity ?? item.quantity,
+        received_quantity: null,
+        is_confirmed: false,
+      }))
+    );
+    if (insertError) return { success: false as const, error: insertError.message };
+  }
+
+  return { success: true as const, assignmentId: id };
+}
+
+/**
  * Add extra equipment that the instructor received but wasn't in the original list
  */
 export async function addExtraEquipment(
