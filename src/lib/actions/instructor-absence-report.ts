@@ -131,8 +131,12 @@ export async function getInstructorAbsenceReport(
         .range(f, t)
     );
     const slotHistory = new Map<string, { date: string; instructorId: string | null }[]>();
-    // Weekly-board history: the lesson as it was before its first manual (one-time) change
-    const fixedBeforeChange = new Map<string, string | null>();
+    // Per-lesson edit history, in order. An edit that also touched the fixed schedule
+    // (has before_recurring) is a fixed-board edit; anything else is a weekly-board edit.
+    const lessonEvents = new Map<
+      string,
+      { kind: "fixed" | "weekly" | "absence"; ins: string | null; wasOneTime: boolean }[]
+    >();
     const absentees = new Map<string, Set<string>>();
     const firstAbsSeen = new Set<string>();
     for (const u of undoRows) {
@@ -144,11 +148,16 @@ export async function getInstructorAbsenceReport(
         slotHistory.set(r.id, list);
       }
       const isAbsenceMarking = (u.label ?? "").startsWith("סימון חיסור");
+      const isFixedEdit = Array.isArray(u.before_recurring) && u.before_recurring.length > 0;
       for (const b of Array.isArray(u.before_lessons) ? u.before_lessons : []) {
         if (!b?.id) continue;
-        if (!fixedBeforeChange.has(b.id) && b.is_one_time_change !== true) {
-          fixedBeforeChange.set(b.id, b.instructor_id ?? null);
-        }
+        const list = lessonEvents.get(b.id) ?? [];
+        list.push({
+          kind: isFixedEdit ? "fixed" : isAbsenceMarking ? "absence" : "weekly",
+          ins: b.instructor_id ?? null,
+          wasOneTime: b.is_one_time_change === true,
+        });
+        lessonEvents.set(b.id, list);
         // Who the absence was marked on: the instructor on the lesson at the moment of marking,
         // or — for an absence that already existed (e.g. reported by the instructor in the app) —
         // the instructor on the lesson the first time the log saw it marked.
@@ -167,16 +176,31 @@ export async function getInstructorAbsenceReport(
       return ownerBySlot.get(slot) ?? null;
     }
     /**
-     * The fixed-schedule instructor of a lesson:
-     * - not changed on the weekly board → the instructor on the lesson IS the fixed schedule;
-     * - changed on the weekly board → the instructor it had before its first manual change
-     *   (from the undo log), or, if that change predates the log, the fixed-schedule row
-     *   as it was on that date.
+     * The fixed-schedule instructor of a lesson, replayed from its edit history:
+     * - start from the lesson as the log first saw it (if it was already a manual one-time
+     *   change by then, start from the fixed-schedule row as it was on that date);
+     * - a fixed-board edit sets the fixed instructor to whoever the lesson had after it;
+     * - weekly-board edits and absence markings don't change the fixed instructor.
+     * A lesson the log never touched: its instructor is the fixed schedule, unless it is
+     * flagged as a one-time change, in which case the fixed-schedule row on that date is used.
      */
     function fixedInstructorOf(l: any): string | null {
-      if (!l.is_one_time_change) return l.instructor_id ?? null;
-      if (fixedBeforeChange.has(l.id)) return fixedBeforeChange.get(l.id) ?? null;
-      return slotOwnerAt(l.recurring_item_id, l.lesson_date);
+      const ev = lessonEvents.get(l.id);
+      if (!ev || ev.length === 0) {
+        return l.is_one_time_change
+          ? slotOwnerAt(l.recurring_item_id, l.lesson_date)
+          : l.instructor_id ?? null;
+      }
+      let fixed = ev[0].wasOneTime ? slotOwnerAt(l.recurring_item_id, l.lesson_date) : ev[0].ins;
+      for (let i = 0; i < ev.length; i++) {
+        if (ev[i].kind !== "fixed") continue;
+        fixed = i + 1 < ev.length ? ev[i + 1].ins : l.instructor_id ?? null;
+      }
+      return fixed;
+    }
+    // Changed on the weekly board: flagged as a one-time change, or touched by a weekly edit
+    function changedOnWeeklyBoard(l: any): boolean {
+      return !!l.is_one_time_change || !!lessonEvents.get(l.id)?.some((e) => e.kind === "weekly");
     }
 
     type Acc = {
@@ -237,7 +261,7 @@ export async function getInstructorAbsenceReport(
       if (owner) {
         const a = acc(owner, month);
         a.row.fixed++;
-        if (l.is_one_time_change) a.row.changed++;
+        if (changedOnWeeklyBoard(l)) a.row.changed++;
         if (absentSet.has(owner)) a.row.absences++;
         else if (l.status === "cancelled") a.row.cancelled++;
         else if (taughtBy !== owner) a.row.transferred++;
