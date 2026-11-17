@@ -12,14 +12,24 @@ const MONTHS = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
 ];
 
+// One color per bucket, used everywhere (charts, table numbers, legend)
+const BUCKETS = [
+  { key: "self", label: "לימד/ה בעצמו", color: "#16a34a" },
+  { key: "absences", label: "חיסור", color: "#dc2626" },
+  { key: "transferred", label: "הועבר למדריך אחר", color: "#2563eb" },
+  { key: "cancelled", label: "בוטל", color: "#a8a29e" },
+] as const;
+type BucketKey = (typeof BUCKETS)[number]["key"];
+type Counts = Record<BucketKey, number>;
+
 type SortKey =
-  | "instructorName" | "month" | "scheduled" | "held" | "absences" | "absencePct"
-  | "cancelled" | "lateness" | "coveredForOthers" | "cost" | "avgPrice";
+  | "instructorName" | "month" | "fixed" | "self" | "selfPct" | "absences" | "transferred"
+  | "cancelled" | "changed" | "coveredForOthers" | "cost" | "avgPrice";
 
 const COL = "px-3 py-2 text-center tabular-nums";
 
 function money(n: number | null) {
-  return n === null ? "—" : n.toLocaleString("he-IL", { maximumFractionDigits: 2 });
+  return n === null ? "—" : n.toLocaleString("he-IL", { maximumFractionDigits: 0 });
 }
 
 function csvCell(value: string | number) {
@@ -27,64 +37,80 @@ function csvCell(value: string | number) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+function emptyCounts(): Counts {
+  return { self: 0, absences: 0, transferred: 0, cancelled: 0 };
+}
+
 // ─── Charts (plain SVG/CSS, no chart library) ─────────────────────────────────
 
-type MonthPoint = { month: number; absences: number; cancelled: number; held: number; cost: number };
-
-function Legend({ items }: { items: [string, string][] }) {
+function Legend() {
   return (
-    <div className="mb-2 flex gap-4 text-xs text-muted-foreground">
-      {items.map(([color, label]) => (
-        <span key={label} className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
-          {label}
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      {BUCKETS.map((b) => (
+        <span key={b.key} className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-sm" style={{ background: b.color }} />
+          {b.label}
         </span>
       ))}
     </div>
   );
 }
 
-function MonthlyBars({
+/** Stacked monthly bars. January is on the right (RTL). */
+function MonthlyStack({
   data,
   selected,
   onSelect,
 }: {
-  data: MonthPoint[];
+  data: Counts[];
   selected: number;
   onSelect: (month: number) => void;
 }) {
-  const max = Math.max(1, ...data.map((d) => Math.max(d.absences, d.cancelled)));
-  const W = 480, H = 200, padL = 24, padB = 22, padT = 14;
-  const innerW = W - padL, innerH = H - padB - padT;
-  const slot = innerW / 12;
-  const barW = slot * 0.32;
-  const y = (v: number) => padT + innerH - (v / max) * innerH;
+  const totals = data.map((d) => d.self + d.absences + d.transferred + d.cancelled);
+  const max = Math.max(1, ...totals);
+  const W = 720, H = 260, padT = 18, padB = 24;
+  const innerH = H - padT - padB;
+  const slot = W / 12;
+  const barW = slot * 0.62;
+  const scale = (v: number) => (v / max) * innerH;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" dir="ltr" role="img" aria-label="חיסורים וביטולים לפי חודש">
-      {[0, 0.5, 1].map((t) => (
-        <g key={t}>
-          <line x1={padL} x2={W} y1={y(max * t)} y2={y(max * t)} stroke="currentColor" opacity={0.1} />
-          <text x={padL - 4} y={y(max * t) + 3} textAnchor="end" fontSize="9" fill="currentColor" opacity={0.5}>
-            {Math.round(max * t)}
-          </text>
-        </g>
-      ))}
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="הרכב שיעורי הלוח הקבוע לפי חודש">
+      <line x1={0} x2={W} y1={padT + innerH} y2={padT + innerH} stroke="currentColor" opacity={0.2} />
       {data.map((d, i) => {
-        const x0 = padL + i * slot + slot * 0.15;
-        const dim = selected && selected !== d.month ? 0.35 : 1;
+        const month = i + 1;
+        const cx = W - (i + 0.5) * slot;
+        const x = cx - barW / 2;
+        const dim = selected && selected !== month ? 0.3 : 1;
+        let yCursor = padT + innerH;
         return (
-          <g key={d.month} onClick={() => onSelect(d.month)} style={{ cursor: "pointer" }} opacity={dim}>
-            <rect x={padL + i * slot} y={padT} width={slot} height={innerH + padB} fill="transparent" />
-            <rect x={x0} y={y(d.absences)} width={barW} height={padT + innerH - y(d.absences)} rx={2} fill="#dc2626" />
-            <rect x={x0 + barW + 2} y={y(d.cancelled)} width={barW} height={padT + innerH - y(d.cancelled)} rx={2} fill="#f97316" />
-            {d.absences > 0 && (
-              <text x={x0 + barW / 2} y={y(d.absences) - 2} textAnchor="middle" fontSize="8" fill="#dc2626">{d.absences}</text>
+          <g key={month} onClick={() => onSelect(month)} style={{ cursor: "pointer" }} opacity={dim}>
+            <rect x={cx - slot / 2} y={0} width={slot} height={H} fill="transparent" />
+            {BUCKETS.map((b) => {
+              const v = d[b.key];
+              if (!v) return null;
+              const h = scale(v);
+              yCursor -= h;
+              return (
+                <g key={b.key}>
+                  <rect x={x} y={yCursor} width={barW} height={h} fill={b.color}>
+                    <title>{`${MONTHS[i]} – ${b.label}: ${v}`}</title>
+                  </rect>
+                  {h >= 13 && (
+                    <text x={cx} y={yCursor + h / 2 + 4} textAnchor="middle" fontSize="11" fontWeight="600" fill="#fff">
+                      {v}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+            {totals[i] > 0 && (
+              <text x={cx} y={yCursor - 5} textAnchor="middle" fontSize="11" fill="currentColor" opacity={0.6}>
+                {totals[i]}
+              </text>
             )}
-            {d.cancelled > 0 && (
-              <text x={x0 + barW * 1.5 + 2} y={y(d.cancelled) - 2} textAnchor="middle" fontSize="8" fill="#f97316">{d.cancelled}</text>
-            )}
-            <text x={padL + i * slot + slot / 2} y={H - 6} textAnchor="middle" fontSize="9" fill="currentColor" opacity={0.7}>
-              {MONTHS[i].slice(0, 3)}
+            <text x={cx} y={H - 6} textAnchor="middle" fontSize="12" fill="currentColor" opacity={selected === month ? 1 : 0.7} fontWeight={selected === month ? 700 : 400}>
+              {MONTHS[i]}
             </text>
           </g>
         );
@@ -93,77 +119,105 @@ function MonthlyBars({
   );
 }
 
-function InstructorBars({ data }: { data: { name: string; absences: number; cancelled: number }[] }) {
+/** One 100%-stacked bar per instructor, worst (lowest self %) first. */
+function InstructorStack({
+  data,
+  onSelect,
+}: {
+  data: { name: string; counts: Counts; fixed: number }[];
+  onSelect: (name: string) => void;
+}) {
   if (data.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">אין חיסורים או ביטולים בתקופה זו</p>;
+    return <p className="py-8 text-center text-sm text-muted-foreground">אין שיעורים מהלוח הקבוע בתקופה זו</p>;
   }
-  const max = Math.max(1, ...data.map((d) => d.absences + d.cancelled));
   return (
     <div className="space-y-1.5">
-      {data.map((d) => (
-        <div key={d.name} className="flex items-center gap-2 text-xs">
-          <span className="w-28 shrink-0 truncate" title={d.name}>{d.name}</span>
-          <div className="flex h-4 flex-1 overflow-hidden rounded bg-muted/40" dir="ltr">
-            <div style={{ width: `${(d.absences / max) * 100}%`, background: "#dc2626" }} title={`חיסורים: ${d.absences}`} />
-            <div style={{ width: `${(d.cancelled / max) * 100}%`, background: "#f97316" }} title={`ביטולים: ${d.cancelled}`} />
+      {data.map((d) => {
+        const pct = d.fixed > 0 ? Math.round((d.counts.self / d.fixed) * 100) : 0;
+        return (
+          <div key={d.name} className="flex items-center gap-2 text-xs">
+            <button
+              onClick={() => onSelect(d.name)}
+              className="w-28 shrink-0 truncate text-right hover:underline"
+              title={`הצג רק את ${d.name}`}
+            >
+              {d.name}
+            </button>
+            <div className="flex h-5 flex-1 overflow-hidden rounded bg-muted/40">
+              {BUCKETS.map((b) => {
+                const v = d.counts[b.key];
+                if (!v) return null;
+                const w = (v / d.fixed) * 100;
+                return (
+                  <div
+                    key={b.key}
+                    className="flex items-center justify-center text-[10px] font-semibold text-white"
+                    style={{ width: `${w}%`, background: b.color }}
+                    title={`${b.label}: ${v}`}
+                  >
+                    {w >= 8 ? v : ""}
+                  </div>
+                );
+              })}
+            </div>
+            <span
+              className={`w-20 shrink-0 text-center tabular-nums font-medium ${
+                pct < 80 ? "text-red-600" : pct < 95 ? "text-amber-600" : "text-green-700"
+              }`}
+            >
+              {pct}% מתוך {d.fixed}
+            </span>
           </div>
-          <span className="w-14 shrink-0 text-center tabular-nums text-muted-foreground">
-            {d.absences} / {d.cancelled}
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function AvgPriceLine({ data }: { data: MonthPoint[] }) {
-  const pts = data.map((d) => ({ month: d.month, v: d.held > 0 ? d.cost / d.held : null }));
+function AvgPriceLine({ data }: { data: { cost: number; paid: number }[] }) {
+  const pts = data.map((d, i) => ({ i, v: d.paid > 0 ? d.cost / d.paid : null }));
   const vals = pts.map((p) => p.v).filter((v): v is number => v !== null);
   if (vals.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">אין נתונים</p>;
-  const max = Math.max(...vals) * 1.1 || 1;
-  const W = 960, H = 180, padL = 36, padB = 22, padT = 14;
-  const slot = (W - padL) / 12;
-  const x = (i: number) => padL + i * slot + slot / 2;
-  const y = (v: number) => padT + (H - padB - padT) - (v / max) * (H - padB - padT);
-  const line = pts
-    .map((p, i) => (p.v === null ? null : `${x(i)},${y(p.v)}`))
-    .filter(Boolean)
-    .join(" ");
+  const max = Math.max(...vals) * 1.15 || 1;
+  const W = 720, H = 180, padT = 20, padB = 24;
+  const slot = W / 12;
+  const x = (i: number) => W - (i + 0.5) * slot;
+  const y = (v: number) => padT + (H - padT - padB) * (1 - v / max);
+  const line = pts.filter((p) => p.v !== null).map((p) => `${x(p.i)},${y(p.v!)}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" dir="ltr" role="img" aria-label="מחיר ממוצע לשיעור לפי חודש">
-      {[0, 0.5, 1].map((t) => (
-        <g key={t}>
-          <line x1={padL} x2={W} y1={y(max * t)} y2={y(max * t)} stroke="currentColor" opacity={0.1} />
-          <text x={padL - 4} y={y(max * t) + 3} textAnchor="end" fontSize="10" fill="currentColor" opacity={0.5}>
-            {Math.round(max * t)}
-          </text>
-        </g>
-      ))}
-      <polyline points={line} fill="none" stroke="#2563eb" strokeWidth={2} />
-      {pts.map((p, i) =>
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="מחיר ממוצע לשיעור לפי חודש">
+      <line x1={0} x2={W} y1={H - padB} y2={H - padB} stroke="currentColor" opacity={0.2} />
+      <polyline points={line} fill="none" stroke="#7c3aed" strokeWidth={2.5} />
+      {pts.map((p) =>
         p.v === null ? null : (
-          <g key={p.month}>
-            <circle cx={x(i)} cy={y(p.v)} r={3.5} fill="#2563eb" />
-            <text x={x(i)} y={y(p.v) - 7} textAnchor="middle" fontSize="10" fill="#2563eb">{Math.round(p.v)}</text>
+          <g key={p.i}>
+            <circle cx={x(p.i)} cy={y(p.v)} r={4} fill="#7c3aed" />
+            <text x={x(p.i)} y={y(p.v) - 9} textAnchor="middle" fontSize="11" fontWeight="600" fill="#7c3aed">
+              ₪{Math.round(p.v)}
+            </text>
           </g>
         )
       )}
       {MONTHS.map((m, i) => (
-        <text key={m} x={x(i)} y={H - 6} textAnchor="middle" fontSize="10" fill="currentColor" opacity={0.7}>
-          {m.slice(0, 3)}
+        <text key={m} x={x(i)} y={H - 6} textAnchor="middle" fontSize="12" fill="currentColor" opacity={0.7}>
+          {m}
         </text>
       ))}
     </svg>
   );
 }
 
+// ─── Report ───────────────────────────────────────────────────────────────────
+
 export function InstructorAbsenceForm({ instructors }: { instructors: { full_name: string }[] }) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [rows, setRows] = useState<InstructorAbsenceRow[] | null>(null);
   const [showCost, setShowCost] = useState(false);
+  const [until, setUntil] = useState<string | null>(null);
   const [filterInstructor, setFilterInstructor] = useState("");
   const [filterMonth, setFilterMonth] = useState(0); // 0 = all months
-  const [sortKey, setSortKey] = useState<SortKey>("instructorName");
+  const [showSubsOnly, setShowSubsOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("selfPct");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -176,6 +230,7 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
       else {
         setRows(res.data ?? []);
         setShowCost(!!res.showCost);
+        setUntil(res.until ?? null);
       }
     });
   }
@@ -184,90 +239,95 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else {
       setSortKey(key);
-      setSortDir(key === "instructorName" || key === "month" ? "asc" : "desc");
+      setSortDir(key === "instructorName" || key === "month" || key === "selfPct" ? "asc" : "desc");
     }
   }
 
-  // Rows filtered by instructor only: feeds the yearly month-by-month chart
+  // Instructors without fixed slots (substitutes only) are hidden unless asked for
+  const baseRows = useMemo(
+    () => (rows ?? []).filter((r) => showSubsOnly || r.fixed > 0),
+    [rows, showSubsOnly]
+  );
+
   const byInstructorRows = useMemo(
-    () => (rows ?? []).filter((r) => !filterInstructor || r.instructorName === filterInstructor),
-    [rows, filterInstructor]
+    () => baseRows.filter((r) => !filterInstructor || r.instructorName === filterInstructor),
+    [baseRows, filterInstructor]
   );
 
   const monthly = useMemo(() => {
-    const m = MONTHS.map((_, i) => ({ month: i + 1, absences: 0, cancelled: 0, held: 0, cost: 0 }));
+    const m = MONTHS.map(() => ({ ...emptyCounts(), cost: 0, paid: 0 }));
     for (const r of byInstructorRows) {
       const t = m[r.month - 1];
+      t.self += r.self;
       t.absences += r.absences;
+      t.transferred += r.transferred;
       t.cancelled += r.cancelled;
-      t.held += r.held;
       t.cost += r.cost ?? 0;
+      t.paid += r.paidLessons;
     }
     return m;
   }, [byInstructorRows]);
 
   const perInstructor = useMemo(() => {
-    const map = new Map<string, { name: string; absences: number; cancelled: number }>();
-    for (const r of byInstructorRows) {
+    const map = new Map<string, { name: string; counts: Counts; fixed: number }>();
+    for (const r of baseRows) {
       if (filterMonth && r.month !== filterMonth) continue;
-      const e = map.get(r.instructorId) ?? { name: r.instructorName, absences: 0, cancelled: 0 };
-      e.absences += r.absences;
-      e.cancelled += r.cancelled;
+      if (r.fixed === 0) continue;
+      const e = map.get(r.instructorId) ?? { name: r.instructorName, counts: emptyCounts(), fixed: 0 };
+      e.counts.self += r.self;
+      e.counts.absences += r.absences;
+      e.counts.transferred += r.transferred;
+      e.counts.cancelled += r.cancelled;
+      e.fixed += r.fixed;
       map.set(r.instructorId, e);
     }
     return [...map.values()]
-      .filter((e) => e.absences + e.cancelled > 0)
-      .sort((a, b) => b.absences + b.cancelled - (a.absences + a.cancelled))
-      .slice(0, 15);
-  }, [byInstructorRows, filterMonth]);
+      .filter((e) => !filterInstructor || e.name === filterInstructor)
+      .sort((a, b) => a.counts.self / a.fixed - b.counts.self / b.fixed || b.fixed - a.fixed)
+      .slice(0, 25);
+  }, [baseRows, filterMonth, filterInstructor]);
 
   const visible = useMemo(() => {
-    if (!rows) return [];
-    const list = rows.filter(
-      (r) =>
-        (!filterInstructor || r.instructorName === filterInstructor) &&
-        (!filterMonth || r.month === filterMonth)
-    );
+    const list = byInstructorRows.filter((r) => !filterMonth || r.month === filterMonth);
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
       const av = a[sortKey] ?? -1;
       const bv = b[sortKey] ?? -1;
       const cmp =
-        typeof av === "string"
-          ? av.localeCompare(String(bv), "he")
-          : (av as number) - (bv as number);
-      return (
-        cmp * dir ||
-        a.instructorName.localeCompare(b.instructorName, "he") ||
-        a.month - b.month
-      );
+        typeof av === "string" ? av.localeCompare(String(bv), "he") : (av as number) - (bv as number);
+      return cmp * dir || a.instructorName.localeCompare(b.instructorName, "he") || a.month - b.month;
     });
-  }, [rows, filterInstructor, filterMonth, sortKey, sortDir]);
+  }, [byInstructorRows, filterMonth, sortKey, sortDir]);
 
   const totals = useMemo(() => {
-    const t = { scheduled: 0, held: 0, absences: 0, cancelled: 0, lateness: 0, coveredForOthers: 0, cost: 0 };
+    const t = { fixed: 0, self: 0, absences: 0, transferred: 0, cancelled: 0, changed: 0, coveredForOthers: 0, cost: 0, paid: 0 };
     for (const r of visible) {
-      t.scheduled += r.scheduled;
-      t.held += r.held;
+      t.fixed += r.fixed;
+      t.self += r.self;
       t.absences += r.absences;
+      t.transferred += r.transferred;
       t.cancelled += r.cancelled;
-      t.lateness += r.lateness;
+      t.changed += r.changed;
       t.coveredForOthers += r.coveredForOthers;
       t.cost += r.cost ?? 0;
+      t.paid += r.paidLessons;
     }
     return t;
   }, [visible]);
 
   function downloadCsv() {
-    const header = ["מדריך", "חודש", "שיעורים משובצים", "התקיימו", "חיסורים", "% חיסורים", "ביטולים", "איחורים", "מילוי מקום"];
+    const header = [
+      "מדריך", "חודש", "שיעורים בלוח הקבוע", "לימד/ה בעצמו", "% לימד/ה בעצמו", "חיסורים",
+      "הועברו למדריך אחר", "בוטלו", "שינויים בלוח השבועי", "מילא/ה מקום",
+    ];
     if (showCost) header.push("עלות", "מחיר ממוצע לשיעור");
     const lines: (string | number)[][] = [header];
     for (const r of visible) {
       const line: (string | number)[] = [
-        r.instructorName, MONTHS[r.month - 1], r.scheduled, r.held, r.absences,
-        r.absencePct.toFixed(1), r.cancelled, r.lateness, r.coveredForOthers,
+        r.instructorName, MONTHS[r.month - 1], r.fixed, r.self, r.selfPct.toFixed(1), r.absences,
+        r.transferred, r.cancelled, r.changed, r.coveredForOthers,
       ];
-      if (showCost) line.push(r.cost ?? 0, (r.avgPrice ?? 0).toFixed(2));
+      if (showCost) line.push(Math.round(r.cost ?? 0), (r.avgPrice ?? 0).toFixed(2));
       lines.push(line);
     }
     const csv = lines.map((l) => l.map(csvCell).join(",")).join("\r\n");
@@ -275,19 +335,20 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `חיסורים וביטולים לפי מדריך ${year}.csv`;
+    a.download = `אמינות לוח קבוע לפי מדריך ${year}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  function Th({ k, label }: { k: SortKey; label: string }) {
+  function Th({ k, label, color }: { k: SortKey; label: string; color?: string }) {
     const active = sortKey === k;
     return (
       <th className="px-3 py-2.5 text-center first:text-right">
         <button
           onClick={() => toggleSort(k)}
-          className="inline-flex items-center gap-1 font-medium hover:text-foreground"
+          className={`inline-flex items-center gap-1 font-medium hover:text-foreground ${active ? "text-foreground" : ""}`}
         >
+          {color && <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: color }} />}
           {label}
           {active && (sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
         </button>
@@ -295,37 +356,33 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
     );
   }
 
+  const selectCls = "rounded-lg border border-border bg-background px-3 py-2 text-sm";
+  const scopeLabel = `${filterInstructor || "כל המדריכים"}${filterMonth ? ` · ${MONTHS[filterMonth - 1]}` : ""}`;
+
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        לכל מדריך: מה קרה לשיעורים מהמשבצות שלו בלוח הקבוע. חיסור נשאר על המדריך הקבוע גם כשמישהו אחר מילא את מקומו.
+        נספרים רק שיעורים שכבר עברו.
+      </p>
+
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">שנה</label>
-          <select
-            value={year}
-            onChange={(e) => { setYear(Number(e.target.value)); setRows(null); }}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          >
-            {[2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
+          <select value={year} onChange={(e) => { setYear(Number(e.target.value)); setRows(null); }} className={selectCls}>
+            {[2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">חודש</label>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(Number(e.target.value))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          >
+          <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className={selectCls}>
             <option value={0}>כל החודשים</option>
             {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">מדריך</label>
-          <select
-            value={filterInstructor}
-            onChange={(e) => setFilterInstructor(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          >
+          <select value={filterInstructor} onChange={(e) => setFilterInstructor(e.target.value)} className={selectCls}>
             <option value="">כל המדריכים</option>
             {instructors.map((i) => <option key={i.full_name} value={i.full_name}>{i.full_name}</option>)}
           </select>
@@ -347,9 +404,57 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
             ייצוא לאקסל
           </button>
         )}
+        {rows && (
+          <label className="flex items-center gap-2 pb-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={showSubsOnly} onChange={(e) => setShowSubsOnly(e.target.checked)} />
+            הצג גם מדריכים בלי משבצות קבועות
+          </label>
+        )}
+        {(filterInstructor || filterMonth) && rows && (
+          <button
+            onClick={() => { setFilterInstructor(""); setFilterMonth(0); }}
+            className="pb-2 text-xs text-primary hover:underline"
+          >
+            נקה סינון
+          </button>
+        )}
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+      {rows && (
+        <>
+          <div className="rounded-xl border border-border bg-background p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold">שיעורי הלוח הקבוע לפי חודש – {filterInstructor || "כל המדריכים"}</h4>
+              <Legend />
+            </div>
+            <MonthlyStack
+              data={monthly}
+              selected={filterMonth}
+              onSelect={(m) => setFilterMonth(m === filterMonth ? 0 : m)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">לחיצה על חודש מסננת אותו. לחיצה נוספת מבטלת.</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-background p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold">
+                כמה מהשיעורים הקבועים כל מדריך לימד בעצמו – {filterMonth ? MONTHS[filterMonth - 1] : `כל ${year}`}
+              </h4>
+              <Legend />
+            </div>
+            <InstructorStack data={perInstructor} onSelect={setFilterInstructor} />
+          </div>
+
+          {showCost && (
+            <div className="rounded-xl border border-border bg-background p-4">
+              <h4 className="mb-3 text-sm font-semibold">מחיר ממוצע לשיעור לפי חודש – {filterInstructor || "כל המדריכים"}</h4>
+              <AvgPriceLine data={monthly} />
+            </div>
+          )}
+        </>
+      )}
 
       {rows && visible.length === 0 && (
         <p className="rounded-xl border border-border bg-background py-10 text-center text-sm text-muted-foreground">
@@ -357,35 +462,10 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
         </p>
       )}
 
-      {rows && rows.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-border bg-background p-4">
-            <h4 className="mb-1 text-sm font-semibold">
-              חיסורים וביטולים לפי חודש{filterInstructor ? ` – ${filterInstructor}` : " – כל המדריכים"}
-            </h4>
-            <Legend items={[["#dc2626", "חיסורים"], ["#f97316", "ביטולים"]]} />
-            <MonthlyBars data={monthly} selected={filterMonth} onSelect={(m) => setFilterMonth(m === filterMonth ? 0 : m)} />
-          </div>
-          <div className="rounded-xl border border-border bg-background p-4">
-            <h4 className="mb-1 text-sm font-semibold">
-              לפי מדריך{filterMonth ? ` – ${MONTHS[filterMonth - 1]}` : " – כל השנה"}
-            </h4>
-            <Legend items={[["#dc2626", "חיסורים"], ["#f97316", "ביטולים"]]} />
-            <InstructorBars data={perInstructor} />
-          </div>
-          {showCost && (
-            <div className="rounded-xl border border-border bg-background p-4 lg:col-span-2">
-              <h4 className="mb-1 text-sm font-semibold">מחיר ממוצע לשיעור לפי חודש (₪)</h4>
-              <AvgPriceLine data={monthly} />
-            </div>
-          )}
-        </div>
-      )}
-
       {visible.length > 0 && (
         <>
           <p className="text-xs text-muted-foreground">
-            לחיצה על כותרת עמודה ממיינת לפיה. חיסור נספר פעם אחת (לא גם כביטול). "התקיימו" = שיעורים שלא בוטלו, כמו במסך שכר מדריכים.
+            {scopeLabel}{until ? ` · עד ${until.split("-").reverse().join("/")}` : ""}. לחיצה על כותרת עמודה ממיינת לפיה.
           </p>
           <div className="overflow-x-auto rounded-xl border border-border bg-background">
             <table className="w-full text-sm">
@@ -393,13 +473,14 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
                 <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
                   <Th k="instructorName" label="מדריך" />
                   <Th k="month" label="חודש" />
-                  <Th k="scheduled" label="משובצים" />
-                  <Th k="held" label="התקיימו" />
-                  <Th k="absences" label="חיסורים" />
-                  <Th k="absencePct" label="% חיסורים" />
-                  <Th k="cancelled" label="ביטולים" />
-                  <Th k="lateness" label="איחורים" />
-                  <Th k="coveredForOthers" label="מילוי מקום" />
+                  <Th k="fixed" label="בלוח הקבוע" />
+                  <Th k="self" label="לימד/ה" color="#16a34a" />
+                  <Th k="selfPct" label="% לימד/ה" />
+                  <Th k="absences" label="חיסורים" color="#dc2626" />
+                  <Th k="transferred" label="הועברו" color="#2563eb" />
+                  <Th k="cancelled" label="בוטלו" color="#a8a29e" />
+                  <Th k="changed" label="שינויים" />
+                  <Th k="coveredForOthers" label="מילא/ה מקום" />
                   {showCost && <Th k="cost" label="עלות" />}
                   {showCost && <Th k="avgPrice" label="מחיר ממוצע" />}
                 </tr>
@@ -409,32 +490,32 @@ export function InstructorAbsenceForm({ instructors }: { instructors: { full_nam
                   <tr key={`${r.instructorId}-${r.month}`} className="border-b border-border/50 hover:bg-muted/20">
                     <td className="px-3 py-2 font-medium">{r.instructorName}</td>
                     <td className="px-3 py-2 text-center">{MONTHS[r.month - 1]}</td>
-                    <td className={COL}>{r.scheduled}</td>
-                    <td className={`${COL} text-green-700`}>{r.held}</td>
-                    <td className={`${COL} font-medium ${r.absences ? "text-red-600" : ""}`}>{r.absences}</td>
-                    <td className={COL}>{r.absencePct.toFixed(1)}%</td>
-                    <td className={`${COL} ${r.cancelled ? "text-orange-600" : ""}`}>{r.cancelled}</td>
-                    <td className={COL}>{r.lateness}</td>
-                    <td className={COL}>{r.coveredForOthers}</td>
+                    <td className={COL}>{r.fixed}</td>
+                    <td className={COL}>{r.self}</td>
+                    <td className={`${COL} font-semibold ${r.fixed === 0 ? "text-muted-foreground" : r.selfPct < 80 ? "text-red-600" : r.selfPct < 95 ? "text-amber-600" : "text-green-700"}`}>
+                      {r.fixed > 0 ? `${Math.round(r.selfPct)}%` : "—"}
+                    </td>
+                    <td className={`${COL} ${r.absences ? "font-semibold text-red-600" : "text-muted-foreground"}`}>{r.absences}</td>
+                    <td className={`${COL} ${r.transferred ? "font-semibold text-blue-600" : "text-muted-foreground"}`}>{r.transferred}</td>
+                    <td className={`${COL} ${r.cancelled ? "" : "text-muted-foreground"}`}>{r.cancelled}</td>
+                    <td className={`${COL} ${r.changed ? "" : "text-muted-foreground"}`}>{r.changed}</td>
+                    <td className={`${COL} ${r.coveredForOthers ? "" : "text-muted-foreground"}`}>{r.coveredForOthers}</td>
                     {showCost && <td className={COL}>₪{money(r.cost)}</td>}
                     {showCost && <td className={COL}>₪{money(r.avgPrice)}</td>}
                   </tr>
                 ))}
                 <tr className="border-t-2 border-border bg-muted/30 text-xs font-semibold">
                   <td colSpan={2} className="px-3 py-2 text-muted-foreground">סה"כ</td>
-                  <td className={COL}>{totals.scheduled}</td>
-                  <td className={COL}>{totals.held}</td>
+                  <td className={COL}>{totals.fixed}</td>
+                  <td className={COL}>{totals.self}</td>
+                  <td className={COL}>{totals.fixed > 0 ? `${Math.round((totals.self / totals.fixed) * 100)}%` : "—"}</td>
                   <td className={COL}>{totals.absences}</td>
-                  <td className={COL}>
-                    {totals.scheduled > 0 ? ((totals.absences / totals.scheduled) * 100).toFixed(1) : "0.0"}%
-                  </td>
+                  <td className={COL}>{totals.transferred}</td>
                   <td className={COL}>{totals.cancelled}</td>
-                  <td className={COL}>{totals.lateness}</td>
+                  <td className={COL}>{totals.changed}</td>
                   <td className={COL}>{totals.coveredForOthers}</td>
                   {showCost && <td className={COL}>₪{money(totals.cost)}</td>}
-                  {showCost && (
-                    <td className={COL}>₪{money(totals.held > 0 ? totals.cost / totals.held : 0)}</td>
-                  )}
+                  {showCost && <td className={COL}>₪{money(totals.paid > 0 ? totals.cost / totals.paid : 0)}</td>}
                 </tr>
               </tbody>
             </table>

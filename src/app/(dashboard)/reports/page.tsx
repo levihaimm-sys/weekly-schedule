@@ -53,7 +53,7 @@ export default async function ReportsPage() {
       <div className="rounded-xl border border-border bg-background p-6">
         <div className="mb-4 flex items-center gap-3">
           <UserX className="text-red-500" size={24} />
-          <h3 className="text-lg font-semibold">חיסורים וביטולים לפי מדריך</h3>
+          <h3 className="text-lg font-semibold">חיסורים ושינויים בלוח הקבוע לפי מדריך</h3>
         </div>
         <InstructorAbsenceForm instructors={instructors} />
       </div>
