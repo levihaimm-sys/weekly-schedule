@@ -5,7 +5,6 @@ type Row = Record<string, any>;
 
 const PAGE = 1000;
 const ID_CHUNK = 200;
-const UNDO_RETENTION_DAYS = 30;
 
 /**
  * Fields that live only on the recurring_schedule row and are read live by past lessons
@@ -172,17 +171,15 @@ export async function commitUndo(admin: Admin, label: string, before: UndoSnapsh
     const beforeRecurring = new Set(before.recurring.map((r) => r.id));
     const beforeLessons = new Set(before.lessons.map((r) => r.id));
 
-    const cutoff = new Date(Date.now() - UNDO_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    await Promise.all([
-      admin.from("schedule_undo_log").insert({
-        label,
-        before_recurring: before.recurring,
-        before_lessons: before.lessons,
-        created_recurring_ids: after.recurring.map((r) => r.id).filter((id) => !beforeRecurring.has(id)),
-        created_lesson_ids: after.lessons.map((r) => r.id).filter((id) => !beforeLessons.has(id)),
-      }),
-      admin.from("schedule_undo_log").delete().lt("created_at", cutoff),
-    ]);
+    // The log is kept forever: it is the only history of the fixed board vs the weekly board
+    // (who was the fixed instructor on a past date), which reports rely on. Never prune it.
+    await admin.from("schedule_undo_log").insert({
+      label,
+      before_recurring: before.recurring,
+      before_lessons: before.lessons,
+      created_recurring_ids: after.recurring.map((r) => r.id).filter((id) => !beforeRecurring.has(id)),
+      created_lesson_ids: after.lessons.map((r) => r.id).filter((id) => !beforeLessons.has(id)),
+    });
   } catch (e) {
     console.error("commitUndo failed:", e);
   }

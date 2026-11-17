@@ -148,10 +148,18 @@ export async function getInstructorAbsenceReport(
     const absentees = new Map<string, Set<string>>();
     const firstAbsSeen = new Set<string>();
     const slotCreated = new Map<string, string>();
+    const createdFrom = new Map<string, string>();
     for (const u of undoRows) {
       const date = new Date(u.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+      const beforeRec = Array.isArray(u.before_recurring) ? u.before_recurring : [];
       for (const id of u.created_recurring_ids ?? []) {
-        if (!slotCreated.has(id)) slotCreated.set(id, date);
+        if (slotCreated.has(id)) continue;
+        slotCreated.set(id, date);
+        // A fixed edit that split a row into a new one: the row it came from is the single
+        // row saved in the same log entry
+        if (beforeRec.length === 1 && beforeRec[0]?.id && beforeRec[0].id !== id) {
+          createdFrom.set(id, beforeRec[0].id);
+        }
       }
       for (const r of Array.isArray(u.before_recurring) ? u.before_recurring : []) {
         if (!r?.id) continue;
@@ -182,18 +190,24 @@ export async function getInstructorAbsenceReport(
     /**
      * The fixed-schedule instructor of a lesson = the fixed board's row for its slot as it was
      * on the lesson's date — never the lesson's own (weekly-board) instructor:
-     * - slot created after that date → it wasn't in the fixed board yet → no fixed instructor;
+     * - slot created after that date → the row it was split from (same log entry), looked up
+     *   the same way; if there is none, it wasn't in the fixed board yet → no fixed instructor;
      * - otherwise the "before" value of the first fixed-board edit made after that date
      *   (an edit made on the lesson's own date already applies to it);
      * - no such edit → the current fixed-board row.
      */
-    function fixedInstructorOf(l: any): string | null {
-      const slot: string = l.recurring_item_id;
+    function slotInstructorAt(slot: string, date: string, depth = 0): string | null {
       const created = slotCreated.get(slot);
-      if (created && created > l.lesson_date) return null;
-      const later = slotHistory.get(slot)?.find((h) => h.date > l.lesson_date);
+      if (created && created > date) {
+        const src = createdFrom.get(slot);
+        return src && depth < 10 ? slotInstructorAt(src, date, depth + 1) : null;
+      }
+      const later = slotHistory.get(slot)?.find((h) => h.date > date);
       if (later) return later.instructorId;
       return ownerBySlot.get(slot) ?? null;
+    }
+    function fixedInstructorOf(l: any): string | null {
+      return slotInstructorAt(l.recurring_item_id, l.lesson_date);
     }
     // Changed on the weekly board: flagged as a one-time change, or touched by a weekly edit
     function changedOnWeeklyBoard(l: any): boolean {
