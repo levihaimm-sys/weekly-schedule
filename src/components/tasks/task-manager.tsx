@@ -1,13 +1,7 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import {
-  createTask,
-  updateTask,
-  updateTaskStatus,
-  deleteTask,
-} from "@/lib/actions/tasks";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { createTask, patchTask, deleteTask } from "@/lib/actions/tasks";
 import {
   Plus,
   Check,
@@ -80,7 +74,6 @@ function byUrgency(a: TaskWithProfiles, b: TaskWithProfiles) {
 }
 
 export function TaskManager({ tasks, admins }: TaskManagerProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [editing, setEditing] = useState<{ id: string; field: TextField } | null>(null);
@@ -92,15 +85,53 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
   const [subText, setSubText] = useState("");
 
+  // Local copy of the tasks: every change shows instantly, the server save runs in the background.
+  const [items, setItems] = useState<TaskWithProfiles[]>(tasks);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  useEffect(() => setItems(tasks), [tasks]);
+
+  function replaceTask(taskId: string, next: TaskWithProfiles | null) {
+    setItems((prev) =>
+      next ? prev.map((t) => (t.id === taskId ? next : t)) : prev.filter((t) => t.id !== taskId)
+    );
+  }
+
+  function applyPatch(taskId: string, patch: Partial<TaskWithProfiles>) {
+    const before = itemsRef.current.find((t) => t.id === taskId);
+    if (!before || taskId.startsWith("temp-")) return;
+    setItems((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
+
+    const { assignee: _a, creator: _c, ...serverPatch } = patch;
+    void _a;
+    void _c;
+    patchTask(taskId, serverPatch as Parameters<typeof patchTask>[1]).then((result) => {
+      if (result.error) {
+        // Roll back only the fields we changed
+        setItems((prev) =>
+          prev.map((t) => {
+            if (t.id !== taskId) return t;
+            const restored = { ...t };
+            for (const key of Object.keys(patch) as (keyof TaskWithProfiles)[]) {
+              (restored as Record<string, unknown>)[key] = before[key];
+            }
+            return restored;
+          })
+        );
+        alert(result.error);
+      }
+    });
+  }
+
   // Split into top-level tasks and subtasks
   const subtasksByParent = new Map<string, TaskWithProfiles[]>();
-  for (const t of tasks) {
+  for (const t of items) {
     if (!t.parent_id) continue;
     const list = subtasksByParent.get(t.parent_id) ?? [];
     list.push(t);
     subtasksByParent.set(t.parent_id, list);
   }
-  const topLevel = tasks.filter((t) => !t.parent_id);
+  const topLevel = items.filter((t) => !t.parent_id);
 
   const rows = topLevel
     .filter((t) => (showCompleted ? t.status === "completed" : t.status !== "completed"))
@@ -129,11 +160,11 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     setError(null);
     startTransition(async () => {
       const result = await createTask(formData);
-      if (result.error) {
-        setError(result.error);
+      if (result.error || !result.task) {
+        setError(result.error ?? "שגיאה ביצירת המשימה");
       } else {
+        setItems((prev) => [...prev, result.task as unknown as TaskWithProfiles]);
         setAddFormOpen(false);
-        router.refresh();
       }
     });
   }
@@ -141,51 +172,53 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
   function handleAddSubtask(parent: TaskWithProfiles) {
     const text = subText.trim();
     if (!text) return;
+    const tempId = `temp-${Date.now()}`;
+    const now = new Date().toISOString();
+    const temp: TaskWithProfiles = {
+      ...parent,
+      id: tempId,
+      description: text,
+      status: "pending",
+      status_note: "",
+      next_action: "",
+      is_priority: false,
+      parent_id: parent.id,
+      created_at: now,
+      updated_at: now,
+    };
+    setItems((prev) => [...prev, temp]);
+    setSubText("");
+    setExpanded((prev) => new Set(prev).add(parent.id));
+
     const formData = new FormData();
     formData.set("description", text);
     formData.set("urgency", parent.urgency);
     formData.set("assigned_to", parent.assigned_to);
     formData.set("parent_id", parent.id);
-    startTransition(async () => {
-      const result = await createTask(formData);
-      if (result.error) {
-        alert(result.error);
+    createTask(formData).then((result) => {
+      if (result.error || !result.task) {
+        replaceTask(tempId, null);
+        alert(result.error ?? "שגיאה ביצירת תת המשימה");
       } else {
-        setSubText("");
-        setExpanded((prev) => new Set(prev).add(parent.id));
-        router.refresh();
+        replaceTask(tempId, result.task as unknown as TaskWithProfiles);
       }
     });
   }
 
   function handleToggleDone(task: TaskWithProfiles) {
-    const newStatus = task.status === "completed" ? "pending" : "completed";
-    startTransition(async () => {
-      const result = await updateTaskStatus(task.id, newStatus);
-      if (result.error) alert(result.error);
-      router.refresh();
-    });
+    applyPatch(task.id, { status: task.status === "completed" ? "pending" : "completed" });
   }
 
   function handleFieldUpdate(taskId: string, field: string, value: string) {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const formData = new FormData();
-    formData.set("description", task.description);
-    formData.set("urgency", task.urgency);
-    formData.set("assigned_to", task.assigned_to);
-    formData.set("due_date", task.due_date ?? "");
-    formData.set("status", task.status);
-    formData.set("status_note", task.status_note ?? "");
-    formData.set("next_action", task.next_action ?? "");
-    formData.set("is_priority", task.is_priority ? "true" : "false");
-    formData.set(field, value);
-
-    startTransition(async () => {
-      const result = await updateTask(taskId, formData);
-      if (result.error) alert(result.error);
-      router.refresh();
-    });
+    if (field === "assigned_to") {
+      const admin = admins.find((a) => a.id === value);
+      applyPatch(taskId, {
+        assigned_to: value,
+        ...(admin ? { assignee: { id: admin.id, display_name: admin.display_name } } : {}),
+      });
+      return;
+    }
+    applyPatch(taskId, { [field]: value } as Partial<TaskWithProfiles>);
   }
 
   function startEdit(task: TaskWithProfiles, field: TextField) {
@@ -195,7 +228,7 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
 
   function saveEdit() {
     if (!editing) return;
-    const task = tasks.find((t) => t.id === editing.id);
+    const task = items.find((t) => t.id === editing.id);
     const value = editValue.trim();
     const current = ((task?.[editing.field] as string | null) ?? "").trim();
     if (task && value !== current && !(editing.field === "description" && !value)) {
@@ -208,10 +241,13 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     const subCount = subtasksByParent.get(task.id)?.length ?? 0;
     const msg = subCount > 0 ? `למחוק את המשימה ואת ${subCount} תתי המשימות שלה?` : "למחוק את המשימה?";
     if (!confirm(msg)) return;
-    startTransition(async () => {
-      const result = await deleteTask(task.id);
-      if (result.error) alert(result.error);
-      router.refresh();
+    const before = itemsRef.current;
+    setItems((prev) => prev.filter((t) => t.id !== task.id && t.parent_id !== task.id));
+    deleteTask(task.id).then((result) => {
+      if (result.error) {
+        setItems(before);
+        alert(result.error);
+      }
     });
   }
 
@@ -284,12 +320,17 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     );
 
     return (
-      <tr key={task.id} className={`${isSub ? "bg-stone-50/60" : ""} ${isDone ? "opacity-60" : ""}`}>
+      <tr
+        key={task.id}
+        className={`${isSub ? "bg-stone-50/60" : ""} ${isDone ? "opacity-60" : ""} ${
+          task.id.startsWith("temp-") ? "pointer-events-none opacity-50" : ""
+        }`}
+      >
         {/* Done checkbox */}
         <td className={`${TD} text-center`}>
           <button
             onClick={() => handleToggleDone(task)}
-            disabled={isPending || isBlocked}
+            disabled={isBlocked}
             title={
               isBlocked
                 ? `יש להשלים קודם ${openSubs} תתי משימות`
@@ -320,7 +361,6 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
           <select
             value={task.urgency}
             onChange={(e) => handleFieldUpdate(task.id, "urgency", e.target.value)}
-            disabled={isPending}
             className={`w-full min-w-[80px] cursor-pointer appearance-none rounded-md px-2 py-1.5 text-center text-sm font-medium outline-none disabled:opacity-60 ${urgency.pill}`}
           >
             {Object.entries(URGENCY_CONFIG).map(([key, { label }]) => (
@@ -340,7 +380,6 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
             <select
               value={task.assigned_to}
               onChange={(e) => handleFieldUpdate(task.id, "assigned_to", e.target.value)}
-              disabled={isPending}
               title="שנה אחראי"
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             >
@@ -353,7 +392,6 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
         <td className={`${TD} text-center`}>
           <button
             onClick={() => handleDelete(task)}
-            disabled={isPending}
             className="mt-2.5 text-stone-300 transition-colors hover:text-rose-500 disabled:opacity-50"
             title="מחק"
           >
@@ -391,10 +429,10 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
               />
               <button
                 onClick={() => handleAddSubtask(parent)}
-                disabled={isPending || !subText.trim()}
+                disabled={!subText.trim()}
                 className="flex items-center gap-1 rounded-md bg-sky-600 px-3 py-1.5 text-sm text-white hover:bg-sky-700 disabled:opacity-50"
               >
-                {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                <Check size={14} />
                 הוסף
               </button>
               <button

@@ -3,6 +3,52 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+const TASK_SELECT = `
+  id, description, urgency, assigned_to, created_by, due_date, status, status_note,
+  next_action, is_priority, parent_id, created_at, updated_at,
+  assignee:profiles!tasks_assigned_to_fkey(id, display_name),
+  creator:profiles!tasks_created_by_fkey(id, display_name)
+`;
+
+const PATCHABLE_FIELDS = [
+  "description",
+  "urgency",
+  "assigned_to",
+  "due_date",
+  "status",
+  "status_note",
+  "next_action",
+  "is_priority",
+] as const;
+
+type TaskPatch = Partial<Record<(typeof PATCHABLE_FIELDS)[number], string | boolean | null>>;
+
+/** Update only the given fields of a task (fast path for inline edits). */
+export async function patchTask(taskId: string, patch: TaskPatch) {
+  const update: Record<string, string | boolean | null> = {};
+  for (const key of PATCHABLE_FIELDS) {
+    if (key in patch) update[key] = patch[key] ?? null;
+  }
+  if ("description" in update && !String(update.description ?? "").trim()) {
+    return { error: "יש להזין תיאור למשימה" };
+  }
+
+  const supabase = await createClient();
+
+  if (typeof update.status === "string") {
+    const blocked = await openSubtasksError(supabase, taskId, update.status);
+    if (blocked) return { error: blocked };
+  }
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ ...update, updated_at: new Date().toISOString() })
+    .eq("id", taskId);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export async function createTask(formData: FormData) {
   const description = (formData.get("description") as string)?.trim();
   const urgency = formData.get("urgency") as string;
@@ -30,7 +76,7 @@ export async function createTask(formData: FormData) {
     return { error: "לא מחובר" };
   }
 
-  const { error } = await supabase.from("tasks").insert({
+  const { data, error } = await supabase.from("tasks").insert({
     description,
     urgency: urgency || "normal",
     assigned_to: assignedTo,
@@ -40,15 +86,15 @@ export async function createTask(formData: FormData) {
     next_action: nextAction,
     is_priority: isPriority,
     parent_id: parentId,
-  });
+  }).select(TASK_SELECT).single();
 
   if (error) {
     return { error: error.message };
   }
 
-  revalidatePath("/tasks");
-  revalidatePath("/dashboard");
-  return { success: true };
+  // No revalidatePath: the task list updates itself on the client, and
+  // re-rendering the whole dashboard on every change made edits slow.
+  return { success: true, task: data };
 }
 
 /** A task can be completed only when all of its subtasks are completed. */
@@ -81,8 +127,6 @@ export async function updateTaskStatus(taskId: string, status: string) {
     return { error: error.message };
   }
 
-  revalidatePath("/tasks");
-  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -124,8 +168,6 @@ export async function updateTask(taskId: string, formData: FormData) {
     return { error: error.message };
   }
 
-  revalidatePath("/tasks");
-  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -167,7 +209,5 @@ export async function deleteTask(taskId: string) {
     return { error: error.message };
   }
 
-  revalidatePath("/tasks");
-  revalidatePath("/dashboard");
   return { success: true };
 }
