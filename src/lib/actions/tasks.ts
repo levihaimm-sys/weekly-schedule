@@ -11,6 +11,7 @@ export async function createTask(formData: FormData) {
   const statusNote = (formData.get("status_note") as string)?.trim() || "";
   const nextAction = (formData.get("next_action") as string)?.trim() || "";
   const isPriority = formData.get("is_priority") === "true" || formData.get("is_priority") === "on";
+  const parentId = (formData.get("parent_id") as string) || null;
 
   if (!description) {
     return { error: "יש להזין תיאור למשימה" };
@@ -38,6 +39,7 @@ export async function createTask(formData: FormData) {
     status_note: statusNote,
     next_action: nextAction,
     is_priority: isPriority,
+    parent_id: parentId,
   });
 
   if (error) {
@@ -49,8 +51,26 @@ export async function createTask(formData: FormData) {
   return { success: true };
 }
 
+/** A task can be completed only when all of its subtasks are completed. */
+async function openSubtasksError(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  taskId: string,
+  status: string
+) {
+  if (status !== "completed") return null;
+  const { count } = await supabase
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("parent_id", taskId)
+    .neq("status", "completed");
+  return count && count > 0 ? "יש להשלים קודם את כל תתי המשימות" : null;
+}
+
 export async function updateTaskStatus(taskId: string, status: string) {
   const supabase = await createClient();
+
+  const blocked = await openSubtasksError(supabase, taskId, status);
+  if (blocked) return { error: blocked };
 
   const { error } = await supabase
     .from("tasks")
@@ -81,6 +101,9 @@ export async function updateTask(taskId: string, formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  const blocked = await openSubtasksError(supabase, taskId, status);
+  if (blocked) return { error: blocked };
 
   const { error } = await supabase
     .from("tasks")

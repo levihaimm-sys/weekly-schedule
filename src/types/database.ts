@@ -191,6 +191,7 @@ export interface Task {
   status_note: string;
   next_action: string | null;
   is_priority: boolean;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }
