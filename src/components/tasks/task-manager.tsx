@@ -7,7 +7,7 @@ import {
   updateTask,
   deleteTask,
 } from "@/lib/actions/tasks";
-import { Plus, Check, Loader2, Trash2, ClipboardList, X, Star } from "lucide-react";
+import { Plus, Check, Loader2, Trash2, ClipboardList, X } from "lucide-react";
 import type { TaskWithProfiles } from "@/types/database";
 
 interface AdminProfile {
@@ -211,7 +211,7 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={isPending}
-        className={`w-full cursor-pointer appearance-none rounded-md px-2 py-1.5 text-center text-sm font-medium outline-none disabled:opacity-60 ${current.pill}`}
+        className={`w-full min-w-[90px] cursor-pointer appearance-none rounded-md px-2 py-1.5 text-center text-sm font-medium outline-none disabled:opacity-60 ${current.pill}`}
       >
         {Object.entries(options).map(([key, { label }]) => (
           <option key={key} value={key} className="bg-white text-stone-800">
@@ -313,7 +313,6 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                 <option key={admin.id} value={admin.id}>{admin.display_name}</option>
               ))}
             </select>
-            <input name="due_date" type="date" className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" />
             <label className="flex cursor-pointer items-center gap-1.5 text-sm text-amber-700">
               <input type="checkbox" name="is_priority" className="accent-amber-500" />
               בעדיפות
@@ -347,35 +346,21 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
               {group.title} <span className="text-sm font-normal text-stone-400">({group.rows.length})</span>
             </h4>
             <div className={`overflow-x-auto rounded-lg border border-stone-200 border-s-4 ${group.accent} bg-white`}>
-              <table className="w-full min-w-[1100px] border-collapse">
+              <table className="w-full min-w-[1000px] border-collapse">
                 <thead>
                   <tr>
-                    <th className={`${TH} w-10`} />
-                    <th className={`${TH} w-[22%]`}>משימה</th>
+                    <th className={`${TH} w-[24%]`}>משימה</th>
                     <th className={`${TH} w-[28%]`}>סטטוס</th>
-                    <th className={`${TH} w-[22%]`}>פעולה לביצוע</th>
-                    <th className={`${TH} w-28 text-center`}>מצב</th>
-                    <th className={`${TH} w-24 text-center`}>דחיפות</th>
-                    <th className={`${TH} w-28`}>אחראי</th>
-                    <th className={`${TH} w-32`}>תאריך יעד</th>
+                    <th className={`${TH} w-[24%]`}>פעולה לביצוע</th>
+                    <th className={`${TH} w-[120px] text-center`}>מצב</th>
+                    <th className={`${TH} w-[110px] text-center`}>דחיפות</th>
+                    <th className={`${TH} w-[130px] text-center`}>אחראי</th>
                     <th className={`${TH} w-10`} />
                   </tr>
                 </thead>
                 <tbody>
                   {group.rows.map((task) => (
                     <tr key={task.id} className={task.status === "completed" ? "opacity-60" : ""}>
-                      <td className={`${TD} text-center`}>
-                        <button
-                          onClick={() => handleFieldUpdate(task.id, "is_priority", task.is_priority ? "false" : "true")}
-                          disabled={isPending}
-                          className={`mt-2.5 transition-colors disabled:opacity-50 ${
-                            task.is_priority ? "text-amber-400 hover:text-amber-500" : "text-stone-300 hover:text-amber-400"
-                          }`}
-                          title={task.is_priority ? "הסר עדיפות" : "סמן בעדיפות"}
-                        >
-                          <Star size={18} fill={task.is_priority ? "currentColor" : "none"} />
-                        </button>
-                      </td>
                       {renderTextCell(task, "description", `font-semibold ${task.status === "completed" ? "line-through" : ""}`)}
                       {renderTextCell(task, "status_note")}
                       {renderTextCell(task, "next_action")}
@@ -390,21 +375,12 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                           value={task.assigned_to}
                           onChange={(e) => handleFieldUpdate(task.id, "assigned_to", e.target.value)}
                           disabled={isPending}
-                          className="w-full cursor-pointer rounded-md bg-transparent px-2 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-60"
+                          className="w-full cursor-pointer appearance-none rounded-md bg-stone-100 px-2 py-1.5 text-center text-sm font-medium text-stone-700 outline-none hover:bg-stone-200 disabled:opacity-60"
                         >
                           {admins.map((admin) => (
                             <option key={admin.id} value={admin.id}>{admin.display_name}</option>
                           ))}
                         </select>
-                      </td>
-                      <td className={`${TD} p-1.5`}>
-                        <input
-                          type="date"
-                          value={task.due_date ?? ""}
-                          onChange={(e) => handleFieldUpdate(task.id, "due_date", e.target.value)}
-                          disabled={isPending}
-                          className="w-full rounded-md bg-transparent px-2 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-60"
-                        />
                       </td>
                       <td className={`${TD} text-center`}>
                         <button
