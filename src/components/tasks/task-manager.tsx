@@ -51,6 +51,28 @@ const TEXT_PLACEHOLDER: Record<TextField, string> = {
 const TH = "border-b border-e border-stone-200 bg-stone-50 px-3 py-2.5 text-right text-sm font-semibold text-stone-600 last:border-e-0";
 const TD = "border-b border-e border-stone-200 align-top last:border-e-0";
 
+// Profile photos by first name (files in public/avatars)
+const AVATARS: Record<string, string> = {
+  "חיים": "/avatars/haim.webp",
+  "שירן": "/avatars/shiran.webp",
+};
+
+function Avatar({ name }: { name: string }) {
+  const firstName = name.trim().split(/\s+/)[0] ?? "";
+  const src = Object.entries(AVATARS).find(([key]) => name.includes(key))?.[1];
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src} alt={name} className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-white" />
+    );
+  }
+  return (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
+      {firstName.charAt(0)}
+    </span>
+  );
+}
+
 export function TaskManager({ tasks, admins }: TaskManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -371,16 +393,24 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                         {renderPillSelect(task.urgency, URGENCY_CONFIG, (v) => handleFieldUpdate(task.id, "urgency", v))}
                       </td>
                       <td className={`${TD} p-1.5`}>
-                        <select
-                          value={task.assigned_to}
-                          onChange={(e) => handleFieldUpdate(task.id, "assigned_to", e.target.value)}
-                          disabled={isPending}
-                          className="w-full cursor-pointer appearance-none rounded-md bg-stone-100 px-2 py-1.5 text-center text-sm font-medium text-stone-700 outline-none hover:bg-stone-200 disabled:opacity-60"
-                        >
-                          {admins.map((admin) => (
-                            <option key={admin.id} value={admin.id}>{admin.display_name}</option>
-                          ))}
-                        </select>
+                        {/* Avatar + name shown; a transparent select on top handles the change */}
+                        <div className="relative flex items-center justify-center gap-2 rounded-md px-2 py-1 hover:bg-stone-100">
+                          <Avatar name={task.assignee?.display_name ?? ""} />
+                          <span className="truncate text-sm font-medium text-stone-700">
+                            {task.assignee?.display_name}
+                          </span>
+                          <select
+                            value={task.assigned_to}
+                            onChange={(e) => handleFieldUpdate(task.id, "assigned_to", e.target.value)}
+                            disabled={isPending}
+                            title="שנה אחראי"
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          >
+                            {admins.map((admin) => (
+                              <option key={admin.id} value={admin.id}>{admin.display_name}</option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                       <td className={`${TD} text-center`}>
                         <button
