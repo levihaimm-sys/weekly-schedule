@@ -20,6 +20,10 @@ import {
   Trash2,
   ClipboardList,
   X,
+  Star,
+  Target,
+  Activity,
+  ArrowLeftCircle,
 } from "lucide-react";
 import type { TaskWithProfiles } from "@/types/database";
 
@@ -52,15 +56,45 @@ const STATUS_TABS = [
   { key: "completed", label: "הושלם" },
 ] as const;
 
+type EditableField = "description" | "status_note" | "next_action";
+
+const FIELD_CONFIG: Record<
+  EditableField,
+  { label: string; icon: typeof Target; box: string; title: string; text: string; placeholder: string }
+> = {
+  description: {
+    label: "משימה",
+    icon: Target,
+    box: "border-stone-200 bg-stone-50",
+    title: "text-stone-600",
+    text: "text-lg font-bold text-[#1C1917]",
+    placeholder: "מה המשימה שיש לבצע?",
+  },
+  status_note: {
+    label: "סטטוס",
+    icon: Activity,
+    box: "border-sky-200 bg-sky-50",
+    title: "text-sky-700",
+    text: "text-[15px] text-sky-950",
+    placeholder: "מה בוצע עד עכשיו ומה המצב כרגע?",
+  },
+  next_action: {
+    label: "פעולה לביצוע",
+    icon: ArrowLeftCircle,
+    box: "border-orange-300 bg-orange-50",
+    title: "text-orange-700",
+    text: "text-[15px] font-semibold text-orange-950",
+    placeholder: "מה הצעד הבא שצריך לעשות?",
+  },
+};
+
 export function TaskManager({ tasks, admins }: TaskManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editingDescId, setEditingDescId] = useState<string | null>(null);
-  const [editDescription, setEditDescription] = useState("");
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [editNote, setEditNote] = useState("");
+  const [editing, setEditing] = useState<{ id: string; field: EditableField } | null>(null);
+  const [editValue, setEditValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
@@ -73,16 +107,20 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     return true;
   });
 
-  // Sort: urgency order (urgent > normal > low), then by date
+  // Sort: completed last, priority first, then urgency, then newest
   const urgencyOrder: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
   const sorted = [...filtered].sort((a, b) => {
     if (a.status === "completed" && b.status !== "completed") return 1;
     if (a.status !== "completed" && b.status === "completed") return -1;
+    if (a.is_priority !== b.is_priority) return a.is_priority ? -1 : 1;
     const ua = urgencyOrder[a.urgency] ?? 1;
     const ub = urgencyOrder[b.urgency] ?? 1;
     if (ua !== ub) return ua - ub;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  const priorityTasks = sorted.filter((t) => t.is_priority && t.status !== "completed");
+  const otherTasks = sorted.filter((t) => !(t.is_priority && t.status !== "completed"));
 
   const hasActiveFilters = statusFilter !== "all" || assigneeFilter !== "all";
 
@@ -129,6 +167,8 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     formData.set("due_date", task.due_date ?? "");
     formData.set("status", task.status);
     formData.set("status_note", task.status_note ?? "");
+    formData.set("next_action", task.next_action ?? "");
+    formData.set("is_priority", task.is_priority ? "true" : "false");
     formData.set(field, value);
 
     startTransition(async () => {
@@ -138,15 +178,16 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     });
   }
 
-  async function handleDescriptionSave(taskId: string) {
-    if (!editDescription.trim()) return;
-    await handleFieldUpdate(taskId, "description", editDescription);
-    setEditingDescId(null);
+  function startEdit(task: TaskWithProfiles, field: EditableField) {
+    setEditing({ id: task.id, field });
+    setEditValue((task[field] as string | null) ?? "");
   }
 
-  async function handleNoteSave(taskId: string) {
-    await handleFieldUpdate(taskId, "status_note", editNote);
-    setEditingNoteId(null);
+  async function saveEdit() {
+    if (!editing) return;
+    if (editing.field === "description" && !editValue.trim()) return;
+    await handleFieldUpdate(editing.id, editing.field, editValue.trim());
+    setEditing(null);
   }
 
   async function handleDelete(taskId: string) {
@@ -164,6 +205,235 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
       month: "numeric",
       year: "2-digit",
     });
+  }
+
+  function renderField(task: TaskWithProfiles, field: EditableField) {
+    const cfg = FIELD_CONFIG[field];
+    const Icon = cfg.icon;
+    const value = (task[field] as string | null) ?? "";
+    const isEditing = editing?.id === task.id && editing.field === field;
+    const isCompleted = task.status === "completed";
+
+    return (
+      <div className={`flex min-w-0 flex-col rounded-xl border-2 p-3 ${cfg.box}`}>
+        <div className={`mb-1.5 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide ${cfg.title}`}>
+          <Icon size={15} strokeWidth={2.5} />
+          {cfg.label}
+        </div>
+        {isEditing ? (
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              rows={field === "description" ? 3 : 5}
+              className="w-full rounded-lg border border-border bg-white px-2.5 py-2 text-sm leading-relaxed resize-y"
+              autoFocus
+              placeholder={cfg.placeholder}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  saveEdit();
+                }
+                if (e.key === "Escape") setEditing(null);
+              }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={saveEdit}
+                disabled={isPending}
+                className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                שמור
+              </button>
+              <button
+                onClick={() => setEditing(null)}
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs hover:bg-muted"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() => startEdit(task, field)}
+            title="לחץ לעריכה"
+            className={`flex-1 cursor-pointer whitespace-pre-wrap break-words rounded-md leading-relaxed transition-colors hover:bg-white/70 ${
+              value ? cfg.text : "text-sm italic text-muted-foreground/60"
+            } ${isCompleted && field === "description" ? "line-through text-muted-foreground" : ""}`}
+          >
+            {value || "לחץ להוספה"}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderTask(task: TaskWithProfiles) {
+    const urgency = URGENCY_CONFIG[task.urgency as keyof typeof URGENCY_CONFIG] ?? URGENCY_CONFIG.normal;
+    const status = STATUS_CONFIG[task.status];
+    const StatusIcon = status.icon;
+    const isExpanded = expandedId === task.id;
+
+    return (
+      <div
+        key={task.id}
+        className={`overflow-hidden rounded-2xl border bg-background shadow-sm transition-colors ${
+          task.is_priority && task.status !== "completed"
+            ? "border-amber-400 ring-2 ring-amber-300"
+            : "border-border"
+        } ${task.status === "completed" ? "opacity-60" : ""}`}
+      >
+        {/* Top bar: priority, status, meta, actions */}
+        <div
+          className={`flex flex-wrap items-center gap-2 border-b px-4 py-2.5 ${
+            task.is_priority && task.status !== "completed"
+              ? "border-amber-200 bg-amber-50"
+              : "border-border/60 bg-muted/20"
+          }`}
+        >
+          <button
+            onClick={() => handleFieldUpdate(task.id, "is_priority", task.is_priority ? "false" : "true")}
+            disabled={isPending}
+            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold transition-colors disabled:opacity-50 ${
+              task.is_priority
+                ? "border-amber-400 bg-amber-400 text-white hover:bg-amber-500"
+                : "border-border bg-white text-muted-foreground hover:border-amber-300 hover:text-amber-600"
+            }`}
+            title={task.is_priority ? "הסר עדיפות" : "סמן בעדיפות"}
+          >
+            <Star size={14} fill={task.is_priority ? "currentColor" : "none"} />
+            {task.is_priority ? "בעדיפות" : "עדיפות"}
+          </button>
+
+          <button
+            onClick={() => {
+              const nextStatus =
+                task.status === "pending"
+                  ? "in_progress"
+                  : task.status === "in_progress"
+                    ? "completed"
+                    : "pending";
+              handleStatusChange(task.id, nextStatus);
+            }}
+            disabled={isPending}
+            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-50 ${status.color}`}
+            title="לחץ לשינוי מצב"
+          >
+            <StatusIcon size={14} />
+            {status.label}
+          </button>
+
+          <span className={`rounded-lg border px-2 py-1 text-xs font-medium ${urgency.color}`}>
+            {urgency.label}
+          </span>
+
+          {task.assignee?.display_name && (
+            <span className="text-xs font-medium text-foreground/80">{task.assignee.display_name}</span>
+          )}
+          {task.due_date && (
+            <span className="text-xs text-muted-foreground">עד {formatDate(task.due_date)}</span>
+          )}
+          <span className="text-xs text-muted-foreground/60">
+            נוצר {formatDate(task.created_at)}
+            {task.creator?.display_name && ` ע״י ${task.creator.display_name}`}
+          </span>
+
+          <div className="mr-auto flex items-center gap-1">
+            <button
+              onClick={() => setExpandedId(isExpanded ? null : task.id)}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title={isExpanded ? "סגור" : "עריכה מהירה"}
+            >
+              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <button
+              onClick={() => handleDelete(task.id)}
+              disabled={isPending}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              title="מחק"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Three clear blocks: task / status / next action */}
+        <div className="grid gap-3 p-4 md:grid-cols-[1fr_1.4fr_1fr]">
+          {renderField(task, "description")}
+          {renderField(task, "status_note")}
+          {renderField(task, "next_action")}
+        </div>
+
+        {/* Inline quick-edit panel */}
+        {isExpanded && (
+          <div className="flex flex-wrap items-center gap-3 border-t border-border/50 bg-muted/20 px-4 py-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">דחיפות:</span>
+              <div className="flex rounded-lg border border-border">
+                {Object.entries(URGENCY_CONFIG).map(([key, { label, color }]) => (
+                  <button
+                    key={key}
+                    onClick={() => handleFieldUpdate(task.id, "urgency", key)}
+                    disabled={isPending}
+                    className={`px-2.5 py-1 text-xs font-medium transition-colors first:rounded-r-lg last:rounded-l-lg disabled:opacity-50 ${
+                      task.urgency === key ? color : "hover:bg-muted"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">מצב:</span>
+              <div className="flex rounded-lg border border-border">
+                {Object.entries(STATUS_CONFIG).map(([key, { label, color }]) => (
+                  <button
+                    key={key}
+                    onClick={() => handleFieldUpdate(task.id, "status", key)}
+                    disabled={isPending}
+                    className={`px-2.5 py-1 text-xs font-medium transition-colors first:rounded-r-lg last:rounded-l-lg disabled:opacity-50 ${
+                      task.status === key ? color : "hover:bg-muted"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">אחראי:</span>
+              <select
+                value={task.assigned_to}
+                onChange={(e) => handleFieldUpdate(task.id, "assigned_to", e.target.value)}
+                disabled={isPending}
+                className="rounded-lg border border-border bg-background px-2 py-1 text-xs disabled:opacity-50"
+              >
+                {admins.map((admin) => (
+                  <option key={admin.id} value={admin.id}>
+                    {admin.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">תאריך יעד:</span>
+              <input
+                type="date"
+                value={task.due_date ?? ""}
+                onChange={(e) => handleFieldUpdate(task.id, "due_date", e.target.value)}
+                disabled={isPending}
+                className="rounded-lg border border-border bg-background px-2 py-1 text-xs disabled:opacity-50"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -242,20 +512,29 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
         >
           <h3 className="mb-3 font-medium">משימה חדשה</h3>
           <div className="space-y-3">
-            <textarea
-              name="description"
-              required
-              placeholder="תיאור המשימה..."
-              rows={3}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none"
-            />
-            <input
-              name="status_note"
-              type="text"
-              placeholder="סטטוס (לא חובה)..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-            <div className="flex flex-wrap gap-3">
+            <div className="grid gap-3 md:grid-cols-3">
+              {(["description", "status_note", "next_action"] as EditableField[]).map((field) => {
+                const cfg = FIELD_CONFIG[field];
+                const Icon = cfg.icon;
+                return (
+                  <label key={field} className={`flex flex-col rounded-xl border-2 p-3 ${cfg.box}`}>
+                    <span className={`mb-1.5 flex items-center gap-1.5 text-xs font-extrabold ${cfg.title}`}>
+                      <Icon size={15} strokeWidth={2.5} />
+                      {cfg.label}
+                      {field === "description" && " *"}
+                    </span>
+                    <textarea
+                      name={field}
+                      required={field === "description"}
+                      placeholder={cfg.placeholder}
+                      rows={4}
+                      className="w-full rounded-lg border border-border bg-white px-2.5 py-2 text-sm resize-y"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
               <select
                 name="urgency"
                 defaultValue="normal"
@@ -287,6 +566,11 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
                 type="date"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
+                <input type="checkbox" name="is_priority" className="accent-amber-500" />
+                <Star size={14} />
+                בעדיפות
+              </label>
             </div>
             <div className="flex gap-2">
               <button
@@ -318,260 +602,34 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
       )}
 
       {/* Tasks list */}
-      <div className="divide-y divide-border rounded-xl border border-border bg-background">
-        {sorted.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
-            <ClipboardList size={32} strokeWidth={1.5} />
-            <p>אין משימות להצגה</p>
-          </div>
-        ) : (
-          sorted.map((task) => {
-            const urgency = URGENCY_CONFIG[task.urgency as keyof typeof URGENCY_CONFIG] ?? URGENCY_CONFIG.normal;
-            const status = STATUS_CONFIG[task.status];
-            const StatusIcon = status.icon;
-            const isExpanded = expandedId === task.id;
-            const isEditingDesc = editingDescId === task.id;
-
-            return (
-              <div
-                key={task.id}
-                className={`transition-colors ${
-                  task.status === "completed" ? "opacity-60" : ""
-                }`}
-              >
-                {/* Main row */}
-                <div className="flex items-start gap-3 p-4">
-                  {/* Status icon button */}
-                  <button
-                    onClick={() => {
-                      const nextStatus =
-                        task.status === "pending"
-                          ? "in_progress"
-                          : task.status === "in_progress"
-                            ? "completed"
-                            : "pending";
-                      handleStatusChange(task.id, nextStatus);
-                    }}
-                    disabled={isPending}
-                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors ${status.color} hover:opacity-80 disabled:opacity-50`}
-                    title={`סטטוס: ${status.label} (לחץ לשנות)`}
-                  >
-                    <StatusIcon size={16} />
-                  </button>
-
-                  {/* Content + Status note: side by side on desktop, stacked on mobile */}
-                  <div className="flex-1 min-w-0 flex flex-col md:flex-row md:gap-4">
-                  {/* Task description */}
-                  <div className="flex-1 min-w-0">
-                    {isEditingDesc ? (
-                      <div className="flex gap-2">
-                        <textarea
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          rows={2}
-                          className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm resize-none"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleDescriptionSave(task.id);
-                            }
-                            if (e.key === "Escape") setEditingDescId(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => handleDescriptionSave(task.id)}
-                          disabled={isPending}
-                          className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                        >
-                          {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                        </button>
-                      </div>
-                    ) : (
-                      <p
-                        className={`text-base cursor-pointer hover:text-orange-600 ${
-                          task.status === "completed"
-                            ? "line-through text-muted-foreground"
-                            : "text-foreground"
-                        }`}
-                        onClick={() => {
-                          setEditingDescId(task.id);
-                          setEditDescription(task.description);
-                        }}
-                        title="לחץ לעריכת תיאור"
-                      >
-                        {task.description}
-                      </p>
-                    )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-md border px-2 py-0.5 text-xs font-medium ${urgency.color}`}
-                      >
-                        {urgency.label}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {task.assignee?.display_name}
-                      </span>
-                      {task.due_date && (
-                        <span className="text-xs text-muted-foreground">
-                          עד {formatDate(task.due_date)}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground/60">
-                        נוצר {formatDate(task.created_at)}
-                        {task.creator?.display_name &&
-                          ` ע״י ${task.creator.display_name}`}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Status note — below on mobile, middle on desktop */}
-                  <div className="mt-2 md:mt-0 md:shrink-0 md:w-56 flex flex-col items-start gap-1 border-t md:border-t-0 md:border-r border-border/40 pt-2 md:pt-0 md:pr-4">
-                    <span className="text-[11px] font-semibold text-muted-foreground">סטטוס</span>
-                    {editingNoteId === task.id ? (
-                      <div className="flex w-full gap-1.5">
-                        <input
-                          type="text"
-                          value={editNote}
-                          onChange={(e) => setEditNote(e.target.value)}
-                          className="flex-1 min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm"
-                          autoFocus
-                          placeholder="הזן סטטוס..."
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleNoteSave(task.id);
-                            }
-                            if (e.key === "Escape") setEditingNoteId(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => handleNoteSave(task.id)}
-                          disabled={isPending}
-                          className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                        >
-                          {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                        </button>
-                      </div>
-                    ) : (
-                      <span
-                        className={`text-sm cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-orange-50 hover:text-orange-700 ${
-                          task.status_note
-                            ? "text-orange-700 bg-orange-50/50 font-medium"
-                            : "text-muted-foreground/40 italic text-xs"
-                        }`}
-                        onClick={() => {
-                          setEditingNoteId(task.id);
-                          setEditNote(task.status_note ?? "");
-                        }}
-                        title="לחץ לעדכון סטטוס"
-                      >
-                        {task.status_note || "לחץ להוספה"}
-                      </span>
-                    )}
-                  </div>
-                  </div>
-
-                  {/* Expand/collapse + delete */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : task.id)}
-                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      title={isExpanded ? "סגור" : "עריכה מהירה"}
-                    >
-                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(task.id)}
-                      disabled={isPending}
-                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                      title="מחק"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Inline quick-edit panel */}
-                {isExpanded && (
-                  <div className="flex flex-wrap items-center gap-3 border-t border-border/50 bg-muted/20 px-4 py-3">
-                    {/* Urgency */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">דחיפות:</span>
-                      <div className="flex rounded-lg border border-border">
-                        {Object.entries(URGENCY_CONFIG).map(([key, { label, color }]) => (
-                          <button
-                            key={key}
-                            onClick={() => handleFieldUpdate(task.id, "urgency", key)}
-                            disabled={isPending}
-                            className={`px-2.5 py-1 text-xs font-medium transition-colors first:rounded-r-lg last:rounded-l-lg disabled:opacity-50 ${
-                              task.urgency === key
-                                ? color
-                                : "hover:bg-muted"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Status */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">סטטוס:</span>
-                      <div className="flex rounded-lg border border-border">
-                        {Object.entries(STATUS_CONFIG).map(([key, { label, color }]) => (
-                          <button
-                            key={key}
-                            onClick={() => handleFieldUpdate(task.id, "status", key)}
-                            disabled={isPending}
-                            className={`px-2.5 py-1 text-xs font-medium transition-colors first:rounded-r-lg last:rounded-l-lg disabled:opacity-50 ${
-                              task.status === key
-                                ? color
-                                : "hover:bg-muted"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Assignee */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">אחראי:</span>
-                      <select
-                        value={task.assigned_to}
-                        onChange={(e) => handleFieldUpdate(task.id, "assigned_to", e.target.value)}
-                        disabled={isPending}
-                        className="rounded-lg border border-border bg-background px-2 py-1 text-xs disabled:opacity-50"
-                      >
-                        {admins.map((admin) => (
-                          <option key={admin.id} value={admin.id}>
-                            {admin.display_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Due date */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">תאריך יעד:</span>
-                      <input
-                        type="date"
-                        value={task.due_date ?? ""}
-                        onChange={(e) => handleFieldUpdate(task.id, "due_date", e.target.value)}
-                        disabled={isPending}
-                        className="rounded-lg border border-border bg-background px-2 py-1 text-xs disabled:opacity-50"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      {sorted.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background py-12 text-muted-foreground">
+          <ClipboardList size={32} strokeWidth={1.5} />
+          <p>אין משימות להצגה</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {priorityTasks.length > 0 && (
+            <section className="space-y-3">
+              <h4 className="flex items-center gap-2 text-base font-extrabold text-amber-700">
+                <Star size={18} fill="currentColor" />
+                בעדיפות ({priorityTasks.length})
+              </h4>
+              {priorityTasks.map(renderTask)}
+            </section>
+          )}
+          {otherTasks.length > 0 && (
+            <section className="space-y-3">
+              {priorityTasks.length > 0 && (
+                <h4 className="text-base font-bold text-muted-foreground">
+                  שאר המשימות ({otherTasks.length})
+                </h4>
+              )}
+              {otherTasks.map(renderTask)}
+            </section>
+          )}
+        </div>
+      )}
     </div>
   );
 }

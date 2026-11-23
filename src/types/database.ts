@@ -189,6 +189,8 @@ export interface Task {
   due_date: string | null;
   status: 'pending' | 'in_progress' | 'completed';
   status_note: string;
+  next_action: string | null;
+  is_priority: boolean;
   created_at: string;
   updated_at: string;
 }

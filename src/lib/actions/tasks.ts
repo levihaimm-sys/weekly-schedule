@@ -9,6 +9,8 @@ export async function createTask(formData: FormData) {
   const assignedTo = formData.get("assigned_to") as string;
   const dueDate = (formData.get("due_date") as string) || null;
   const statusNote = (formData.get("status_note") as string)?.trim() || "";
+  const nextAction = (formData.get("next_action") as string)?.trim() || "";
+  const isPriority = formData.get("is_priority") === "true" || formData.get("is_priority") === "on";
 
   if (!description) {
     return { error: "יש להזין תיאור למשימה" };
@@ -34,6 +36,8 @@ export async function createTask(formData: FormData) {
     created_by: user.id,
     due_date: dueDate,
     status_note: statusNote,
+    next_action: nextAction,
+    is_priority: isPriority,
   });
 
   if (error) {
@@ -69,6 +73,8 @@ export async function updateTask(taskId: string, formData: FormData) {
   const dueDate = (formData.get("due_date") as string) || null;
   const status = formData.get("status") as string;
   const statusNote = (formData.get("status_note") as string) ?? "";
+  const nextAction = (formData.get("next_action") as string) ?? "";
+  const isPriority = formData.get("is_priority") === "true";
 
   if (!description) {
     return { error: "יש להזין תיאור למשימה" };
@@ -85,6 +91,8 @@ export async function updateTask(taskId: string, formData: FormData) {
       due_date: dueDate,
       status,
       status_note: statusNote,
+      next_action: nextAction,
+      is_priority: isPriority,
       updated_at: new Date().toISOString(),
     })
     .eq("id", taskId);

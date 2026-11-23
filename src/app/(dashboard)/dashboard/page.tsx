@@ -42,8 +42,11 @@ export default async function DashboardPage({
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold md:text-3xl text-[#1C1917]">דשבורד</h2>
+      <section className="space-y-3">
+        <h3 className="text-xl font-bold text-[#1C1917]">משימות</h3>
+        <TaskManager tasks={tasks} admins={admins} />
+      </section>
       <ClientMonthlyStatsCard stats={clientStats} prevStats={prevClientStats} year={statsYear} month={statsMonth} />
-      <TaskManager tasks={tasks} admins={admins} />
 
       <UrgentAlertsCard lessons={unassigned as any} absenceRequests={absenceRequests as any} instructors={instructors} />
       <ScheduleChangesCard changes={scheduleChanges as any} instructors={instructors} />
