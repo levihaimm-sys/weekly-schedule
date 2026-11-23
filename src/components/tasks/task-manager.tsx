@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   createTask,
@@ -60,33 +60,53 @@ type EditableField = "description" | "status_note" | "next_action";
 
 const FIELD_CONFIG: Record<
   EditableField,
-  { label: string; icon: typeof Target; box: string; title: string; text: string; placeholder: string }
+  {
+    label: string;
+    icon: typeof Target;
+    box: string;
+    title: string;
+    text: string;
+    placeholder: string;
+    head: string;
+    cell: string;
+  }
 > = {
   description: {
     label: "משימה",
     icon: Target,
     box: "border-stone-200 bg-stone-50",
-    title: "text-stone-600",
-    text: "text-lg font-bold text-[#1C1917]",
+    title: "text-stone-700",
+    text: "text-lg font-bold leading-snug text-[#1C1917]",
     placeholder: "מה המשימה שיש לבצע?",
+    head: "bg-stone-800 text-white",
+    cell: "bg-white",
   },
   status_note: {
     label: "סטטוס",
     icon: Activity,
     box: "border-sky-200 bg-sky-50",
-    title: "text-sky-700",
-    text: "text-[15px] text-sky-950",
+    title: "text-sky-800",
+    text: "text-base leading-relaxed text-sky-950",
     placeholder: "מה בוצע עד עכשיו ומה המצב כרגע?",
+    head: "bg-sky-700 text-white",
+    cell: "bg-sky-50",
   },
   next_action: {
     label: "פעולה לביצוע",
     icon: ArrowLeftCircle,
     box: "border-orange-300 bg-orange-50",
-    title: "text-orange-700",
-    text: "text-[15px] font-semibold text-orange-950",
+    title: "text-orange-800",
+    text: "text-base font-bold leading-relaxed text-orange-950",
     placeholder: "מה הצעד הבא שצריך לעשות?",
+    head: "bg-orange-600 text-white",
+    cell: "bg-orange-50",
   },
 };
+
+const FIELDS: EditableField[] = ["description", "status_note", "next_action"];
+
+// Desktop table columns: controls | task | status | next action
+const GRID_COLS = "md:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.2fr)]";
 
 export function TaskManager({ tasks, admins }: TaskManagerProps) {
   const router = useRouter();
@@ -207,7 +227,7 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     });
   }
 
-  function renderField(task: TaskWithProfiles, field: EditableField) {
+  function renderField(task: TaskWithProfiles, field: EditableField, extra?: ReactNode) {
     const cfg = FIELD_CONFIG[field];
     const Icon = cfg.icon;
     const value = (task[field] as string | null) ?? "";
@@ -215,9 +235,10 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
     const isCompleted = task.status === "completed";
 
     return (
-      <div className={`flex min-w-0 flex-col rounded-xl border-2 p-3 ${cfg.box}`}>
-        <div className={`mb-1.5 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide ${cfg.title}`}>
-          <Icon size={15} strokeWidth={2.5} />
+      <div className={`flex min-w-0 flex-col border-t border-stone-200 p-4 md:border-t-0 md:border-r-2 ${cfg.cell}`}>
+        {/* Column label: shown on mobile only (desktop has the table header) */}
+        <div className={`mb-2 flex items-center gap-1.5 text-sm font-extrabold md:hidden ${cfg.title}`}>
+          <Icon size={16} strokeWidth={2.5} />
           {cfg.label}
         </div>
         {isEditing ? (
@@ -265,102 +286,101 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
             {value || "לחץ להוספה"}
           </div>
         )}
+        {extra}
       </div>
     );
   }
 
-  function renderTask(task: TaskWithProfiles) {
+  function renderTask(task: TaskWithProfiles, index: number) {
     const urgency = URGENCY_CONFIG[task.urgency as keyof typeof URGENCY_CONFIG] ?? URGENCY_CONFIG.normal;
     const status = STATUS_CONFIG[task.status];
     const StatusIcon = status.icon;
     const isExpanded = expandedId === task.id;
+    const isHighlighted = task.is_priority && task.status !== "completed";
+
+    const meta = (
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-stone-200 pt-2">
+        <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${urgency.color}`}>
+          {urgency.label}
+        </span>
+        {task.assignee?.display_name && (
+          <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">
+            {task.assignee.display_name}
+          </span>
+        )}
+        {task.due_date && (
+          <span className="text-xs font-medium text-red-700">עד {formatDate(task.due_date)}</span>
+        )}
+        <span className="text-[11px] text-muted-foreground/70">
+          נוצר {formatDate(task.created_at)}
+          {task.creator?.display_name && ` ע״י ${task.creator.display_name}`}
+        </span>
+      </div>
+    );
 
     return (
       <div
         key={task.id}
-        className={`overflow-hidden rounded-2xl border bg-background shadow-sm transition-colors ${
-          task.is_priority && task.status !== "completed"
-            ? "border-amber-400 ring-2 ring-amber-300"
-            : "border-border"
+        className={`border-b-4 border-stone-300 last:border-b-0 ${
+          isHighlighted ? "border-s-8 border-s-amber-400" : "border-s-8 border-s-transparent"
         } ${task.status === "completed" ? "opacity-60" : ""}`}
       >
-        {/* Top bar: priority, status, meta, actions */}
-        <div
-          className={`flex flex-wrap items-center gap-2 border-b px-4 py-2.5 ${
-            task.is_priority && task.status !== "completed"
-              ? "border-amber-200 bg-amber-50"
-              : "border-border/60 bg-muted/20"
-          }`}
-        >
-          <button
-            onClick={() => handleFieldUpdate(task.id, "is_priority", task.is_priority ? "false" : "true")}
-            disabled={isPending}
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold transition-colors disabled:opacity-50 ${
-              task.is_priority
-                ? "border-amber-400 bg-amber-400 text-white hover:bg-amber-500"
-                : "border-border bg-white text-muted-foreground hover:border-amber-300 hover:text-amber-600"
+        <div className={`grid grid-cols-1 ${GRID_COLS}`}>
+          {/* Controls column */}
+          <div
+            className={`flex items-center gap-1.5 p-3 md:flex-col md:items-center md:justify-start ${
+              isHighlighted ? "bg-amber-50" : "bg-stone-50"
             }`}
-            title={task.is_priority ? "הסר עדיפות" : "סמן בעדיפות"}
           >
-            <Star size={14} fill={task.is_priority ? "currentColor" : "none"} />
-            {task.is_priority ? "בעדיפות" : "עדיפות"}
-          </button>
-
-          <button
-            onClick={() => {
-              const nextStatus =
-                task.status === "pending"
-                  ? "in_progress"
-                  : task.status === "in_progress"
-                    ? "completed"
-                    : "pending";
-              handleStatusChange(task.id, nextStatus);
-            }}
-            disabled={isPending}
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-50 ${status.color}`}
-            title="לחץ לשינוי מצב"
-          >
-            <StatusIcon size={14} />
-            {status.label}
-          </button>
-
-          <span className={`rounded-lg border px-2 py-1 text-xs font-medium ${urgency.color}`}>
-            {urgency.label}
-          </span>
-
-          {task.assignee?.display_name && (
-            <span className="text-xs font-medium text-foreground/80">{task.assignee.display_name}</span>
-          )}
-          {task.due_date && (
-            <span className="text-xs text-muted-foreground">עד {formatDate(task.due_date)}</span>
-          )}
-          <span className="text-xs text-muted-foreground/60">
-            נוצר {formatDate(task.created_at)}
-            {task.creator?.display_name && ` ע״י ${task.creator.display_name}`}
-          </span>
-
-          <div className="mr-auto flex items-center gap-1">
+            <span className="text-lg font-extrabold text-stone-500">{index + 1}</span>
             <button
-              onClick={() => setExpandedId(isExpanded ? null : task.id)}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title={isExpanded ? "סגור" : "עריכה מהירה"}
-            >
-              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            <button
-              onClick={() => handleDelete(task.id)}
+              onClick={() => handleFieldUpdate(task.id, "is_priority", task.is_priority ? "false" : "true")}
               disabled={isPending}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-              title="מחק"
+              className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
+                task.is_priority
+                  ? "border-amber-400 bg-amber-400 text-white hover:bg-amber-500"
+                  : "border-stone-300 bg-white text-stone-400 hover:border-amber-400 hover:text-amber-500"
+              }`}
+              title={task.is_priority ? "הסר עדיפות" : "סמן בעדיפות"}
             >
-              <Trash2 size={14} />
+              <Star size={18} fill={task.is_priority ? "currentColor" : "none"} />
             </button>
+            <button
+              onClick={() => {
+                const nextStatus =
+                  task.status === "pending"
+                    ? "in_progress"
+                    : task.status === "in_progress"
+                      ? "completed"
+                      : "pending";
+                handleStatusChange(task.id, nextStatus);
+              }}
+              disabled={isPending}
+              className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors hover:opacity-80 disabled:opacity-50 ${status.color}`}
+              title={`מצב: ${status.label} (לחץ לשנות)`}
+            >
+              <StatusIcon size={18} />
+            </button>
+            <div className="ms-auto flex items-center gap-0.5 md:ms-0 md:mt-auto md:flex-col">
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : task.id)}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title={isExpanded ? "סגור" : "עריכה מהירה"}
+              >
+                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              <button
+                onClick={() => handleDelete(task.id)}
+                disabled={isPending}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                title="מחק"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Three clear blocks: task / status / next action */}
-        <div className="grid gap-3 p-4 md:grid-cols-[1fr_1.4fr_1fr]">
-          {renderField(task, "description")}
+          {renderField(task, "description", meta)}
           {renderField(task, "status_note")}
           {renderField(task, "next_action")}
         </div>
@@ -608,25 +628,43 @@ export function TaskManager({ tasks, admins }: TaskManagerProps) {
           <p>אין משימות להצגה</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="overflow-hidden rounded-2xl border-2 border-stone-300 bg-background shadow-sm">
+          {/* Table header (desktop) */}
+          <div className={`hidden md:grid ${GRID_COLS}`}>
+            <div className="bg-stone-800" />
+            {FIELDS.map((field) => {
+              const cfg = FIELD_CONFIG[field];
+              const Icon = cfg.icon;
+              return (
+                <div
+                  key={field}
+                  className={`flex items-center gap-2 border-r-2 border-white/30 px-4 py-3 text-base font-extrabold ${cfg.head}`}
+                >
+                  <Icon size={18} strokeWidth={2.5} />
+                  {cfg.label}
+                </div>
+              );
+            })}
+          </div>
+
           {priorityTasks.length > 0 && (
-            <section className="space-y-3">
-              <h4 className="flex items-center gap-2 text-base font-extrabold text-amber-700">
+            <>
+              <div className="flex items-center gap-2 border-b-2 border-amber-300 bg-amber-100 px-4 py-2 text-base font-extrabold text-amber-800">
                 <Star size={18} fill="currentColor" />
                 בעדיפות ({priorityTasks.length})
-              </h4>
-              {priorityTasks.map(renderTask)}
-            </section>
+              </div>
+              {priorityTasks.map((t, i) => renderTask(t, i))}
+            </>
           )}
           {otherTasks.length > 0 && (
-            <section className="space-y-3">
+            <>
               {priorityTasks.length > 0 && (
-                <h4 className="text-base font-bold text-muted-foreground">
+                <div className="border-y-2 border-stone-300 bg-stone-100 px-4 py-2 text-base font-bold text-stone-600">
                   שאר המשימות ({otherTasks.length})
-                </h4>
+                </div>
               )}
-              {otherTasks.map(renderTask)}
-            </section>
+              {otherTasks.map((t, i) => renderTask(t, priorityTasks.length + i))}
+            </>
           )}
         </div>
       )}
