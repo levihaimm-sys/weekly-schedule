@@ -59,6 +59,7 @@ Always respond in Hebrew, unless I explicitly ask otherwise.
 ## PowerShell
 - הסביבה היא Windows + PowerShell. בכל פקודה שאני מריץ, נתיב עם סוגריים או רווחים נכתב בתוך מרכאות, למשל `git add "src/app/(dashboard)/schedule/page.tsx"`.
 - בלי `&&` ובלי תחביר bash בפקודות שאתה נותן לי.
+- כשיש כמה פקודות שרצות ברצף, כתוב את כולן בבלוק קוד אחד (שורה לכל פקודה), כדי שאוכל להעתיק ולהדביק בבת אחת.
 
 ## Tech Stack
 - **Framework**: Next.js 16 (App Router) with React 19
