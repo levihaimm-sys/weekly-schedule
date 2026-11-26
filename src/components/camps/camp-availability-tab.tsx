@@ -30,9 +30,15 @@ interface Props {
 }
 
 /** Placement on the camp board (לוח שיבוץ) for one instructor on one day */
+interface BoardPlacement {
+  client: string;
+  area: string;
+  time: string | null;
+  activity: string | null;
+}
 interface BoardMark {
-  confirmed: string[]; // clients where the placement is approved
-  candidate: string[]; // clients where they're placed but not approved yet
+  confirmed: BoardPlacement[]; // placement is approved
+  candidate: BoardPlacement[]; // placed but not approved yet
 }
 
 const normName = (s: string) => s.trim().replace(/\s+/g, " ");
@@ -50,7 +56,12 @@ export function CampAvailabilityTab({ session, availability, assignments, reques
     const nameById = new Map(instructors.map((i) => [i.id, normName(i.full_name)]));
     const map = new Map<string, BoardMark>();
     for (const r of requests) {
-      const label = r.client_name?.trim() || r.area;
+      const label: BoardPlacement = {
+        client: r.client_name?.trim() || r.area,
+        area: r.area,
+        time: r.start_time_note,
+        activity: r.activity_type,
+      };
       for (const c of r.candidates) {
         const name = nameById.get(c.instructor_id);
         if (!name) continue;
@@ -333,7 +344,7 @@ export function CampAvailabilityTab({ session, availability, assignments, reques
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-background">
+      <div className="max-h-[calc(100vh-220px)] overflow-auto rounded-xl border border-border bg-background">
         <table className="w-full min-w-[700px] table-fixed text-sm">
           <colgroup>
             <col className="w-[100px]" />
@@ -342,7 +353,7 @@ export function CampAvailabilityTab({ session, availability, assignments, reques
             {campDates.map((d) => <col key={d} className="w-12" />)}
             <col className="w-7" />
           </colgroup>
-          <thead>
+          <thead className="sticky top-0 z-20 bg-background shadow-[0_1px_0_var(--color-border)]">
             <tr className="border-b border-border bg-muted/40 text-right text-xs font-medium text-muted-foreground">
               <th className="px-2 py-2">מדריך/ה</th>
               <th className="px-2 py-2">אזור</th>
@@ -493,6 +504,49 @@ function InlineEditableCell({
   );
 }
 
+/** Hover card: where this instructor is placed / a candidate on that day */
+function PlacementPopup({ mark, rect }: { mark: BoardMark; rect: DOMRect }) {
+  const rows = [
+    ...mark.confirmed.map((p) => ({ p, confirmed: true })),
+    ...mark.candidate.map((p) => ({ p, confirmed: false })),
+  ];
+  // fixed so the scrolling table doesn't clip it; flip below when near the top
+  const below = rect.top < 160;
+  return (
+    <div
+      style={{
+        left: rect.left + rect.width / 2,
+        top: below ? rect.bottom + 6 : rect.top - 6,
+        transform: `translate(-50%, ${below ? "0" : "-100%"})`,
+      }}
+      className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-border bg-background p-2 text-right text-xs shadow-lg"
+    >
+      <div className="space-y-1.5">
+        {rows.map(({ p, confirmed }, i) => (
+          <div key={i} className="flex items-start gap-1.5">
+            <span
+              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded text-white ${
+                confirmed ? "bg-slate-700" : "bg-purple-500"
+              }`}
+            >
+              {confirmed ? <Lock size={10} /> : <Hourglass size={10} />}
+            </span>
+            <div>
+              <div className="font-semibold text-foreground">{p.client}</div>
+              <div className="text-muted-foreground">
+                {[p.area, p.time, p.activity].filter(Boolean).join(" · ")}
+              </div>
+              <div className={confirmed ? "text-slate-700" : "text-purple-600"}>
+                {confirmed ? "משובץ – מאושר" : "מועמד – ממתין לאישור"}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DayCell({
   slots,
   boardMark,
@@ -506,6 +560,7 @@ function DayCell({
   onQuickAdd: () => void;
   isArchived: boolean;
 }) {
+  const [hoverRect, setHoverRect] = useState<DOMRect | null>(null);
   return (
     <div className="flex min-h-[32px] flex-wrap items-center justify-center gap-1">
       {slots.length === 0 ? (
@@ -522,15 +577,17 @@ function DayCell({
         slots.map((s) => {
           const isTaken = (boardMark?.confirmed.length ?? 0) > 0;
           const isCandidate = !isTaken && (boardMark?.candidate.length ?? 0) > 0;
-          const title = isTaken
-            ? `תפוס – שיבוץ מאושר: ${boardMark!.confirmed.join(", ")}`
-            : isCandidate
-              ? `מועמד – ממתין לאישור: ${boardMark!.candidate.join(", ")}`
-              : s.notes || undefined;
+          const hasBoard = isTaken || isCandidate;
           return (
-          <span key={s.id} className="group/mark relative inline-flex">
+          <span
+            key={s.id}
+            className="group/mark relative inline-flex"
+            onMouseEnter={hasBoard ? (e) => setHoverRect(e.currentTarget.getBoundingClientRect()) : undefined}
+            onMouseLeave={hasBoard ? () => setHoverRect(null) : undefined}
+          >
+            {hasBoard && hoverRect && <PlacementPopup mark={boardMark!} rect={hoverRect} />}
             <span
-              title={title}
+              title={hasBoard ? undefined : s.notes || undefined}
               className={`flex h-6 w-6 items-center justify-center rounded-md text-white transition-colors ${
                 isTaken
                   ? "bg-slate-700"
