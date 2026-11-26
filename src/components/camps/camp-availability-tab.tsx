@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
-import { Plus, Loader2, Check, X, Search, Trash2, Hourglass, Lock } from "lucide-react";
+import { Plus, Loader2, Check, X, Search, Trash2, Hourglass, Lock, Pencil, Copy, MessageCircle } from "lucide-react";
 import {
   addCampAvailability,
   deleteCampAvailability,
@@ -25,7 +25,7 @@ interface Props {
   availability: CampStaffingAvailability[];
   assignments: CampStaffingAssignment[];
   requests: CampRequestWithCandidates[];
-  instructors: Pick<Instructor, "id" | "full_name">[];
+  instructors: Pick<Instructor, "id" | "full_name" | "phone">[];
   isArchived: boolean;
 }
 
@@ -42,6 +42,43 @@ interface BoardMark {
 }
 
 const normName = (s: string) => s.trim().replace(/\s+/g, " ");
+
+interface MessagePlacement {
+  date: string;
+  city: string;
+  time: string | null;
+  confirmed: boolean;
+}
+
+/** One line per date + city + start time; each board placement = one lesson */
+function buildMessage(name: string, placements: MessagePlacement[]) {
+  const groups = new Map<string, MessagePlacement & { count: number; pending: boolean }>();
+  for (const p of placements) {
+    const key = `${p.date}||${p.city.trim()}||${(p.time ?? "").trim()}`;
+    const g = groups.get(key);
+    if (g) {
+      g.count += 1;
+      if (!p.confirmed) g.pending = true;
+    } else {
+      groups.set(key, { ...p, count: 1, pending: !p.confirmed });
+    }
+  }
+  const lines = Array.from(groups.values())
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""))
+    .map((g) => {
+      const d = parseISO(g.date);
+      const parts = [
+        `${format(d, "EEEE", { locale: he })} ${format(d, "d/M")}`,
+        g.city.trim(),
+        g.time?.trim() || "שעה תעודכן",
+        `${g.count} ${g.count === 1 ? "שיעור" : "שיעורים"}`,
+      ];
+      return `• ${parts.join(", ")}${g.pending ? " (ממתין לאישור)" : ""}`;
+    });
+  const first = name.trim().split(/\s+/)[0] || name;
+  if (lines.length === 0) return `היי ${first}, כרגע אין לך שיבוצים לקייטנה.`;
+  return `היי ${first}, אלו השיבוצים שלך לקייטנה:\n\n${lines.join("\n")}`;
+}
 
 const STATUS_LABEL: Record<string, string> = {
   available: "פנוי",
@@ -73,6 +110,29 @@ export function CampAvailabilityTab({ session, availability, assignments, reques
     }
     return map;
   }, [requests, instructors]);
+
+  // name -> all camp-board placements (for the WhatsApp message)
+  const placementsByName = useMemo(() => {
+    const nameById = new Map(instructors.map((i) => [i.id, normName(i.full_name)]));
+    const map = new Map<string, MessagePlacement[]>();
+    for (const r of requests) {
+      for (const c of r.candidates) {
+        const name = nameById.get(c.instructor_id);
+        if (!name) continue;
+        const list = map.get(name) ?? [];
+        list.push({ date: r.camp_date, city: r.area, time: r.start_time_note, confirmed: c.is_confirmed });
+        map.set(name, list);
+      }
+    }
+    return map;
+  }, [requests, instructors]);
+
+  const phoneByName = useMemo(
+    () => new Map(instructors.map((i) => [normName(i.full_name), i.phone])),
+    [instructors]
+  );
+
+  const [messageFor, setMessageFor] = useState<string | null>(null);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -388,10 +448,11 @@ export function CampAvailabilityTab({ session, availability, assignments, reques
                 return (
                   <tr key={key} className="group">
                     <td className="px-1.5 py-1.5 align-top">
-                      <InlineEditableCell
+                      <NameCell
                         value={r.name}
+                        onOpenMessage={() => setMessageFor(r.name)}
                         onSave={(v) => saveRowField(slotIds, "instructor_name", v)}
-                        className="font-medium"
+                        disabled={isArchived}
                       />
                     </td>
                     <td className="px-1.5 py-1.5 align-top">
@@ -459,6 +520,151 @@ export function CampAvailabilityTab({ session, availability, assignments, reques
             )}
           </tbody>
         </table>
+      </div>
+
+      {messageFor && (
+        <MessageModal
+          name={messageFor}
+          phone={phoneByName.get(normName(messageFor)) ?? null}
+          text={buildMessage(messageFor, placementsByName.get(normName(messageFor)) ?? [])}
+          onClose={() => setMessageFor(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Instructor name: click opens the WhatsApp message, pencil edits the name */
+function NameCell({
+  value,
+  onOpenMessage,
+  onSave,
+  disabled,
+}: {
+  value: string;
+  onOpenMessage: () => void;
+  onSave: (value: string) => Promise<void> | void;
+  disabled: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [isPending, setIsPending] = useState(false);
+
+  useEffect(() => { setDraft(value); }, [value]);
+
+  async function commit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === value.trim()) { setDraft(value); return; }
+    setIsPending(true);
+    await onSave(trimmed);
+    setIsPending(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className="w-full rounded-md border border-primary bg-background px-1.5 py-1 text-sm font-medium outline-none"
+      />
+    );
+  }
+
+  return (
+    <div className="group/name flex items-center gap-0.5">
+      <button
+        onClick={onOpenMessage}
+        title="הודעת וואטסאפ עם השיבוצים"
+        className="min-w-0 truncate rounded-md px-1.5 py-1 text-right text-sm font-medium hover:bg-muted hover:text-primary"
+      >
+        {isPending ? <Loader2 size={12} className="inline animate-spin" /> : value}
+      </button>
+      {!disabled && (
+        <button
+          onClick={() => setEditing(true)}
+          title="עריכת שם"
+          className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/name:opacity-100"
+        >
+          <Pencil size={11} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MessageModal({
+  name,
+  phone,
+  text,
+  onClose,
+}: {
+  name: string;
+  phone: string | null;
+  text: string;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(text);
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — text is still selectable */
+    }
+  }
+
+  const digits = (phone ?? "").replace(/\D/g, "");
+  const intl = digits.startsWith("0") ? `972${digits.slice(1)}` : digits;
+  const waHref = intl ? `https://wa.me/${intl}?text=${encodeURIComponent(value)}` : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-background p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-medium">הודעה ל{name}</h3>
+          <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          rows={Math.min(14, value.split("\n").length + 2)}
+          className="w-full rounded-lg border border-border bg-muted/30 p-3 text-sm leading-relaxed"
+        />
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={copy}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? "הועתק" : "העתק"}
+          </button>
+          {waHref && (
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-100"
+            >
+              <MessageCircle size={14} />
+              פתח בוואטסאפ
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
