@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
-import { Plus, Loader2, Check, X, Search, Trash2 } from "lucide-react";
+import { Plus, Loader2, Check, X, Search, Trash2, Hourglass, Lock } from "lucide-react";
 import {
   addCampAvailability,
   deleteCampAvailability,
@@ -12,22 +12,56 @@ import {
 } from "@/lib/actions/camp-staffing";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import type { CampStaffingAvailability, CampStaffingAssignment, CampSession } from "@/types/database";
+import type {
+  CampStaffingAvailability,
+  CampStaffingAssignment,
+  CampSession,
+  CampRequestWithCandidates,
+  Instructor,
+} from "@/types/database";
 
 interface Props {
   session: CampSession;
   availability: CampStaffingAvailability[];
   assignments: CampStaffingAssignment[];
+  requests: CampRequestWithCandidates[];
+  instructors: Pick<Instructor, "id" | "full_name">[];
   isArchived: boolean;
 }
+
+/** Placement on the camp board (לוח שיבוץ) for one instructor on one day */
+interface BoardMark {
+  confirmed: string[]; // clients where the placement is approved
+  candidate: string[]; // clients where they're placed but not approved yet
+}
+
+const normName = (s: string) => s.trim().replace(/\s+/g, " ");
 
 const STATUS_LABEL: Record<string, string> = {
   available: "פנוי",
   assigned: "משובץ",
 };
 
-export function CampAvailabilityTab({ session, availability, assignments, isArchived }: Props) {
+export function CampAvailabilityTab({ session, availability, assignments, requests, instructors, isArchived }: Props) {
   const router = useRouter();
+
+  // "name||date" -> where this instructor is placed on the camp board that day
+  const boardMarks = useMemo(() => {
+    const nameById = new Map(instructors.map((i) => [i.id, normName(i.full_name)]));
+    const map = new Map<string, BoardMark>();
+    for (const r of requests) {
+      const label = r.client_name?.trim() || r.area;
+      for (const c of r.candidates) {
+        const name = nameById.get(c.instructor_id);
+        if (!name) continue;
+        const key = `${name}||${r.camp_date}`;
+        const mark = map.get(key) ?? { confirmed: [], candidate: [] };
+        (c.is_confirmed ? mark.confirmed : mark.candidate).push(label);
+        map.set(key, mark);
+      }
+    }
+    return map;
+  }, [requests, instructors]);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -370,6 +404,7 @@ export function CampAvailabilityTab({ session, availability, assignments, isArch
                         <td key={date} className="p-1 align-top">
                           <DayCell
                             slots={daySlots}
+                            boardMark={boardMarks.get(`${normName(r.name)}||${date}`)}
                             onDelete={handleDelete}
                             onQuickAdd={() => handleQuickAdd(r, date)}
                             isArchived={isArchived}
@@ -460,11 +495,13 @@ function InlineEditableCell({
 
 function DayCell({
   slots,
+  boardMark,
   onDelete,
   onQuickAdd,
   isArchived,
 }: {
   slots: CampStaffingAvailability[];
+  boardMark?: BoardMark;
   onDelete: (id: string) => void;
   onQuickAdd: () => void;
   isArchived: boolean;
@@ -482,15 +519,33 @@ function DayCell({
           </button>
         )
       ) : (
-        slots.map((s) => (
+        slots.map((s) => {
+          const isTaken = (boardMark?.confirmed.length ?? 0) > 0;
+          const isCandidate = !isTaken && (boardMark?.candidate.length ?? 0) > 0;
+          const title = isTaken
+            ? `תפוס – שיבוץ מאושר: ${boardMark!.confirmed.join(", ")}`
+            : isCandidate
+              ? `מועמד – ממתין לאישור: ${boardMark!.candidate.join(", ")}`
+              : s.notes || undefined;
+          return (
           <span key={s.id} className="group/mark relative inline-flex">
             <span
-              title={s.notes || undefined}
+              title={title}
               className={`flex h-6 w-6 items-center justify-center rounded-md text-white transition-colors ${
-                s.status === "assigned" ? "bg-purple-500" : "bg-green-400"
+                isTaken
+                  ? "bg-slate-700"
+                  : isCandidate || s.status === "assigned"
+                    ? "bg-purple-500"
+                    : "bg-green-400"
               }`}
             >
-              <Check size={14} strokeWidth={3} />
+              {isTaken ? (
+                <Lock size={13} strokeWidth={2.5} />
+              ) : isCandidate ? (
+                <Hourglass size={13} strokeWidth={2.5} />
+              ) : (
+                <Check size={14} strokeWidth={3} />
+              )}
             </span>
             {!isArchived && (
               <button
@@ -502,7 +557,8 @@ function DayCell({
               </button>
             )}
           </span>
-        ))
+          );
+        })
       )}
     </div>
   );

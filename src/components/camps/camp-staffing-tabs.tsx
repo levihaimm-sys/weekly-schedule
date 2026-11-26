@@ -114,6 +114,8 @@ export function CampStaffingTabs({
           session={session}
           availability={availability}
           assignments={assignments}
+          requests={requests}
+          instructors={instructors}
           isArchived={isArchived}
         />
       )}
