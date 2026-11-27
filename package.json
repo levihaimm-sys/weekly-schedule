@@ -15,6 +15,7 @@
     "perfect:all-lessons": "node scripts/perfect-style-all-lessons.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@fontsource/heebo": "^5.2.8",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.8.0",
@@ -27,7 +28,9 @@
     "dotenv": "^17.3.1",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.624",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-pdf": "^10.3.0",
@@ -37,6 +40,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-signature-canvas": "^1.0.7",

@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = ["/login", "/instructor-login", "/auth/callback", "/client-portal"];
+const LOGIN_NEXT_COOKIE = "login_next"; // keep in sync with lib/actions/auth.ts
+const PUBLIC_ROUTES =["/login", "/instructor-login", "/auth/callback", "/client-portal"];
 const ADMIN_ROUTES = ["/dashboard", "/schedule", "/instructors", "/locations", "/reports", "/settings", "/tasks"];
 const INSTRUCTOR_ROUTES = ["/today", "/my-schedule", "/confirm-lessons", "/sign", "/profile"];
 
@@ -45,9 +46,20 @@ export async function middleware(request: NextRequest) {
       request.cookies.has("remember_instructor") ||
       (!request.cookies.has("admin_device") &&
         (pathname === "/" || INSTRUCTOR_ROUTES.some((route) => pathname.startsWith(route))));
-    return NextResponse.redirect(
+    const loginRedirect = NextResponse.redirect(
       new URL(isInstructorEntry ? "/instructor-login" : "/login", request.url)
     );
+    // Remember where an admin was going (e.g. a saved /bot link on the phone),
+    // so the login lands there instead of the dashboard.
+    if (!isInstructorEntry && pathname !== "/") {
+      loginRedirect.cookies.set(LOGIN_NEXT_COOKIE, pathname + request.nextUrl.search, {
+        maxAge: 60 * 15,
+        path: "/",
+        sameSite: "lax",
+        httpOnly: true,
+      });
+    }
+    return loginRedirect;
   }
 
   if (pathname === "/") {

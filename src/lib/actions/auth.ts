@@ -11,6 +11,7 @@ import { cookies } from "next/headers";
 // ("use server" files may only export async functions — keep in sync with instructor-login/page.tsx)
 const REMEMBER_COOKIE = "remember_instructor";
 const ADMIN_DEVICE_COOKIE = "admin_device"; // keep in sync with middleware.ts
+const LOGIN_NEXT_COOKIE = "login_next"; // keep in sync with middleware.ts
 const REMEMBER_MAX_AGE = 60 * 60 * 24 * 400; // ~400 days (browser max)
 
 export async function loginWithPassword(formData: FormData) {
@@ -38,7 +39,10 @@ export async function loginWithPassword(formData: FormData) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
-  redirect("/dashboard");
+  // Back to the page the admin was going to (set by middleware), if any.
+  const next = cookieStore.get(LOGIN_NEXT_COOKIE)?.value;
+  cookieStore.delete(LOGIN_NEXT_COOKIE);
+  redirect(next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/dashboard");
 }
 
 export async function sendMagicLink(formData: FormData) {

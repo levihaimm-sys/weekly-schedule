@@ -67,6 +67,10 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  /* WhatsApp bot pages (/bot) */
+  --color-sub: var(--sub);
+  --color-line: var(--line);
+  --color-accent-soft: var(--accent-soft);
 
   /* Typography */
   --font-sans: var(--font-heebo);
@@ -209,4 +213,32 @@ body {
   main {
     padding: 1rem !important;
   }
+}
+
+/* WhatsApp bot pages (/bot). The bot's pages use their own color names
+   (muted = gray text, sub = soft panel, line = borders, accent = the world's
+   color). Inside .wa they map onto this app's palette, one accent per world. */
+:root {
+  --sub: #FCFBF9;
+  --line: #E8E4DF;
+  --accent-soft: #EEF3EA;
+}
+.wa {
+  --background: #FFFFFF;
+  --foreground: #3a3530;
+  --card: #FFFFFF;
+  --sub: #FCFBF9;
+  --line: #E8E4DF;
+  --muted: #7D7468;
+  --accent: #3F5C3F;
+  --accent-soft: #EEF3EA;
+}
+.wa[data-space="business"],
+.wa [data-space="business"] {
+  --accent: #A85A22;
+  --accent-soft: #FBEFE4;
+}
+.wa [data-space="personal"] {
+  --accent: #3F5C3F;
+  --accent-soft: #EEF3EA;
 }

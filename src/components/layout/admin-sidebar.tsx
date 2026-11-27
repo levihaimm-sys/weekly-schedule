@@ -27,9 +27,29 @@ import {
   FlaskConical,
   Receipt,
   MessageCircle,
+  Sun,
+  Layers,
+  Sparkles,
+  MessagesSquare,
+  Lightbulb,
+  SlidersHorizontal,
+  Plug,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
+import { NAV as BOT_NAV, NAV_EXTRA as BOT_NAV_EXTRA, type BotSpace } from "@/bot/lib/nav";
+
+const BOT_ICONS: Record<string, typeof ClipboardList> = {
+  sun: Sun,
+  topics: Layers,
+  ask: Sparkles,
+  chats: MessagesSquare,
+  learn: Lightbulb,
+  prefs: SlidersHorizontal,
+  plug: Plug,
+  list: List,
+};
 
 type NavItem = { href: string; label: string; icon: typeof ClipboardList };
 type NavSection = { title: string | null; items: NavItem[] };
@@ -83,9 +103,12 @@ const NAV_SECTIONS: NavSection[] = [
 export function AdminSidebar({
   isOwner = false,
   canViewPayroll = false,
+  botSpace = null,
 }: {
   isOwner?: boolean;
   canViewPayroll?: boolean;
+  /** WhatsApp bot world this user is in, or null when they may not see the bot. */
+  botSpace?: BotSpace | null;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -112,6 +135,22 @@ export function AdminSidebar({
           },
         ]
       : NAV_SECTIONS;
+
+  // WhatsApp bot (/bot): only for users with bot access, right under the dashboard.
+  const allSections: NavSection[] = botSpace
+    ? [
+        navSections[0],
+        {
+          title: botSpace === "business" ? "וואטסאפ · עמותה" : "וואטסאפ · פרטי",
+          items: [...BOT_NAV[botSpace], ...BOT_NAV_EXTRA].map((i) => ({
+            href: i.href,
+            label: i.label,
+            icon: BOT_ICONS[i.icon] ?? MessageCircle,
+          })),
+        },
+        ...navSections.slice(1),
+      ]
+    : navSections;
 
   return (
     <>
@@ -159,7 +198,7 @@ export function AdminSidebar({
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-          {navSections.map((section) => (
+          {allSections.map((section) => (
             <div key={section.title ?? "root"} className="space-y-1">
               {section.title && (
                 <div className="rounded-md border-s-4 border-primary bg-primary/15 px-3 py-1.5 text-sm font-bold tracking-wide text-[#3F5C3F]">
@@ -168,7 +207,9 @@ export function AdminSidebar({
               )}
               {section.items.map((item) => {
                 const isActive =
-                  item.href === "/schedule"
+                  item.href === "/bot"
+                    ? pathname === "/bot"
+                    : item.href === "/schedule"
                     ? pathname === "/schedule"
                     : item.href === "/lesson-plans"
                       ? pathname === "/lesson-plans" ||
