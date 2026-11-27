@@ -12,6 +12,7 @@ import {
   removeRequestCandidate,
   setCampRequestActivity,
 } from "@/lib/actions/camps";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import type { CampRequestWithCandidates, CampStaffingAvailability, Instructor } from "@/types/database";
 
 interface Props {
@@ -22,6 +23,44 @@ interface Props {
 }
 
 type CellState = "ok" | "mid" | "bad";
+
+type FilterKey = "all" | "no_instructor" | "missing" | "unconfirmed" | "full";
+
+const confirmedCount = (r: CampRequestWithCandidates) => r.candidates.filter((c) => c.is_confirmed).length;
+
+/** Each filter: does the tile match, and how many lessons it contributes to the count */
+const FILTERS: {
+  key: FilterKey;
+  label: string;
+  match: (r: CampRequestWithCandidates) => boolean;
+  lessons: (r: CampRequestWithCandidates) => number;
+}[] = [
+  { key: "all", label: "כל השיעורים", match: () => true, lessons: (r) => r.num_groups },
+  {
+    key: "no_instructor",
+    label: "ללא מדריך בכלל",
+    match: (r) => r.candidates.length === 0,
+    lessons: (r) => r.num_groups,
+  },
+  {
+    key: "missing",
+    label: "חסרים מדריכים",
+    match: (r) => r.candidates.length < r.num_groups,
+    lessons: (r) => r.num_groups - r.candidates.length,
+  },
+  {
+    key: "unconfirmed",
+    label: "ללא מדריך מאושר",
+    match: (r) => confirmedCount(r) < r.num_groups,
+    lessons: (r) => r.num_groups - confirmedCount(r),
+  },
+  {
+    key: "full",
+    label: "מאוישים ומאושרים",
+    match: (r) => confirmedCount(r) >= r.num_groups,
+    lessons: (r) => r.num_groups,
+  },
+];
 
 const CELL_CLASS: Record<CellState, string> = {
   ok: "border-green-200 bg-green-50 text-green-800",
@@ -77,6 +116,8 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = usePersistedState<FilterKey>("camp-board-filter", "all");
+  const activeFilter = FILTERS.find((f) => f.key === filter) ?? FILTERS[0];
 
   const instructorById = useMemo(() => new Map(instructors.map((i) => [i.id, i])), [instructors]);
   const instructorIdByName = useMemo(
@@ -86,16 +127,32 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
 
   const dates = useMemo(() => Array.from(new Set(requests.map((r) => r.camp_date))).sort(), [requests]);
 
+  const visibleRequests = useMemo(
+    () => requests.filter((r) => activeFilter.match(r)),
+    [requests, activeFilter]
+  );
+
+  const filterCounts = useMemo(
+    () =>
+      new Map(
+        FILTERS.map((f) => [
+          f.key,
+          requests.filter((r) => f.match(r)).reduce((s, r) => s + f.lessons(r), 0),
+        ])
+      ),
+    [requests]
+  );
+
   const rows = useMemo(() => {
     const map = new Map<string, Row>();
-    for (const r of requests) {
+    for (const r of visibleRequests) {
       const key = rowKeyOf(r);
       if (!map.has(key)) map.set(key, { key, area: norm(r.area), client: norm(r.client_name ?? "") });
     }
     return Array.from(map.values()).sort(
       (a, b) => a.area.localeCompare(b.area, "he") || a.client.localeCompare(b.client, "he")
     );
-  }, [requests]);
+  }, [visibleRequests]);
 
   // date -> instructorId -> client names already holding them
   const busyByDate = useMemo(() => {
@@ -173,11 +230,34 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
         <span>לחיצה על שם משבצת · ✓ מאשר</span>
       </div>
 
+      <div className="flex flex-wrap gap-1.5">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+              filter === f.key
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            {f.label}
+            <span
+              className={`rounded-full px-1.5 text-xs font-semibold ${
+                filter === f.key ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {filterCounts.get(f.key) ?? 0}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-          אין עדיין בקשות קייטנה
+          {requests.length === 0 ? "אין עדיין בקשות קייטנה" : "אין שיעורים שמתאימים לסינון"}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
@@ -207,7 +287,7 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
                     {row.client && <span className="text-muted-foreground"> ({firstWord(row.client)})</span>}
                   </td>
                   {dates.map((date) => {
-                    const cellReqs = requests
+                    const cellReqs = visibleRequests
                       .filter((r) => rowKeyOf(r) === row.key && r.camp_date === date)
                       .sort((a, b) => (a.start_time_note ?? "").localeCompare(b.start_time_note ?? ""));
                     return (
