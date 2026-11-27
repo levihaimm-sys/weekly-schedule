@@ -24,41 +24,21 @@ interface Props {
 
 type CellState = "ok" | "mid" | "bad";
 
-type FilterKey = "all" | "no_instructor" | "missing" | "unconfirmed" | "full";
+type FilterKey = "all" | "no_instructor" | "unconfirmed" | "confirmed";
 
-const confirmedCount = (r: CampRequestWithCandidates) => r.candidates.filter((c) => c.is_confirmed).length;
-
-/** Each filter: does the tile match, and how many lessons it contributes to the count */
+/** Filters by tile (משבצת); the count is the number of tiles */
 const FILTERS: {
   key: FilterKey;
   label: string;
   match: (r: CampRequestWithCandidates) => boolean;
-  lessons: (r: CampRequestWithCandidates) => number;
 }[] = [
-  { key: "all", label: "כל השיעורים", match: () => true, lessons: (r) => r.num_groups },
+  { key: "all", label: "הכל", match: () => true },
+  { key: "no_instructor", label: "ללא מדריך בכלל", match: (r) => r.candidates.length === 0 },
+  { key: "unconfirmed", label: "מדריך לא מאושר", match: (r) => r.candidates.some((c) => !c.is_confirmed) },
   {
-    key: "no_instructor",
-    label: "ללא מדריך בכלל",
-    match: (r) => r.candidates.length === 0,
-    lessons: (r) => r.num_groups,
-  },
-  {
-    key: "missing",
-    label: "חסרים מדריכים",
-    match: (r) => r.candidates.length < r.num_groups,
-    lessons: (r) => r.num_groups - r.candidates.length,
-  },
-  {
-    key: "unconfirmed",
-    label: "ללא מדריך מאושר",
-    match: (r) => confirmedCount(r) < r.num_groups,
-    lessons: (r) => r.num_groups - confirmedCount(r),
-  },
-  {
-    key: "full",
+    key: "confirmed",
     label: "מאוישים ומאושרים",
-    match: (r) => confirmedCount(r) >= r.num_groups,
-    lessons: (r) => r.num_groups,
+    match: (r) => r.candidates.length > 0 && r.candidates.every((c) => c.is_confirmed),
   },
 ];
 
@@ -117,7 +97,9 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = usePersistedState<FilterKey>("camp-board-filter", "all");
+  // an old saved key from the previous filter set falls back to "all"
   const activeFilter = FILTERS.find((f) => f.key === filter) ?? FILTERS[0];
+  const activeKey = activeFilter.key;
 
   const instructorById = useMemo(() => new Map(instructors.map((i) => [i.id, i])), [instructors]);
   const instructorIdByName = useMemo(
@@ -133,13 +115,7 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
   );
 
   const filterCounts = useMemo(
-    () =>
-      new Map(
-        FILTERS.map((f) => [
-          f.key,
-          requests.filter((r) => f.match(r)).reduce((s, r) => s + f.lessons(r), 0),
-        ])
-      ),
+    () => new Map(FILTERS.map((f) => [f.key, requests.filter((r) => f.match(r)).length])),
     [requests]
   );
 
@@ -236,7 +212,7 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-              filter === f.key
+              activeKey === f.key
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-background hover:bg-muted"
             }`}
@@ -244,7 +220,7 @@ export function CampMatchingBoard({ requests, instructors, availability, isArchi
             {f.label}
             <span
               className={`rounded-full px-1.5 text-xs font-semibold ${
-                filter === f.key ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground"
+                activeKey === f.key ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground"
               }`}
             >
               {filterCounts.get(f.key) ?? 0}
