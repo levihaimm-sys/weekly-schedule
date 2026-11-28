@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
   CalendarClock,
@@ -31,9 +31,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
-import type { BotSpace } from "@/bot/lib/nav";
+import { BOT_SPACE_COOKIE, type BotSpace } from "@/bot/lib/nav";
 
-type NavItem = { href: string; label: string; icon: typeof ClipboardList };
+// active: set by the caller when the path alone cannot tell (WhatsApp worlds).
+type NavItem = { href: string; label: string; icon: typeof ClipboardList; active?: boolean };
 type NavSection = { title: string | null; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
@@ -81,8 +82,6 @@ const OPEN_KEY = "admin-sidebar-open";
 
 function isItemActive(href: string, pathname: string): boolean {
   switch (href) {
-    case "/bot":
-      return pathname === "/bot" || pathname.startsWith("/bot/");
     case "/schedule":
       return pathname === "/schedule";
     case "/lesson-plans":
@@ -113,13 +112,27 @@ export function AdminSidebar({
   isOwner = false,
   canViewPayroll = false,
   botSpace = null,
+  botSpaces = [],
 }: {
   isOwner?: boolean;
   canViewPayroll?: boolean;
-  /** WhatsApp bot world this user is in, or null when they may not see the bot. */
+  /** WhatsApp bot world chosen last (from the server), or null without bot access. */
   botSpace?: BotSpace | null;
+  /** WhatsApp bot worlds this user may see. */
+  botSpaces?: BotSpace[];
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // The layout is not re-rendered when moving between bot pages, so the world
+  // in use comes from the URL (?space=) or the cookie the middleware sets.
+  const [currentBotSpace, setCurrentBotSpace] = useState<BotSpace | null>(botSpace);
+  useEffect(() => {
+    const fromUrl = searchParams.get("space");
+    const fromCookie = document.cookie.match(new RegExp(`(?:^|; )${BOT_SPACE_COOKIE}=([^;]*)`))?.[1];
+    const next = [fromUrl, fromCookie].find((s): s is BotSpace => !!s && botSpaces.includes(s as BotSpace));
+    if (next) setCurrentBotSpace(next);
+  }, [pathname, searchParams, botSpaces]);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navSections: NavSection[] = isOwner
@@ -145,26 +158,30 @@ export function AdminSidebar({
         ]
       : NAV_SECTIONS;
 
-  // WhatsApp bot (/bot): only for users with bot access, one link right under
-  // the dashboard. Its own pages are tabs at the top of the bot screens.
-  const allSections: NavSection[] = botSpace
+  // WhatsApp bot (/bot): a group right under the dashboard, one link per world
+  // the user may see. Each bot page has its own tabs at the top.
+  const onBot = pathname === "/bot" || pathname.startsWith("/bot/");
+  const botLabels: Record<BotSpace, string> = { personal: "וואטסאפ פרטי", business: "וואטסאפ עסקי" };
+  const allSections: NavSection[] = botSpaces.length
     ? [
+        navSections[0],
         {
-          title: null,
-          items: [
-            ...navSections[0].items,
-            {
-              href: "/bot",
-              label: botSpace === "business" ? "וואטסאפ · עמותה" : "וואטסאפ · פרטי",
+          title: "וואטסאפ",
+          items: (["personal", "business"] as BotSpace[])
+            .filter((s) => botSpaces.includes(s))
+            .map((s) => ({
+              href: `/bot?space=${s}`,
+              label: botLabels[s],
               icon: MessageCircle,
-            },
-          ],
+              active: onBot && currentBotSpace === s,
+            })),
         },
         ...navSections.slice(1),
       ]
     : navSections;
 
-  const activeSection = allSections.find((s) => s.title && s.items.some((i) => isItemActive(i.href, pathname)))?.title ?? null;
+  const itemActive = (i: NavItem) => i.active ?? isItemActive(i.href, pathname);
+  const activeSection = allSections.find((s) => s.title && s.items.some(itemActive))?.title ?? null;
 
   // Which groups are open. A group the user never touched is open only when
   // it holds the current page. Remembered per browser.
@@ -257,11 +274,13 @@ export function AdminSidebar({
                 )}
                 {open &&
                   section.items.map((item) => {
-                    const isActive = isItemActive(item.href, pathname);
+                    const isActive = itemActive(item);
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
+                        // A prefetch of /bot?space=... would switch the world without a click.
+                        prefetch={item.active === undefined ? undefined : false}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors",

@@ -2,11 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const LOGIN_NEXT_COOKIE = "login_next"; // keep in sync with lib/actions/auth.ts
-const PUBLIC_ROUTES =["/login", "/instructor-login", "/auth/callback", "/client-portal"];
+const BOT_SPACE_COOKIE = "bot_space"; // keep in sync with bot/lib/nav.ts
+const PUBLIC_ROUTES = ["/login", "/instructor-login", "/auth/callback", "/client-portal"];
 const ADMIN_ROUTES = ["/dashboard", "/schedule", "/instructors", "/locations", "/reports", "/settings", "/tasks"];
 const INSTRUCTOR_ROUTES = ["/today", "/my-schedule", "/confirm-lessons", "/sign", "/profile"];
 
 export async function middleware(request: NextRequest) {
+  // WhatsApp bot: /bot?space=personal|business picks the world in the same
+  // request (no extra redirect). The page itself still checks it is allowed.
+  const botSpace = request.nextUrl.pathname.startsWith("/bot")
+    ? request.nextUrl.searchParams.get("space")
+    : null;
+  const isPrefetch = request.headers.has("next-router-prefetch") || request.headers.get("purpose") === "prefetch";
+  const switchBotSpace = !isPrefetch && (botSpace === "personal" || botSpace === "business");
+  if (switchBotSpace) request.cookies.set(BOT_SPACE_COOKIE, botSpace);
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -68,6 +78,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(home, request.url));
   }
 
+  if (switchBotSpace) {
+    // Readable by the sidebar so it can mark the current world.
+    supabaseResponse.cookies.set(BOT_SPACE_COOKIE, botSpace, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
+  }
   return supabaseResponse;
 }
 

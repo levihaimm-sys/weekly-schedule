@@ -1,6 +1,6 @@
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { AdminTopbar } from "@/components/layout/admin-topbar";
-import { createClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/queries/me";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { BOT_SPACE_COOKIE, type BotSpace } from "@/bot/lib/nav";
@@ -10,18 +10,11 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Shared with the WhatsApp bot pages (one profile query per request).
+  const me = await getMe();
+  const profile = me?.profile;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, is_owner, can_view_payroll, wa_accounts")
-    .eq("id", session?.user?.id ?? "")
-    .single();
-
-  if (!session) redirect("/login");
+  if (!me) redirect("/login");
   if (profile?.role !== "admin") redirect("/today");
 
   // WhatsApp bot section: the world chosen on the bot pages, if allowed.
@@ -37,6 +30,7 @@ export default async function DashboardLayout({
         isOwner={!!profile?.is_owner}
         canViewPayroll={!!profile?.can_view_payroll}
         botSpace={botSpace}
+        botSpaces={botAllowed}
       />
       <div className="md:ps-64">
         <AdminTopbar />

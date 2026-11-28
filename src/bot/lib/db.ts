@@ -1,7 +1,7 @@
 import { createClient as createSupabase } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { createClient as createWsClient } from "@/lib/supabase/server";
+import { getMe } from "@/lib/queries/me";
 
 // The WhatsApp bot keeps its own database (private messages stay out of the
 // nonprofit's database). Users log in to weekly-schedule only, so the bot
@@ -13,16 +13,12 @@ export type BotAccount = "personal" | "business";
 const isAccount = (v: unknown): v is BotAccount => v === "personal" || v === "business";
 
 // The logged-in weekly-schedule admin and the bot accounts they may see.
+// Same cached lookup as the admin layout, so a page costs one profile query.
 export const getBotUser = cache(async () => {
-  const ws = await createWsClient();
-  const {
-    data: { user },
-  } = await ws.auth.getUser();
-  if (!user) return null;
-  const { data: profile } = await ws.from("profiles").select("role, wa_accounts").eq("id", user.id).maybeSingle();
-  if (profile?.role !== "admin") return null;
-  const allowed = ((profile?.wa_accounts ?? []) as string[]).filter(isAccount);
-  return { id: user.id, allowed };
+  const me = await getMe();
+  if (!me || me.profile?.role !== "admin") return null;
+  const allowed = ((me.profile?.wa_accounts ?? []) as string[]).filter(isAccount);
+  return { id: me.userId, allowed };
 });
 
 function botClient() {

@@ -6,6 +6,8 @@ import { getSpace } from "@/bot/lib/space";
 
 // Several Claude round trips plus database searches.
 export const maxDuration = 120;
+// Next to the bot's database (Ireland), like the bot pages.
+export const preferredRegion = "dub1";
 
 export async function POST(req: Request) {
   // /api is outside the middleware: check the weekly-schedule login here.
