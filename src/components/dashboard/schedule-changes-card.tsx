@@ -7,6 +7,7 @@ import { DAYS_SHORT } from "@/lib/utils/constants";
 import { format } from "date-fns";
 import { LessonEditDialog } from "@/components/schedule/lesson-edit-dialog";
 import { markChangeAsSeen, unmarkChangeAsSeen } from "@/lib/actions/schedule";
+import { CollapsibleSection } from "@/components/dashboard/collapsible-section";
 
 interface ScheduleChangeLesson {
   id: string;
@@ -92,11 +93,7 @@ export function ScheduleChangesCard({
 
   return (
     <>
-      <div className="rounded-xl border border-orange-200 bg-background">
-        <div className="flex items-center gap-2 border-b border-orange-200 bg-orange-50/50 p-4 rounded-t-xl">
-          <ArrowLeftRight size={18} className="text-orange-500" />
-          <h3 className="text-lg font-semibold">שינויים</h3>
-        </div>
+      <CollapsibleSection id="changes" title="שינויים" count={activeChanges.length} icon={<ArrowLeftRight size={18} />} tone="orange">
 
         {/* Tabs */}
         <div className="flex border-b border-orange-200">
@@ -187,7 +184,7 @@ export function ScheduleChangesCard({
             })}
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {editingLesson && (
         <LessonEditDialog

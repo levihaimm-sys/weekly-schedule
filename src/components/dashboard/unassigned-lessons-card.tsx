@@ -6,6 +6,7 @@ import { formatTime } from "@/lib/utils/date";
 import { DAYS_SHORT, INSTRUCTOR_REQUEST_TYPES } from "@/lib/utils/constants";
 import { format } from "date-fns";
 import { LessonEditDialog } from "@/components/schedule/lesson-edit-dialog";
+import { CollapsibleSection } from "@/components/dashboard/collapsible-section";
 
 interface UnassignedLesson {
   id: string;
@@ -45,13 +46,7 @@ export function UrgentAlertsCard({
 
   return (
     <>
-      <div className="rounded-xl border border-red-200 bg-background">
-        <div className="flex items-center gap-2 border-b border-red-200 bg-red-50/50 p-4 rounded-t-xl">
-          <AlertTriangle size={18} className="text-red-500" />
-          <h3 className="text-lg font-semibold">
-            התראות דחופות ({totalCount})
-          </h3>
-        </div>
+      <CollapsibleSection id="urgent" title="התראות דחופות" count={totalCount} icon={<AlertTriangle size={18} />} tone="red">
 
         <div className="divide-y divide-border">
           {/* Unassigned lessons */}
@@ -124,7 +119,7 @@ export function UrgentAlertsCard({
             );
           })}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {editingLesson && (
         <LessonEditDialog

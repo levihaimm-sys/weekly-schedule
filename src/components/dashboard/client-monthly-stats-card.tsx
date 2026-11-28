@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, BarChart3 } from "lucide-react";
+import { CollapsibleSection } from "@/components/dashboard/collapsible-section";
 import type { ClientMonthlyStat } from "@/lib/queries/client-monthly-stats";
 
 const MONTHS = [
@@ -122,12 +123,13 @@ export function ClientMonthlyStatsCard({
   });
 
   return (
-    <div className="rounded-xl border border-border bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div>
-          <h3 className="text-lg font-bold">סיכום חודשי לפי לקוח</h3>
-          <p className="text-xs text-muted-foreground">בסוגריים: האחוז בחודש הקודם</p>
-        </div>
+    <CollapsibleSection
+      id="monthly-stats"
+      title={`סיכום חודשי לפי לקוח · ${MONTHS[month - 1]} ${year}`}
+      subtitle="בסוגריים: האחוז בחודש הקודם"
+      icon={<BarChart3 size={18} />}
+      tone="stone"
+      actions={
         <select
           value={`${year}-${month}`}
           onChange={(e) => changeMonth(e.target.value)}
@@ -137,7 +139,8 @@ export function ClientMonthlyStatsCard({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-      </div>
+      }
+    >
 
       {rows.length === 0 ? (
         <p className="px-4 py-6 text-center text-sm text-muted-foreground">אין שיעורים בחודש זה</p>
@@ -198,6 +201,6 @@ export function ClientMonthlyStatsCard({
           </table>
         </div>
       )}
-    </div>
+    </CollapsibleSection>
   );
 }
