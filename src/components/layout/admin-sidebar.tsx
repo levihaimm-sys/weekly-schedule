@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -27,29 +27,11 @@ import {
   FlaskConical,
   Receipt,
   MessageCircle,
-  Sun,
-  Layers,
-  Sparkles,
-  MessagesSquare,
-  Lightbulb,
-  SlidersHorizontal,
-  Plug,
-  List,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
-import { NAV as BOT_NAV, NAV_EXTRA as BOT_NAV_EXTRA, type BotSpace } from "@/bot/lib/nav";
-
-const BOT_ICONS: Record<string, typeof ClipboardList> = {
-  sun: Sun,
-  topics: Layers,
-  ask: Sparkles,
-  chats: MessagesSquare,
-  learn: Lightbulb,
-  prefs: SlidersHorizontal,
-  plug: Plug,
-  list: List,
-};
+import type { BotSpace } from "@/bot/lib/nav";
 
 type NavItem = { href: string; label: string; icon: typeof ClipboardList };
 type NavSection = { title: string | null; items: NavItem[] };
@@ -77,15 +59,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "תוכן ותפעול",
+    title: "תפעול",
     items: [
       { href: "/lesson-plans", label: "ציוד", icon: Package },
       { href: "/lesson-plans/assignments", label: "הקצאות שבועיות", icon: BookOpen },
-    ],
-  },
-  {
-    title: "תוכניות ופעילויות",
-    items: [
       { href: "/camps", label: "קייטנות", icon: Tent },
       { href: "/staffing", label: "שיבוץ שנה הבאה", icon: GitMerge },
     ],
@@ -99,6 +76,38 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+const OPEN_KEY = "admin-sidebar-open";
+
+function isItemActive(href: string, pathname: string): boolean {
+  switch (href) {
+    case "/bot":
+      return pathname === "/bot" || pathname.startsWith("/bot/");
+    case "/schedule":
+      return pathname === "/schedule";
+    case "/lesson-plans":
+      return (
+        pathname === "/lesson-plans" ||
+        pathname === "/lesson-plans/inventory" ||
+        pathname === "/lesson-plans/confirmations-review" ||
+        pathname === "/lesson-plans/equipment-report" ||
+        pathname === "/lesson-plans/weekly-equipment" ||
+        pathname === "/equipment-distribution"
+      );
+    case "/lesson-plans/assignments":
+    case "/schedule/weekly-overview":
+    case "/schedule/weekly-table":
+      return pathname.startsWith(href);
+    case "/schedule/weekly":
+      return (
+        pathname.startsWith("/schedule/weekly") &&
+        !pathname.startsWith("/schedule/weekly-overview") &&
+        !pathname.startsWith("/schedule/weekly-table")
+      );
+    default:
+      return pathname === href || pathname.startsWith(href + "/");
+  }
+}
 
 export function AdminSidebar({
   isOwner = false,
@@ -136,21 +145,51 @@ export function AdminSidebar({
         ]
       : NAV_SECTIONS;
 
-  // WhatsApp bot (/bot): only for users with bot access, right under the dashboard.
+  // WhatsApp bot (/bot): only for users with bot access, one link right under
+  // the dashboard. Its own pages are tabs at the top of the bot screens.
   const allSections: NavSection[] = botSpace
     ? [
-        navSections[0],
         {
-          title: botSpace === "business" ? "וואטסאפ · עמותה" : "וואטסאפ · פרטי",
-          items: [...BOT_NAV[botSpace], ...BOT_NAV_EXTRA].map((i) => ({
-            href: i.href,
-            label: i.label,
-            icon: BOT_ICONS[i.icon] ?? MessageCircle,
-          })),
+          title: null,
+          items: [
+            ...navSections[0].items,
+            {
+              href: "/bot",
+              label: botSpace === "business" ? "וואטסאפ · עמותה" : "וואטסאפ · פרטי",
+              icon: MessageCircle,
+            },
+          ],
         },
         ...navSections.slice(1),
       ]
     : navSections;
+
+  const activeSection = allSections.find((s) => s.title && s.items.some((i) => isItemActive(i.href, pathname)))?.title ?? null;
+
+  // Which groups are open. A group the user never touched is open only when
+  // it holds the current page. Remembered per browser.
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(OPEN_KEY);
+      if (saved) setOpenMap(JSON.parse(saved));
+    } catch {}
+  }, []);
+  // Moving to a page always opens its group.
+  useEffect(() => {
+    if (activeSection) setOpenMap((m) => (m[activeSection] ? m : { ...m, [activeSection]: true }));
+  }, [activeSection]);
+
+  const isOpen = (title: string) => openMap[title] ?? title === activeSection;
+  const toggle = (title: string) => {
+    setOpenMap((m) => {
+      const next = { ...m, [title]: !isOpen(title) };
+      try {
+        localStorage.setItem(OPEN_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   return (
     <>
@@ -197,57 +236,48 @@ export function AdminSidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-          {allSections.map((section) => (
-            <div key={section.title ?? "root"} className="space-y-1">
-              {section.title && (
-                <div className="rounded-md border-s-4 border-primary bg-primary/15 px-3 py-1.5 text-sm font-bold tracking-wide text-[#3F5C3F]">
-                  {section.title}
-                </div>
-              )}
-              {section.items.map((item) => {
-                const isActive =
-                  item.href === "/bot"
-                    ? pathname === "/bot"
-                    : item.href === "/schedule"
-                    ? pathname === "/schedule"
-                    : item.href === "/lesson-plans"
-                      ? pathname === "/lesson-plans" ||
-                        pathname === "/lesson-plans/inventory" ||
-                        pathname === "/lesson-plans/confirmations-review" ||
-                        pathname === "/lesson-plans/equipment-report" ||
-                        pathname === "/lesson-plans/weekly-equipment" ||
-                        pathname === "/equipment-distribution"
-                      : item.href === "/lesson-plans/assignments"
-                        ? pathname.startsWith("/lesson-plans/assignments")
-                        : item.href === "/schedule/weekly-overview"
-                          ? pathname.startsWith("/schedule/weekly-overview")
-                          : item.href === "/schedule/weekly-table"
-                            ? pathname.startsWith("/schedule/weekly-table")
-                            : item.href === "/schedule/weekly"
-                              ? pathname.startsWith("/schedule/weekly") &&
-                                !pathname.startsWith("/schedule/weekly-overview") &&
-                                !pathname.startsWith("/schedule/weekly-table")
-                              : pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-secondary/30 text-[#1C1917] font-semibold"
-                        : "rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
+          {allSections.map((section) => {
+            const open = section.title ? isOpen(section.title) : true;
+            return (
+              <div key={section.title ?? "root"} className="space-y-0.5">
+                {section.title && (
+                  <button
+                    type="button"
+                    onClick={() => toggle(section.title!)}
+                    aria-expanded={open}
+                    className="flex w-full items-center gap-2 rounded-md border-s-4 border-primary bg-primary/15 px-3 py-1.5 text-start text-sm font-bold tracking-wide text-[#3F5C3F] hover:bg-primary/25"
                   >
-                    <item.icon size={20} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+                    <span className="flex-1">{section.title}</span>
+                    {!open && section.title === activeSection && (
+                      <span className="size-2 rounded-full bg-primary" aria-label="המסך הנוכחי בקבוצה הזו" />
+                    )}
+                    <ChevronDown size={16} className={cn("transition-transform", open && "rotate-180")} />
+                  </button>
+                )}
+                {open &&
+                  section.items.map((item) => {
+                    const isActive = isItemActive(item.href, pathname);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors",
+                          isActive
+                            ? "bg-secondary/30 text-[#1C1917] font-semibold"
+                            : "rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <item.icon size={18} />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="border-t border-border p-4">

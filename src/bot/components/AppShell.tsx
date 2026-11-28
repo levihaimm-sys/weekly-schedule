@@ -2,7 +2,7 @@ import Link from "next/link";
 import { setSpace } from "@/bot/actions/space";
 import { Icon } from "@/bot/components/Icon";
 import { minutesAgo } from "@/bot/lib/format";
-import { NAV, type NavItem } from "@/bot/lib/nav";
+import { NAV, NAV_EXTRA, type NavItem } from "@/bot/lib/nav";
 import { getSpace, SPACES, type Space } from "@/bot/lib/space";
 
 // Each world's face: Haim's photo for personal, the nonprofit's full logo
@@ -92,8 +92,8 @@ export async function AppShell({ current, children }: { current: string; childre
     </div>
   );
 
-  // The menu itself is in weekly-schedule's sidebar. On phones the sidebar
-  // hides behind a button, so the same menu also shows here as a strip.
+  // The bot's menu: a strip of tabs at the top of every bot page. The
+  // weekly-schedule sidebar only has one "וואטסאפ" link to here.
   const navLink = (item: NavItem) => {
     const on = item.href === current;
     return (
@@ -128,7 +128,11 @@ export async function AppShell({ current, children }: { current: string; childre
             {connected ? "מחובר לוואטסאפ" : "לא מחובר"}
           </Link>
         </div>
-        {space && <nav className="md:hidden flex gap-1 overflow-x-auto -mx-1 px-1">{NAV[space].map(navLink)}</nav>}
+        {space && (
+          <nav className="flex gap-1 overflow-x-auto -mx-1 px-1">
+            {[...NAV[space], ...NAV_EXTRA.filter((i) => i.href !== "/bot/connection")].map(navLink)}
+          </nav>
+        )}
       </div>
 
       {space && !connected && current !== "/bot/connection" && (
