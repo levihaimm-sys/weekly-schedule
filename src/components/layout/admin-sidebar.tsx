@@ -28,6 +28,7 @@ import {
   Receipt,
   MessageCircle,
   ChevronDown,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { logout } from "@/lib/actions/auth";
@@ -144,6 +145,7 @@ export function AdminSidebar({
             { href: "/payroll", label: "שכר מדריכים", icon: Banknote },
             { href: "/invoices", label: "חשבוניות", icon: Receipt },
             { href: "/profit-loss", label: "רווח והפסד", icon: TrendingUp },
+            { href: "/ad-campaigns", label: "קמפייני גיוס", icon: Megaphone },
             { href: "/sandbox", label: "סנדבוקס", icon: FlaskConical },
           ],
         },
